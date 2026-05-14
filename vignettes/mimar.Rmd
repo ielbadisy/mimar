@@ -1,0 +1,390 @@
+---
+title: "Compact Multiple Imputation Workflows with mimar"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Compact Multiple Imputation Workflows with mimar}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Introduction
+
+`mimar` exposes a compact grammar for missing-data description, artificial missingness, imputation, evaluation, pooling, and plotting:
+
+```r
+describe()
+ampute()
+impute()
+evaluate()
+pool()
+plot()
+```
+
+The package exposes missing-data verbs plus a small imputer learner contract. Every imputer has the same standard lifecycle: construct it with `imputer()`, fit it with `fit()`, and generate imputations with `predict()`. The chained-equation imputation engine is selected with one public argument:
+
+```r
+impute(data, m = 5, imputer = "mi")
+```
+
+Supported imputer names include classical methods such as `"pmm"`, `"norm"`, `"logreg"`, and `"polyreg"`, plus ML learners such as `"randomForest"`, `"knn"`, `"xgboost"`, `"svm"`, `"bart"`, `"naive_bayes"`, `"rpart"`, and `"glmnet"`.
+
+Let \(X\) be an \(n \times p\) data matrix with entries \(X_{ij}\), where \(i = 1,\ldots,n\) indexes rows and \(j = 1,\ldots,p\) indexes variables. Define the missingness indicator
+
+\[
+R_{ij} =
+\begin{cases}
+1, & X_{ij}\ \text{is missing},\\
+0, & X_{ij}\ \text{is observed}.
+\end{cases}
+\]
+
+`mimar` uses three masks internally:
+
+* `mask_original`: cells already missing before artificial amputation;
+* `mask_added`: cells newly made missing by `ampute()`;
+* `mask_total`: all missing cells after amputation.
+
+When known truth is available, recovery is evaluated only where `mask_added == TRUE`. Naturally missing cells are preserved and not scored against truth.
+
+```{r}
+library(mimar)
+set.seed(1)
+dat <- data.frame(
+  age = rnorm(120, 50, 10),
+  bmi = rnorm(120, 25, 4),
+  sex = factor(sample(c("F", "M"), 120, TRUE)),
+  group = factor(sample(c("A", "B", "C"), 120, TRUE)),
+  smoker = sample(c(TRUE, FALSE), 120, TRUE)
+)
+
+head(dat)
+```
+
+## Missingness Description
+
+`describe()` computes variable summaries, row summaries, missingness patterns, and complete-case counts. For variable \(j\), the missing proportion is
+
+\[
+\hat{\pi}_j = \frac{1}{n}\sum_{i=1}^{n} R_{ij}.
+\]
+
+The complete-case count is
+
+\[
+n_{\mathrm{cc}} = \sum_{i=1}^{n} I(R_{i1}=0,\ldots,R_{ip}=0).
+\]
+
+```{r}
+d <- describe(dat)
+d
+summary(d)
+head(d$row_summary)
+```
+
+```{r, fig.width=7, fig.height=4.5}
+plot(d)
+```
+
+`describe("imputers")` lists the compact imputer names that can be passed to `impute()`.
+
+```{r}
+available_imputers <- describe("imputers")
+available_imputers
+```
+
+```{r, fig.width=7, fig.height=4.5}
+plot(available_imputers)
+```
+
+## Missingness Mechanisms and Amputation
+
+`ampute()` introduces artificial missingness for simulation, benchmarking, teaching, and sensitivity analysis. It does not prove or infer the real-world mechanism for an observed dataset.
+
+### MCAR
+
+Missing completely at random is defined as
+
+\[
+P(R_j = 1 \mid X_{\mathrm{obs}}, X_{\mathrm{mis}}) = P(R_j = 1).
+\]
+
+In `mimar`, MCAR missingness is generated independently of observed and unobserved values. Existing missing cells are preserved, and new missingness is added only among observed cells.
+
+### MAR
+
+Missing at random is defined as
+
+\[
+P(R_j = 1 \mid X_{\mathrm{obs}}, X_{\mathrm{mis}})
+= P(R_j = 1 \mid X_{\mathrm{obs}}).
+\]
+
+For MAR amputation, missingness in `target` depends on observed variables in `by`. The target variable itself must not be included in `by`. `mimar` constructs a standardized observed predictor score \(s_i\) and uses
+
+\[
+\eta_i = \alpha + \beta s_i,
+\qquad
+p_i = \operatorname{logit}^{-1}(\eta_i)
+= \frac{1}{1 + \exp(-\eta_i)}.
+\]
+
+The intercept \(\alpha\) is calibrated so that
+
+\[
+\frac{1}{n}\sum_{i=1}^{n} p_i \approx \texttt{prop}.
+\]
+
+### MNAR
+
+Missing not at random is defined as
+
+\[
+P(R_j = 1 \mid X_{\mathrm{obs}}, X_{\mathrm{mis}})
+= P(R_j = 1 \mid X_j).
+\]
+
+For numeric variables, `direction = "right"` makes larger values more likely missing, `direction = "left"` makes smaller values more likely missing, and `direction = "both"` makes extreme values more likely missing. For categorical variables, missingness may depend on category patterns or level frequencies.
+
+```{r}
+a_mcar <- ampute(dat, prop = 0.1, mechanism = "MCAR", seed = 1)
+a_mar <- ampute(dat, prop = 0.25, mechanism = "MAR",
+                target = c("bmi", "group"), by = c("age", "sex"), seed = 1)
+a_mnar <- ampute(dat, prop = 0.2, mechanism = "MNAR",
+                 target = "bmi", direction = "right", seed = 1)
+
+a_mar
+summary(a_mar)
+head(a_mar$mask_added)
+```
+
+```{r, fig.width=7, fig.height=4.5}
+plot(a_mar)
+```
+
+## Single and Multiple Imputation
+
+`impute()` always returns a `mimar_imputation` object. For `m = 1`, the completed dataset is stored in `imputations[[1]]`; a raw data frame is not returned.
+
+For `"meanmode"`, numeric and integer variables are imputed with the median:
+
+\[
+\tilde{x}_j = \operatorname{median}\{x_{ij}: R_{ij}=0\}.
+\]
+
+Logical, factor, and character variables are imputed with the mode:
+
+\[
+\tilde{x}_j = \arg\max_c \sum_{i=1}^{n} I(x_{ij}=c,\ R_{ij}=0).
+\]
+
+This imputer is deterministic, so multiple completed datasets are identical and `stochastic = FALSE`.
+
+```{r}
+i1 <- impute(a_mar, m = 1, imputer = "meanmode", seed = 1)
+i5 <- impute(a_mar, m = 5, imputer = "meanmode", seed = 1)
+
+i1
+i5
+summary(i5)
+length(i5$imputations)
+anyNA(i5$imputations[[1]])
+```
+
+```{r, fig.width=7, fig.height=4.5}
+plot(i5)
+```
+
+## Imputer Learners
+
+`describe("imputers")` lists the standalone imputer learners. Classical learners are implemented in `mimar`; ML learners use the required `funcml` fit/predict API behind the same `mimar` imputer contract.
+
+Each imputer declares whether it supports numeric, binary, and multiclass targets. If an incompatible imputer is requested for a variable, `mimar` errors instead of falling back silently.
+
+The chained ML imputation algorithm is:
+
+1. initialize missing predictors with the mean/mode imputer;
+2. for each incomplete variable \(X_j\), split rows into observed and missing sets;
+3. fit the selected learner on \(X_j\) using all other variables \(X_{-j}\) as predictors;
+4. predict missing values in \(X_j\);
+5. repeat for `maxit` iterations.
+
+Conceptually, for each incomplete variable \(j\), the internal model is
+
+\[
+\hat{f}_j: X_{-j} \rightarrow X_j.
+\]
+
+The public API still uses only `imputer`:
+
+```{r}
+describe("imputers")
+```
+
+Use any listed learner through the same compact API:
+
+```r
+impute(a_mar, m = 5, imputer = "randomForest", seed = 1)
+```
+
+The following chunk runs a lightweight classical chained-equation imputation.
+
+```{r}
+i_pmm <- impute(a_mar, m = 1, imputer = "mi", maxit = 1, seed = 1)
+i_pmm
+evaluate(i_pmm)$summary
+```
+
+`mice` is not wrapped. It remains a methodological reference for chained equations, while `mimar` owns the imputation loop and uses standalone imputer learners.
+
+## Evaluation Using Known Truth
+
+`evaluate()` summarizes imputation quality. Without truth, it reports distribution and variability diagnostics. With amputation truth, it also computes recovery metrics on artificially amputed cells.
+
+For numeric variables, with truth \(y_i\) and imputed values \(\hat{y}_i\), the metrics are:
+
+\[
+\mathrm{RMSE} =
+\sqrt{\frac{1}{k}\sum_{i=1}^{k}(\hat{y}_i-y_i)^2},
+\qquad
+\mathrm{MAE} =
+\frac{1}{k}\sum_{i=1}^{k}|\hat{y}_i-y_i|,
+\]
+
+\[
+\mathrm{Bias} =
+\frac{1}{k}\sum_{i=1}^{k}(\hat{y}_i-y_i),
+\qquad
+\mathrm{Cor} = \operatorname{cor}(y,\hat{y}).
+\]
+
+For categorical variables, accuracy is
+
+\[
+\mathrm{Accuracy} =
+\frac{1}{k}\sum_{i=1}^{k} I(\hat{y}_i = y_i).
+\]
+
+Balanced accuracy is the mean class-specific recall:
+
+\[
+\mathrm{BalancedAccuracy}
+= \frac{1}{C}\sum_{c=1}^{C}
+\frac{\sum_i I(y_i=c,\ \hat{y}_i=c)}{\sum_i I(y_i=c)}.
+\]
+
+```{r}
+e <- evaluate(i5)
+e
+e$recovery
+e$variability
+```
+
+```{r, fig.width=7, fig.height=4.5}
+plot(e)
+```
+
+## Pooling External Results
+
+`mimar` does not fit user models. Supply external results and pool them.
+
+For scalar estimates \(q_1,\ldots,q_m\) with variances \(u_i = \mathrm{SE}(q_i)^2\), Rubin's rules are:
+
+\[
+\bar{q} = \frac{1}{m}\sum_{i=1}^{m} q_i,
+\qquad
+\bar{u} = \frac{1}{m}\sum_{i=1}^{m} u_i,
+\]
+
+\[
+b = \frac{1}{m-1}\sum_{i=1}^{m}(q_i-\bar{q})^2,
+\qquad
+t = \bar{u} + \left(1+\frac{1}{m}\right)b,
+\]
+
+\[
+\mathrm{SE}_{\mathrm{pooled}} = \sqrt{t}.
+\]
+
+```{r}
+external_results <- data.frame(
+  term = rep(c("age", "bmi"), each = 5),
+  estimate = c(0.10, 0.11, 0.09, 0.12, 0.10, 0.30, 0.32, 0.29, 0.31, 0.33),
+  std.error = c(0.04, 0.05, 0.04, 0.05, 0.04, 0.08, 0.09, 0.08, 0.09, 0.08),
+  imputation = rep(1:5, times = 2)
+)
+p <- pool(external_results)
+p
+```
+
+```{r, fig.width=6, fig.height=4}
+plot(p)
+```
+
+Metrics without standard errors are pooled by their mean and between-imputation variability:
+
+\[
+\bar{m} = \frac{1}{M}\sum_{r=1}^{M} m_r,
+\qquad
+s_m^2 = \frac{1}{M-1}\sum_{r=1}^{M}(m_r-\bar{m})^2.
+\]
+
+```{r}
+metrics <- data.frame(
+  metric = rep(c("auc", "rmse"), each = 5),
+  value = c(0.81, 0.83, 0.80, 0.82, 0.84, 1.2, 1.1, 1.3, 1.2, 1.0),
+  imputation = rep(1:5, times = 2)
+)
+
+pool(metrics)
+```
+
+## Plotting
+
+Each core object has a base R plot method:
+
+```{r, fig.width=7, fig.height=4.5}
+plot(describe(dat))
+plot(a_mar)
+plot(i5)
+plot(e)
+plot(p)
+plot(describe("imputers"))
+```
+
+`plot.mimar_missing()` optionally accepts `engine = "ggplot2"` when `ggplot2` is installed.
+
+```{r, eval=requireNamespace("ggplot2", quietly = TRUE), fig.width=7, fig.height=4.5}
+plot(describe(a_mar$data), engine = "ggplot2")
+```
+
+## Object Classes
+
+The returned objects are stable S3 classes:
+
+```{r}
+sapply(
+  list(
+    missing = d,
+    amputation = a_mar,
+    imputation = i5,
+    evaluation = e,
+    pool = p,
+    imputers = available_imputers
+  ),
+  function(x) class(x)[1]
+)
+```
+
+These objects are ordinary lists or data frames with stable fields, so they can be inspected directly.
+
+## Limitations
+
+The baseline `"meanmode"` imputer supports numeric, integer, logical, factor, character, and Date variables. Unsupported variable types are left unchanged with a warning.
+
+ML learners are provided through `funcml`, which is a package dependency. The user-facing object remains a `mimar` imputer with the same `fit()` and `predict()` behavior as classical learners.
+
+Missingness mechanisms are data-generating assumptions. Observed data alone cannot prove that real-world missingness is MCAR, MAR, or MNAR.

@@ -1,0 +1,104 @@
+test_that("describe data frames and imputers", {
+  dat <- data.frame(a = c(1, NA, 3), b = factor(c("x", "y", NA)))
+  d <- describe(dat)
+  expect_s3_class(d, "mimar_missing")
+  expect_equal(d$n, 3)
+  expect_equal(d$p, 2)
+  expect_equal(d$variable_summary$n_missing, c(1, 1))
+  expect_equal(nrow(d$row_summary), 3)
+  expect_true(nrow(d$pattern) >= 1)
+  expect_s3_class(describe("imputers"), "mimar_imputers")
+})
+
+test_that("ampute mechanisms work", {
+  set.seed(1)
+  dat <- data.frame(a = rnorm(100), b = rnorm(100), g = factor(sample(letters[1:3], 100, TRUE)))
+  dat$a[1] <- NA
+  mcar <- ampute(dat, prop = .2, mechanism = "MCAR", target = "b", seed = 1)
+  expect_s3_class(mcar, "mimar_amputation")
+  expect_true(sum(mcar$mask_added$b) > 5)
+  expect_true(is.na(mcar$data$a[1]))
+  expect_false(mcar$mask_added$a[1])
+  expect_error(ampute(dat, mechanism = "MAR", target = "b"), "`by`")
+  expect_error(ampute(dat, mechanism = "MAR", target = "b", by = "b"), "must not include")
+  expect_s3_class(ampute(dat, prop = .2, mechanism = "MAR", target = "b", by = c("a", "g"), seed = 2), "mimar_amputation")
+  expect_s3_class(ampute(dat, prop = .2, mechanism = "MNAR", target = "b", direction = "right", seed = 3), "mimar_amputation")
+})
+
+test_that("meanmode imputation works", {
+  dat <- data.frame(a = c(1, NA, 3), b = factor(c("x", "y", NA)), c = c(TRUE, NA, FALSE))
+  i1 <- impute(dat, m = 1, imputer = "meanmode", seed = 1)
+  i3 <- impute(dat, m = 3, imputer = "meanmode", seed = 1)
+  expect_s3_class(i1, "mimar_imputation")
+  expect_length(i1$imputations, 1)
+  expect_length(i3$imputations, 3)
+  expect_false(anyNA(i1$imputations[[1]]))
+  expect_false(i1$stochastic)
+  expect_error(impute(dat, imputer = "not_real"), "Unknown imputer")
+})
+
+test_that("internal chained equation imputation uses fit/predict steps", {
+  dat <- data.frame(
+    a = c(1, 2, NA, 4, 5, NA, 7, 8),
+    b = factor(c("x", "x", "y", NA, "y", "x", NA, "y")),
+    c = c(TRUE, FALSE, TRUE, TRUE, NA, FALSE, TRUE, NA)
+  )
+  imp <- impute(dat, m = 2, imputer = "mi", maxit = 2, seed = 10)
+  expect_s3_class(imp, "mimar_imputation")
+  expect_length(imp$imputations, 2)
+  expect_false(anyNA(imp$imputations[[1]]))
+  expect_equal(imp$diagnostics$strategy, "chained_equations")
+  expect_true(all(imp$variable_methods[c("a", "b", "c")] %in% c("pmm", "logreg")))
+})
+
+test_that("imputer learners expose a standard fit/predict contract", {
+  dat <- data.frame(x = c(1, 2, 3, 4), z = factor(c("a", "b", "a", "b")))
+  learner <- imputer("pmm")
+  fitted <- fit(learner, x = dat["z"], y = dat$x, variable = "x")
+  pred <- predict(fitted, dat["z"])
+  expect_s3_class(learner, "mimar_imputer")
+  expect_s3_class(fitted, "mimar_imputer_fit")
+  expect_length(pred, 4)
+  expect_equal(imputer("knn")$source, "funcml")
+  expect_equal(imputer("rpart")$learner, "rpart")
+  expect_equal(imputer("glmnet")$learner, "glmnet")
+  expect_error(imputer("mice"), "Unknown imputer")
+})
+
+test_that("evaluate uses amputation truth", {
+  dat <- data.frame(a = rnorm(50), b = factor(sample(c("x", "y"), 50, TRUE)))
+  a <- ampute(dat, prop = .2, mechanism = "MCAR", seed = 1)
+  i <- impute(a, m = 2, imputer = "meanmode")
+  e <- evaluate(i)
+  expect_s3_class(e, "mimar_evaluation")
+  expect_true(all(c("summary", "distribution", "recovery", "variability") %in% names(e)))
+  expect_true(e$summary$evaluated_cells > 0)
+})
+
+test_that("pool estimates and metrics", {
+  res <- data.frame(term = rep(c("a", "b"), each = 3), estimate = 1:6 / 10,
+                    std.error = .1, imputation = rep(1:3, 2))
+  p <- pool(res)
+  expect_s3_class(p, "mimar_pool")
+  expect_equal(nrow(p$pooled), 2)
+  expect_true(all(c("df", "p.value", "relative_increase_variance") %in% names(p$pooled)))
+  met <- data.frame(metric = rep("rmse", 3), value = c(1, 1.2, .9), imputation = 1:3)
+  pm <- pool(met)
+  expect_equal(pm$type, "metric")
+  expect_error(pool(data.frame(x = 1)), "Pooling requires")
+})
+
+test_that("plot methods run", {
+  dat <- data.frame(a = c(1, NA, 3), b = factor(c("x", "y", NA)))
+  d <- describe(dat)
+  a <- ampute(data.frame(a = 1:20, b = rnorm(20)), prop = .1, seed = 1)
+  i <- impute(a, m = 1)
+  e <- evaluate(i)
+  p <- pool(data.frame(term = rep("a", 2), estimate = c(1, 2), std.error = c(.1, .1), imputation = 1:2))
+  expect_silent(plot(d))
+  expect_silent(plot(a))
+  expect_silent(plot(i))
+  expect_silent(plot(e))
+  expect_silent(plot(p))
+  expect_silent(plot(describe("imputers")))
+})
