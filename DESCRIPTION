@@ -19,5 +19,7 @@ Suggests:
     rmarkdown,
     ggplot2,
     pkgload
+Remotes:
+    ielbadisy/funcml
 Config/testthat/edition: 3
 VignetteBuilder: knitr
