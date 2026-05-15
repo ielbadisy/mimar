@@ -1,5 +1,11 @@
 .mimar_stop <- function(..., call. = FALSE) stop(paste0(...), call. = call.)
 
+.rbind_or_empty <- function(x) {
+  x <- x[!vapply(x, is.null, logical(1))]
+  if (!length(x)) return(data.frame())
+  do.call(rbind, x)
+}
+
 .check_data_frame <- function(x) {
   if (!is.data.frame(x)) .mimar_stop("`x` must be a data frame.")
   invisible(x)
@@ -93,6 +99,55 @@
   do.call(rbind, lapply(names(original), function(nm) {
     data.frame(variable = nm, n_imputed = sum(is.na(original[[nm]]) & !is.na(completed[[nm]])), row.names = NULL)
   }))
+}
+
+.imputation_variable_summary <- function(object) {
+  original <- object$data_original
+  first <- object$imputations[[1]]
+  methods <- object$variable_methods %||% stats::setNames(rep(NA_character_, length(original)), names(original))
+  do.call(rbind, lapply(names(original), function(nm) {
+    miss_before <- is.na(original[[nm]])
+    remaining <- is.na(first[[nm]])
+    vals <- vapply(object$imputations, function(d) {
+      v <- d[[nm]]
+      if (is.numeric(v) || is.integer(v) || inherits(v, "Date")) {
+        return(mean(as.numeric(v), na.rm = TRUE))
+      }
+      length(unique(v[!is.na(v)]))
+    }, numeric(1))
+    data.frame(
+      variable = nm,
+      type = .variable_type(original[[nm]]),
+      method = unname(methods[[nm]] %||% NA_character_),
+      n_missing_before = sum(miss_before),
+      prop_missing_before = mean(miss_before),
+      n_imputed = sum(miss_before & !remaining),
+      prop_imputed = if (any(miss_before)) sum(miss_before & !remaining) / sum(miss_before) else 0,
+      remaining_missing = sum(remaining),
+      between_imputation_sd = if (length(vals) > 1) stats::sd(vals, na.rm = TRUE) else NA_real_,
+      row.names = NULL
+    )
+  }))
+}
+
+.imputation_overview <- function(object) {
+  original <- object$data_original
+  first <- object$imputations[[1]]
+  total_missing <- sum(is.na(original))
+  total_imputed <- sum(is.na(original) & !is.na(first))
+  data.frame(
+    rows = nrow(original),
+    columns = ncol(original),
+    n_imputations = object$m,
+    imputer = object$imputer,
+    maxit = object$maxit,
+    stochastic = object$stochastic,
+    total_missing_before = total_missing,
+    total_imputed = total_imputed,
+    remaining_missing = sum(is.na(first)),
+    variables_imputed = sum(colSums(is.na(original)) > 0),
+    row.names = NULL
+  )
 }
 
 .balanced_accuracy <- function(truth, pred) {

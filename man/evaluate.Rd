@@ -20,5 +20,7 @@ object is available. Numeric targets are summarized with errors such as
 \deqn{e_{ij} = \tilde X_{ij} - X_{ij},}
 while categorical targets are summarized with agreement and balanced
 accuracy across classes. When no truth is available, \code{evaluate()} reports
-diagnostics that can be computed from the imputed data alone.
+diagnostics that can be computed from the imputed data alone. Distribution,
+variability, and recovery summaries are computed across all completed data
+sets; per-imputation recovery metrics are kept in \code{recovery_by_imputation}.
 }
