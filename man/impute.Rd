@@ -35,7 +35,9 @@ A \code{mimar_imputation} object.
 \code{impute()} performs single or multiple imputation. The default
 \code{imputer = "mi"} runs a chained-equation algorithm. A named imputer such as
 \code{"pmm"}, \code{"logreg"}, \code{"randomForest"}, or \code{"glmnet"} can also be supplied to
-use that learner for every incomplete variable it supports.
+use that learner for every incomplete variable it supports. The returned
+object keeps completed datasets first; use \code{complete()} to extract one
+completed dataset, all completed datasets, or a stacked long data frame.
 }
 \details{
 Let \eqn{X_j} be an incomplete variable and \eqn{X_{-j}} all remaining

@@ -167,7 +167,7 @@ plot(a_mar)
 
 ## Single and Multiple Imputation
 
-`impute()` always returns a `mimar_imputation` object. For `m = 1`, the completed dataset is stored in `imputations[[1]]`; a raw data frame is not returned.
+`impute()` always returns a `mimar_imputation` object. The completed datasets are the primary payload: use `complete()` to extract one completed dataset, all completed datasets, or a stacked long data frame.
 
 For `"meanmode"`, numeric and integer variables are imputed with the median:
 
@@ -189,6 +189,8 @@ i5 <- impute(a_mar, m = 5, imputer = "meanmode", seed = 1)
 
 i1
 i5
+complete(i1)
+complete(i5, "long")
 summary(i5)
 length(i5$imputations)
 anyNA(i5$imputations[[1]])
@@ -196,6 +198,9 @@ anyNA(i5$imputations[[1]])
 
 ```{r, fig.width=7, fig.height=4.5}
 plot(i5)
+plot(i5, type = "missing")
+plot(i5, type = "density")
+plot(i5, type = "methods")
 ```
 
 ## Imputer Learners
@@ -344,7 +349,7 @@ pool(metrics)
 
 ## Plotting
 
-Each core object has a base R plot method:
+Each core object has a plot method:
 
 ```{r, fig.width=7, fig.height=4.5}
 plot(describe(dat))
@@ -355,10 +360,12 @@ plot(p)
 plot(describe("imputers"))
 ```
 
-`plot.mimar_missing()` optionally accepts `engine = "ggplot2"` when `ggplot2` is installed.
+Imputation objects expose diagnostic plot types for missingness maps, observed-vs-imputed distributions, imputation methods, and between-imputation variability.
 
 ```{r, eval=requireNamespace("ggplot2", quietly = TRUE), fig.width=7, fig.height=4.5}
 plot(describe(a_mar$data), engine = "ggplot2")
+plot(i5, type = "strip")
+plot(i5, type = "variability")
 ```
 
 ## Object Classes

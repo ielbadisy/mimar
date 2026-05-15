@@ -25,12 +25,45 @@ summary.mimar_amputation <- function(object, ...) {
 #' @export
 print.mimar_imputation <- function(x, ...) {
   cat("mimar imputation\n")
-  cat("Imputer:", x$imputer, " m:", x$m, " stochastic:", x$stochastic, "\n")
+  overview <- .imputation_overview(x)
+  imputed <- .imputation_variable_summary(x)
+  vars <- imputed$variable[imputed$n_missing_before > 0]
+  cat("Completed datasets:", x$m, "\n")
+  cat("Rows x columns:", overview$rows, "x", overview$columns, "\n")
+  cat("Imputer:", x$imputer, " maxit:", x$maxit, " stochastic:", x$stochastic, "\n")
+  cat("Missing cells imputed:", overview$total_imputed, "/", overview$total_missing_before, "\n")
+  if (length(vars)) {
+    cat("Variables imputed:", paste(vars, collapse = ", "), "\n")
+  } else {
+    cat("Variables imputed: none\n")
+  }
+  cat("Use complete(x) to extract completed data.\n")
+  if (x$m == 1) {
+    cat("\nCompleted data preview:\n")
+    print(utils::head(x$data, 6))
+  }
   invisible(x)
 }
 
 #' @export
-summary.mimar_imputation <- function(object, ...) object$imputed_cells
+summary.mimar_imputation <- function(object, ...) {
+  out <- list(
+    overview = .imputation_overview(object),
+    variables = .imputation_variable_summary(object),
+    diagnostics = object$diagnostics
+  )
+  class(out) <- c("summary_mimar_imputation", "list")
+  out
+}
+
+#' @export
+print.summary_mimar_imputation <- function(x, ...) {
+  cat("mimar imputation summary\n")
+  print(x$overview, row.names = FALSE)
+  cat("\nVariables:\n")
+  print(x$variables, row.names = FALSE)
+  invisible(x)
+}
 
 #' @export
 print.mimar_evaluation <- function(x, ...) {

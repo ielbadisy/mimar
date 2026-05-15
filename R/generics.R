@@ -45,7 +45,9 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' `impute()` performs single or multiple imputation. The default
 #' `imputer = "mi"` runs a chained-equation algorithm. A named imputer such as
 #' `"pmm"`, `"logreg"`, `"randomForest"`, or `"glmnet"` can also be supplied to
-#' use that learner for every incomplete variable it supports.
+#' use that learner for every incomplete variable it supports. The returned
+#' object keeps completed datasets first; use `complete()` to extract one
+#' completed dataset, all completed datasets, or a stacked long data frame.
 #'
 #' Let \eqn{X_j} be an incomplete variable and \eqn{X_{-j}} all remaining
 #' variables. At each iteration, `mimar` fits an imputer learner on observed rows
@@ -66,6 +68,19 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' @return A `mimar_imputation` object.
 #' @export
 impute <- function(x, ...) UseMethod("impute")
+
+#' Extract completed imputed data
+#'
+#' `complete()` extracts completed data sets from imputation objects. For
+#' `mimar_imputation` objects, use `complete(x)` or `complete(x, 1)` for one
+#' completed data set, `complete(x, "all")` for all completed data sets, and
+#' `complete(x, "long")` for a stacked long data frame.
+#'
+#' @param x An object containing completed data.
+#' @param ... Passed to methods.
+#' @return A data frame or list of data frames.
+#' @export
+complete <- function(x, ...) UseMethod("complete")
 
 #' Build an imputer learner
 #'
@@ -101,7 +116,9 @@ imputer <- function(method, ...) UseMethod("imputer")
 #' \deqn{e_{ij} = \tilde X_{ij} - X_{ij},}
 #' while categorical targets are summarized with agreement and balanced
 #' accuracy across classes. When no truth is available, `evaluate()` reports
-#' diagnostics that can be computed from the imputed data alone.
+#' diagnostics that can be computed from the imputed data alone. Distribution,
+#' variability, and recovery summaries are computed across all completed data
+#' sets; per-imputation recovery metrics are kept in `recovery_by_imputation`.
 #'
 #' @param x A `mimar_imputation` or `mimar_amputation` object.
 #' @param ... Passed to methods.

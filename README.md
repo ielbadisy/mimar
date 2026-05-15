@@ -6,6 +6,7 @@
 describe()
 ampute()
 impute()
+complete()
 evaluate()
 pool()
 plot()
@@ -35,6 +36,9 @@ plot(a)
 
 i1 <- impute(a, m = 1, imputer = "meanmode", seed = 1)
 i5 <- impute(a, m = 5, imputer = "meanmode", seed = 1)
+complete(i1)
+summary(i5)
+plot(i5, type = "density")
 
 e <- evaluate(i5)
 plot(e)
