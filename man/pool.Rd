@@ -2,29 +2,111 @@
 % Please edit documentation in R/generics.R, R/pool.R
 \name{pool}
 \alias{pool}
-\alias{pool.data.frame}
+\alias{pool.numeric}
 \alias{pool.list}
-\title{Pool external estimates or metrics}
+\alias{pool.matrix}
+\alias{pool.data.frame}
+\title{Pool post-fit quantities across imputations}
 \usage{
 pool(x, ...)
 
-\method{pool}{data.frame}(x, ...)
+\method{pool}{numeric}(
+  x,
+  variance = NULL,
+  std.error = NULL,
+  covariance = NULL,
+  rule = NULL,
+  transform = NULL,
+  inverse = NULL,
+  conf.level = 0.95,
+  name = "quantity",
+  ...
+)
 
-\method{pool}{list}(x, ...)
+\method{pool}{list}(
+  x,
+  variance = NULL,
+  std.error = NULL,
+  covariance = NULL,
+  rule = NULL,
+  transform = NULL,
+  inverse = NULL,
+  conf.level = 0.95,
+  ...
+)
+
+\method{pool}{matrix}(
+  x,
+  variance = NULL,
+  std.error = NULL,
+  covariance = NULL,
+  rule = NULL,
+  transform = NULL,
+  inverse = NULL,
+  conf.level = 0.95,
+  ...
+)
+
+\method{pool}{data.frame}(
+  x,
+  variance = NULL,
+  std.error = NULL,
+  covariance = NULL,
+  rule = NULL,
+  transform = NULL,
+  inverse = NULL,
+  conf.level = 0.95,
+  ...
+)
 }
 \arguments{
-\item{x}{A data frame or list of data frames containing external results.}
+\item{x}{Quantity estimates across imputations. Use a numeric vector for one
+scalar quantity, a list for scalar/vector/matrix/array quantities, a matrix
+with imputations in rows and quantities in columns, or a data frame as a
+tabular adapter for tidy scalar estimates.}
 
 \item{...}{Passed to methods.}
+
+\item{variance}{Complete-data variance for the quantity in each imputation.
+For vector quantities this may also be a list of elementwise variance
+vectors or matrices matching \code{x}.}
+
+\item{std.error}{Complete-data standard error for the quantity in each
+imputation. Ignored when \code{variance} is supplied.}
+
+\item{covariance}{For a list of numeric vectors, optional list of covariance
+matrices. When supplied, vector pooling uses Rubin's multivariate matrix
+form and returns the pooled covariance matrix.}
+
+\item{rule}{Pooling rule. \code{"rubin"} applies Rubin's rules and requires
+\code{variance}, \code{std.error}, or \code{covariance}. \code{"robust"} reports median, IQR,
+and range across imputations. \code{"mean"} reports the mean and
+between-imputation standard error. Defaults to \code{"rubin"} when variance is
+available and \code{"robust"} otherwise.}
+
+\item{transform}{Optional function applied before pooling, for example
+\code{log}, \code{qlogis}, or \code{function(p) log(-log(p))}.}
+
+\item{inverse}{Optional inverse transformation applied to pooled estimates
+and intervals.}
+
+\item{conf.level}{Confidence level for interval estimates.}
+
+\item{name}{Name of a scalar quantity.}
 }
 \value{
 A \code{mimar_pool} object.
 }
 \description{
-\code{pool()} combines analysis results computed on multiple imputed data sets. If
-\code{x} contains columns \code{term}, \code{estimate}, \code{std.error}, and \code{imputation}, Rubin
-rules are applied using the notation in Marshall et al. (2009). For estimates
-\eqn{Q_1,\ldots,Q_m} and complete-data variances \eqn{U_1,\ldots,U_m},
+\code{pool()} combines post-fit quantities estimated separately on each completed
+data set. The object being pooled is a quantity: a scalar, vector, matrix,
+array, model coefficient, survival probability, metric, or other estimate of
+interest. A data frame is only a convenient tabular adapter for tidy scalar
+estimates; it is not the statistical target being pooled.
+}
+\details{
+For a scalar quantity with estimates \eqn{Q_1,\ldots,Q_m} and complete-data
+variances \eqn{U_1,\ldots,U_m}, Rubin rules are
 \deqn{\bar Q = m^{-1}\sum_{k=1}^m Q_k,}
 \deqn{\bar U = m^{-1}\sum_{k=1}^m U_k,}
 \deqn{B = (m-1)^{-1}\sum_{k=1}^m (Q_k-\bar Q)^2,}
@@ -34,23 +116,57 @@ The reported standard error is \eqn{\sqrt{T}}. Confidence intervals use a
 \eqn{t} reference distribution with
 \deqn{\nu = (m-1)\left(1 + r^{-1}\right)^2,\quad
 r = \frac{(1 + m^{-1})B}{\bar U}.}
-}
-\details{
-If \code{x} instead contains \code{metric}, \code{value}, and \code{imputation}, metrics are
-pooled by their mean and between-imputation standard error.
 
-Estimate pooling expects one row per term and imputation with
-\code{estimate} equal to \eqn{Q_k} and \code{std.error^2} equal to \eqn{U_k}.
-Metric pooling expects one row per metric and imputation.
+For a vector quantity, pass \code{x} as a list of numeric vectors and \code{covariance}
+as a list of complete-data covariance matrices. Rubin's matrix form is then
+used: \eqn{\bar Q} is a vector and \eqn{T = \bar U + (1 + m^{-1})B} is the
+pooled covariance matrix. For matrices or arrays, pass a list of same-shaped
+quantities. Unless a joint covariance structure is supplied through a vector
+input, these are pooled element by element, which is appropriate for grids of
+scalar estimands such as survival probabilities at several times and
+covariate profiles.
+
+Some metrics do not have reliable complete-data variance estimates or do not
+satisfy approximate normality. Following Marshall et al. (2009), \code{pool()}
+reports robust summaries by default when no variance is supplied: median,
+interquartile range, and range across imputations. Use \code{rule = "mean"} to
+request a mean and between-imputation standard error for such metrics.
+
+A list is the preferred input for post-fit quantities. Use a list of
+length \code{m}, one element per imputation. Each element can be a scalar,
+vector, matrix, or array. When \code{covariance} is supplied for a list of
+vectors, Rubin's multivariate matrix rule is used. Otherwise list elements
+are pooled element by element.
+
+Data frames are accepted as a convenience adapter, but the pooled
+object is not the data frame itself. Rows must encode post-fit scalar
+quantities: \code{term}, \code{estimate}, \code{std.error}, and \code{imputation} for Rubin
+pooling, or \code{metric}, \code{value}, and \code{imputation} for metric summaries.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{pool(data.frame)}: Pool a data frame of estimates or metrics.
+\item \code{pool(numeric)}: Pool a scalar quantity observed across imputations.
 
-\item \code{pool(list)}: Pool a list of data frames, adding an \code{imputation} column
-from list position where needed.
+\item \code{pool(list)}: Pool a list of scalar, vector, matrix, or array quantities.
+
+\item \code{pool(matrix)}: Pool a matrix whose rows are imputations and columns are
+scalar quantities.
+
+\item \code{pool(data.frame)}: Tabular adapter for tidy scalar estimates or metrics.
 
 }}
+\examples{
+pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
+
+betas <- list(c(age = 0.10, bmi = 0.30),
+              c(age = 0.11, bmi = 0.32),
+              c(age = 0.09, bmi = 0.29))
+covs <- list(diag(c(0.04, 0.08)^2),
+             diag(c(0.05, 0.09)^2),
+             diag(c(0.04, 0.08)^2))
+pool(betas, covariance = covs)
+
+}
 \references{
 Marshall A, Altman DG, Holder RL, Royston P. Combining estimates
 of interest in prognostic modelling studies after multiple imputation:

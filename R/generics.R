@@ -126,12 +126,16 @@ imputer <- function(method, ...) UseMethod("imputer")
 #' @export
 evaluate <- function(x, ...) UseMethod("evaluate")
 
-#' Pool external estimates or metrics
+#' Pool post-fit quantities across imputations
 #'
-#' `pool()` combines analysis results computed on multiple imputed data sets. If
-#' `x` contains columns `term`, `estimate`, `std.error`, and `imputation`, Rubin
-#' rules are applied using the notation in Marshall et al. (2009). For estimates
-#' \eqn{Q_1,\ldots,Q_m} and complete-data variances \eqn{U_1,\ldots,U_m},
+#' `pool()` combines post-fit quantities estimated separately on each completed
+#' data set. The object being pooled is a quantity: a scalar, vector, matrix,
+#' array, model coefficient, survival probability, metric, or other estimate of
+#' interest. A data frame is only a convenient tabular adapter for tidy scalar
+#' estimates; it is not the statistical target being pooled.
+#'
+#' For a scalar quantity with estimates \eqn{Q_1,\ldots,Q_m} and complete-data
+#' variances \eqn{U_1,\ldots,U_m}, Rubin rules are
 #' \deqn{\bar Q = m^{-1}\sum_{k=1}^m Q_k,}
 #' \deqn{\bar U = m^{-1}\sum_{k=1}^m U_k,}
 #' \deqn{B = (m-1)^{-1}\sum_{k=1}^m (Q_k-\bar Q)^2,}
@@ -142,14 +146,40 @@ evaluate <- function(x, ...) UseMethod("evaluate")
 #' \deqn{\nu = (m-1)\left(1 + r^{-1}\right)^2,\quad
 #' r = \frac{(1 + m^{-1})B}{\bar U}.}
 #'
-#' If `x` instead contains `metric`, `value`, and `imputation`, metrics are
-#' pooled by their mean and between-imputation standard error.
+#' For a vector quantity, pass `x` as a list of numeric vectors and `covariance`
+#' as a list of complete-data covariance matrices. Rubin's matrix form is then
+#' used: \eqn{\bar Q} is a vector and \eqn{T = \bar U + (1 + m^{-1})B} is the
+#' pooled covariance matrix. For matrices or arrays, pass a list of same-shaped
+#' quantities. Unless a joint covariance structure is supplied through a vector
+#' input, these are pooled element by element, which is appropriate for grids of
+#' scalar estimands such as survival probabilities at several times and
+#' covariate profiles.
+#'
+#' Some metrics do not have reliable complete-data variance estimates or do not
+#' satisfy approximate normality. Following Marshall et al. (2009), `pool()`
+#' reports robust summaries by default when no variance is supplied: median,
+#' interquartile range, and range across imputations. Use `rule = "mean"` to
+#' request a mean and between-imputation standard error for such metrics.
+#'
+#' @examples
+#' pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
+#'
+#' betas <- list(c(age = 0.10, bmi = 0.30),
+#'               c(age = 0.11, bmi = 0.32),
+#'               c(age = 0.09, bmi = 0.29))
+#' covs <- list(diag(c(0.04, 0.08)^2),
+#'              diag(c(0.05, 0.09)^2),
+#'              diag(c(0.04, 0.08)^2))
+#' pool(betas, covariance = covs)
 #'
 #' @references Marshall A, Altman DG, Holder RL, Royston P. Combining estimates
 #'   of interest in prognostic modelling studies after multiple imputation:
 #'   current practice and guidelines. BMC Medical Research Methodology. 2009;9:57.
 #'
-#' @param x A data frame or list of data frames containing external results.
+#' @param x Quantity estimates across imputations. Use a numeric vector for one
+#'   scalar quantity, a list for scalar/vector/matrix/array quantities, a matrix
+#'   with imputations in rows and quantities in columns, or a data frame as a
+#'   tabular adapter for tidy scalar estimates.
 #' @param ... Passed to methods.
 #' @return A `mimar_pool` object.
 #' @export

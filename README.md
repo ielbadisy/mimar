@@ -147,8 +147,14 @@ truth and scores only artificially removed cells. Numeric recovery reports RMSE,
 MAE, bias, and correlation. Categorical recovery reports accuracy and balanced
 accuracy.
 
-`pool()` combines external estimates or metrics across completed datasets. For
-model estimates it applies Rubin-style pooling:
+`pool()` combines post-fit quantities estimated separately in each completed
+dataset. The statistical target is the quantity itself, not a data frame. A
+quantity can be a scalar, coefficient vector, covariance-aware parameter vector,
+matrix of survival probabilities, or a scalar metric. Data frames are accepted
+only as a tidy adapter for scalar model output.
+
+For a scalar quantity with complete-data variance estimates, `pool()` applies
+Rubin-style pooling:
 
 \[
 \bar Q = \frac{1}{m}\sum_{k=1}^m Q_k,\quad
@@ -159,6 +165,39 @@ B = \frac{1}{m-1}\sum_{k=1}^m (Q_k-\bar Q)^2,
 \[
 T = \bar U + \left(1 + \frac{1}{m}\right)B.
 \]
+
+```r
+results <- data.frame(
+  term = rep(c("age", "bmi"), each = 3),
+  estimate = c(0.10, 0.11, 0.09, 0.30, 0.32, 0.29),
+  std.error = c(0.04, 0.05, 0.04, 0.08, 0.09, 0.08),
+  imputation = rep(1:3, times = 2)
+)
+
+pool(results)
+```
+
+Direct quantity inputs are preferred when available:
+
+```r
+pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
+
+betas <- list(
+  c(age = 0.10, bmi = 0.30),
+  c(age = 0.11, bmi = 0.32),
+  c(age = 0.09, bmi = 0.29)
+)
+covariances <- list(
+  diag(c(0.04, 0.08)^2),
+  diag(c(0.05, 0.09)^2),
+  diag(c(0.04, 0.08)^2)
+)
+pool(betas, covariance = covariances)
+```
+
+When no reliable complete-data variance is supplied, as is common for some
+performance metrics, `pool()` reports robust summaries by default: median,
+interquartile range, and range across imputations.
 
 ## Installation Notes
 
