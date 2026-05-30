@@ -1,9 +1,7 @@
 Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
 Version: 0.0.1
-Authors@R: c(person(given = "mimar", family = "contributors", role = c("aut", "cre"), email = "maintainer@example.com"))
-Author: mimar contributors
-Maintainer: mimar contributors <maintainer@example.com>
+Authors@R: c(person(given = "Imad", family = "EL BADISY", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Description: Provides a compact grammar for missing-data description, artificial missingness generation, single and multiple imputation, imputation evaluation, pooling, and diagnostic plotting. Native and optional learner-backed imputers are standardized through a chained imputation workflow owned by the package.
 License: MIT + file LICENSE
 Encoding: UTF-8
