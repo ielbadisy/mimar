@@ -144,6 +144,27 @@ test_that("evaluate uses amputation truth", {
 })
 
 test_that("pool estimates and metrics", {
+  ps <- pool(c(.10, .11, .09), std.error = c(.04, .05, .04), name = "age")
+  expect_s3_class(ps, "mimar_pool")
+  expect_equal(ps$type, "scalar")
+  expect_equal(ps$estimate, .10)
+  expect_s3_class(ps$pooled, "tbl_df")
+
+  betas <- list(c(age = .10, bmi = .30), c(age = .11, bmi = .32), c(age = .09, bmi = .29))
+  covs <- list(diag(c(.04, .08)^2), diag(c(.05, .09)^2), diag(c(.04, .08)^2))
+  pv <- pool(betas, covariance = covs)
+  expect_equal(pv$type, "vector")
+  expect_equal(names(pv$estimate), c("age", "bmi"))
+  expect_equal(dim(pv$variance), c(2L, 2L))
+
+  surv <- list(matrix(c(.90, .80, .70, .60), 2, 2),
+               matrix(c(.91, .79, .72, .61), 2, 2),
+               matrix(c(.89, .81, .71, .59), 2, 2))
+  psurv <- pool(surv)
+  expect_equal(psurv$type, "array_elementwise")
+  expect_equal(dim(psurv$estimate), c(2L, 2L))
+  expect_true(all(psurv$pooled$rule == "robust"))
+
   res <- data.frame(term = rep(c("a", "b"), each = 3), estimate = 1:6 / 10,
                     std.error = .1, imputation = rep(1:3, 2))
   p <- pool(res)
@@ -154,9 +175,10 @@ test_that("pool estimates and metrics", {
   expect_true(all(c("df", "p.value", "relative_increase_variance") %in% names(p$pooled)))
   met <- data.frame(metric = rep("rmse", 3), value = c(1, 1.2, .9), imputation = 1:3)
   pm <- pool(met)
-  expect_equal(pm$type, "metric")
+  expect_equal(pm$type, "tidy_metric")
   expect_s3_class(pm$pooled, "tbl_df")
-  expect_error(pool(data.frame(x = 1)), "Pooling requires")
+  expect_true(all(pm$pooled$rule == "robust"))
+  expect_error(pool(data.frame(x = 1)), "Tabular pooling requires")
 })
 
 test_that("plot methods run", {

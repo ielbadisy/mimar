@@ -492,11 +492,18 @@ plot(e)
 The purpose of generating $m > 1$ completed datasets is to obtain valid
 standard errors that reflect uncertainty about the missing data. Analysing
 each completed dataset separately and then combining results using Rubin's
-rules [@rubin1987] accomplishes this.
+rules [@rubin1987; @marshall2009pooling] accomplishes this.
 
-Let $Q_k$ be the estimate and $U_k$ the complete-data variance estimate from
-completed dataset $k$. The pooled point estimate and between-imputation
-variance are:
+`pool()` is designed for post-fit quantities computed after imputation. The
+statistical target is the quantity, not the storage container. A quantity may be
+a scalar estimate, a vector of regression coefficients, a covariance-aware
+parameter vector, a matrix of survival probabilities, or a scalar performance
+metric. Data frames are accepted only as a tidy adapter for scalar estimates
+that are naturally stored one row per term and imputation.
+
+For a single quantity, let $Q_k$ be its estimate and $U_k$ the complete-data
+variance estimate from completed dataset $k$. The pooled point estimate and
+between-imputation variance are:
 
 $$
 \bar Q = \frac{1}{m}\sum_{k=1}^{m}Q_k,
@@ -518,9 +525,58 @@ how much the missingness inflates uncertainty relative to a complete-data
 analysis; variables with large $\lambda$ are those for which inference is
 most sensitive to the imputation model.
 
-`pool()` accepts a data frame of per-imputation results in tidy format and
-returns pooled estimates, total standard errors, confidence intervals, and
-missing-information diagnostics.
+The result is a `mimar_pool` object whose `pooled` table contains the pooled
+quantity, total standard error, confidence interval, and variance diagnostics
+for each `term`.
+
+```{r}
+pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
+```
+
+For several coefficients from the same fitted model, the vector and covariance
+matrix should be pooled together. This keeps the joint uncertainty structure,
+which is needed for multivariate Wald tests and downstream contrasts.
+
+```{r}
+betas <- list(
+  c(age = 0.10, bmi = 0.30),
+  c(age = 0.11, bmi = 0.32),
+  c(age = 0.09, bmi = 0.29)
+)
+covariances <- list(
+  diag(c(0.04, 0.08)^2),
+  diag(c(0.05, 0.09)^2),
+  diag(c(0.04, 0.08)^2)
+)
+
+pooled_betas <- pool(betas, covariance = covariances)
+pooled_betas
+pooled_betas$estimate
+pooled_betas$variance
+```
+
+Matrix-valued quantities are supplied as a list with one matrix per imputation.
+For example, a survival probability matrix might have time points in rows and
+covariate profiles in columns. Unless a full joint covariance is available,
+`pool()` treats each cell as a scalar estimand and pools element by element.
+
+```{r}
+survival_probabilities <- list(
+  matrix(c(0.90, 0.80, 0.70, 0.60), nrow = 2),
+  matrix(c(0.91, 0.79, 0.72, 0.61), nrow = 2),
+  matrix(c(0.89, 0.81, 0.71, 0.59), nrow = 2)
+)
+
+pooled_survival <- pool(survival_probabilities)
+pooled_survival
+pooled_survival$estimate
+```
+
+The tidy data-frame adapter remains useful for model outputs that already have
+one scalar row per term and imputation. In the next example there are six input
+rows because two quantities, `age` and `bmi`, are estimated in each of three
+imputations. `pool()` returns two pooled quantities: one row for `age` and one
+row for `bmi`.
 
 ```{r}
 external_results <- data.frame(
@@ -533,5 +589,11 @@ external_results <- data.frame(
 p <- pool(external_results)
 p
 ```
+
+When no reliable complete-data variance is available, as is common for bounded
+performance measures, Marshall et al. recommend robust summaries. Accordingly,
+`pool()` reports the median, interquartile range, and range by default for such
+quantities. Use `rule = "mean"` only when a mean and between-imputation standard
+error are substantively appropriate.
 
 ## References
