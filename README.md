@@ -86,7 +86,7 @@ Learner-backed imputers:
 - `rf`: MissForest-style chained random forest imputer through `ranger`
 - `ranger`: random forest through `ranger`
 - `rpart`: tree imputer through `rpart`
-- `naive_bayes`: naive Bayes through `naivebayes`
+- `nbayes`: naive Bayes through `naivebayes`
 - `svm`: support vector machine through `e1071`
 - `bart`: Bayesian additive regression trees through `BART`
 - `glmnet`: penalized regression through `glmnet`
@@ -95,6 +95,9 @@ Learner-backed imputers:
 - `famd`: FAMD-assisted donor imputation through `missMDA`
 
 Imputer names are strict: use the names shown by `imputer_registry()`.
+Learner-backed imputers are applied as requested to numeric, binary, and
+multiclass targets; `mimar` does not silently swap them for another imputer
+inside benchmark runs.
 
 ## Chained Imputation Model
 

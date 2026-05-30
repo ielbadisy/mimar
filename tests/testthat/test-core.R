@@ -84,6 +84,8 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_equal(imputer("glmnet")$package, "glmnet")
   expect_error(imputer("missforest"), "Unknown imputer")
   expect_error(imputer("mixgb"), "Unknown imputer")
+  expect_error(imputer("naive_bayes"), "Unknown imputer")
+  expect_equal(imputer("nbayes")$package, "naivebayes")
   expect_s3_class(imputer_registry(), "tbl_df")
   expect_equal(imputer_registry()$package[imputer_registry()$imputer == "knn"], "internal")
   expect_error(imputer("mice"), "Unknown imputer")
@@ -118,11 +120,16 @@ test_that("all registered imputers run on numeric, categorical, and mixed data f
 
   available <- imputer_registry()
   methods <- available$imputer[available$available]
+  learner_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet", "gbm", "xgboost", "famd")
   for (method in methods) {
     for (dat in list(numeric_dat, categorical_dat, mixed_dat)) {
       imp <- run_imputer(method, dat)
       expect_s3_class(imp, "mimar_imputation")
       expect_false(anyNA(complete(imp)))
+      if (method %in% learner_methods) {
+        missing_vars <- names(dat)[colSums(is.na(dat)) > 0]
+        expect_true(all(imp$variable_methods[missing_vars] == method))
+      }
     }
   }
 })
