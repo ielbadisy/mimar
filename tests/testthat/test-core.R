@@ -25,10 +25,10 @@ test_that("ampute mechanisms work", {
   expect_s3_class(ampute(dat, prop = .2, mechanism = "MNAR", target = "b", direction = "right", seed = 3), "mimar_amputation")
 })
 
-test_that("meanmode imputation works", {
+test_that("naive imputation works", {
   dat <- data.frame(a = c(1, NA, 3), b = factor(c("x", "y", NA)), c = c(TRUE, NA, FALSE))
-  i1 <- impute(dat, m = 1, imputer = "meanmode", seed = 1)
-  i3 <- impute(dat, m = 3, imputer = "meanmode", seed = 1)
+  i1 <- impute(dat, m = 1, imputer = "naive", seed = 1)
+  i3 <- impute(dat, m = 3, imputer = "naive", seed = 1)
   expect_s3_class(i1, "mimar_imputation")
   expect_length(i1$imputations, 1)
   expect_length(i3$imputations, 3)
@@ -37,8 +37,9 @@ test_that("meanmode imputation works", {
   expect_length(complete(i3, "all"), 3)
   expect_equal(nrow(complete(i3, "long")), nrow(dat) * 3)
   expect_false(anyNA(i1$imputations[[1]]))
-  expect_false(i1$stochastic)
+  expect_true(i1$stochastic)
   expect_error(impute(dat, imputer = "not_real"), "Unknown imputer")
+  expect_error(impute(dat, imputer = "meanmode"), "Unknown imputer")
 })
 
 test_that("internal chained equation imputation uses fit/predict steps", {
@@ -47,12 +48,12 @@ test_that("internal chained equation imputation uses fit/predict steps", {
     b = factor(c("x", "x", "y", NA, "y", "x", NA, "y")),
     c = c(TRUE, FALSE, TRUE, TRUE, NA, FALSE, TRUE, NA)
   )
-  imp <- impute(dat, m = 2, imputer = "mi", maxit = 2, seed = 10)
+  imp <- impute(dat, m = 2, imputer = "naive", maxit = 2, seed = 10)
   expect_s3_class(imp, "mimar_imputation")
   expect_length(imp$imputations, 2)
   expect_false(anyNA(imp$imputations[[1]]))
   expect_equal(imp$diagnostics$strategy, "chained_equations")
-  expect_true(all(imp$variable_methods[c("a", "b", "c")] %in% c("pmm", "logreg")))
+  expect_true(all(imp$variable_methods[c("a", "b", "c")] %in% "naive"))
 })
 
 test_that("imputer learners expose a standard fit/predict contract", {
@@ -63,16 +64,57 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_s3_class(learner, "mimar_imputer")
   expect_s3_class(fitted, "mimar_imputer_fit")
   expect_length(pred, 4)
-  expect_equal(imputer("knn")$source, "funcml")
-  expect_equal(imputer("rpart")$learner, "rpart")
-  expect_equal(imputer("glmnet")$learner, "glmnet")
+  expect_equal(imputer("knn")$implementation, "mimar")
+  expect_equal(imputer("rpart")$package, "rpart")
+  expect_equal(imputer("glmnet")$package, "glmnet")
+  expect_error(imputer("missforest"), "Unknown imputer")
+  expect_error(imputer("mixgb"), "Unknown imputer")
+  expect_s3_class(imputer_registry(), "data.frame")
   expect_error(imputer("mice"), "Unknown imputer")
+})
+
+test_that("all registered imputers run on numeric, categorical, and mixed data frames", {
+  numeric_dat <- data.frame(
+    x1 = c(1, 2, NA, 4, 5, 6, NA, 8, 9, 10, 11, 12),
+    x2 = c(2, 1, 3, NA, 5, 4, 7, 8, NA, 10, 12, 11),
+    x3 = c(10, 9, 8, 7, NA, 5, 4, 3, 2, NA, 1, 0)
+  )
+  categorical_dat <- data.frame(
+    c1 = factor(c("a", "b", NA, "a", "b", "a", NA, "b", "a", "b", "a", "b")),
+    c2 = factor(c("u", "v", "w", NA, "u", "v", "w", "u", NA, "v", "w", "u")),
+    c3 = c(TRUE, FALSE, TRUE, NA, FALSE, TRUE, FALSE, TRUE, NA, FALSE, TRUE, FALSE)
+  )
+  mixed_dat <- data.frame(
+    x1 = numeric_dat$x1,
+    x2 = numeric_dat$x2,
+    c1 = categorical_dat$c1,
+    c2 = categorical_dat$c2,
+    c3 = categorical_dat$c3
+  )
+
+  run_imputer <- function(method, dat) {
+    args <- list(x = dat, m = 1, imputer = method, maxit = 1, seed = 1)
+    if (identical(method, "bart")) args <- c(args, list(ntree = 5, ndpost = 5, nskip = 5))
+    if (identical(method, "xgboost")) args <- c(args, list(nrounds = 5))
+    if (identical(method, "gbm")) args <- c(args, list(n.trees = 10))
+    do.call(impute, args)
+  }
+
+  available <- imputer_registry()
+  methods <- available$imputer[available$available]
+  for (method in methods) {
+    for (dat in list(numeric_dat, categorical_dat, mixed_dat)) {
+      imp <- run_imputer(method, dat)
+      expect_s3_class(imp, "mimar_imputation")
+      expect_false(anyNA(complete(imp)))
+    }
+  }
 })
 
 test_that("evaluate uses amputation truth", {
   dat <- data.frame(a = rnorm(50), b = factor(sample(c("x", "y"), 50, TRUE)))
   a <- ampute(dat, prop = .2, mechanism = "MCAR", seed = 1)
-  i <- impute(a, m = 2, imputer = "meanmode")
+  i <- impute(a, m = 2, imputer = "naive")
   e <- evaluate(i)
   expect_s3_class(e, "mimar_evaluation")
   expect_true(all(c("summary", "distribution", "recovery", "recovery_by_imputation", "variability") %in% names(e)))
