@@ -35,7 +35,7 @@ restore imputed values to the correct storage type.}
 
 \item{donors}{Number of predictive mean matching donors for \code{"pmm"}.}
 
-\item{seed}{Optional random seed passed to \code{funcml::fit()}.}
+\item{seed}{Optional random seed.}
 }
 \value{
 A fitted object.
@@ -47,9 +47,8 @@ variable. In the imputation loop, \code{x} is the predictor block
 }
 \details{
 The fitted object stores the original imputer descriptor and the model needed
-by \code{predict()}. For \code{funcml}-sourced imputers, \code{fit()} calls
-\code{funcml::fit(y ~ ., data = ..., model = learner)}. For local classical
-imputers, \code{mimar} fits the corresponding model directly:
+by \code{predict()}. Native imputers are implemented directly in \code{mimar};
+wrapped imputers call their original learner packages directly when requested:
 
 \itemize{
 \item \code{"norm"} fits a linear model and draws

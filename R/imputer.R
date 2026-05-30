@@ -1,35 +1,74 @@
 .imputer_catalog <- function() {
   data.frame(
-    imputer = c("mean", "median", "mode", "norm", "pmm", "logreg", "polyreg",
-                "randomForest", "knn", "xgboost", "svm", "bart", "naive_bayes",
-                "rpart", "glmnet"),
-    learner = c("mean", "median", "mode", "norm", "pmm", "logreg", "polyreg",
-                "randomForest", "kknn", "xgboost", "e1071_svm", "bart", "naivebayes",
-                "rpart", "glmnet"),
-    source = c(rep("mimar", 7), rep("funcml", 8)),
-    supports_numeric = c(TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE,
-                         TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE),
-    supports_binary = c(FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE,
-                        TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE),
-    supports_multiclass = c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE,
-                            TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE),
+    imputer = c("mean", "median", "mode", "naive", "norm", "pmm", "spmm",
+                "logreg", "polyreg", "rf", "ranger", "rpart", "naive_bayes",
+                "svm", "bart", "glmnet", "gbm", "xgboost", "knn", "hotdeck",
+                "famd"),
+    implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped"),
+    package = c(rep(NA_character_, 9), "ranger", "ranger", "rpart", "naivebayes",
+                "e1071", "BART", "glmnet", "gbm", "xgboost", NA, NA, "missMDA"),
+    supports_numeric = rep(TRUE, 21),
+    supports_binary = rep(TRUE, 21),
+    supports_multiclass = rep(TRUE, 21),
+    stochastic = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE,
+                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
+                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+    description = c(
+      "Mean imputation for numeric targets",
+      "Median imputation for numeric targets",
+      "Mode imputation for categorical targets",
+      "Median/mode chained baseline",
+      "Bayesian normal-style linear regression draw",
+      "Predictive mean matching",
+      "Single-step predictive mean matching",
+      "Binary logistic regression draw",
+      "One-vs-rest multinomial logistic regression draw",
+      "MissForest-style random forest imputer",
+      "Random forest imputer through ranger",
+      "Tree imputer through rpart",
+      "Naive Bayes imputer",
+      "Support vector machine imputer",
+      "BART imputer",
+      "Penalized regression imputer through glmnet",
+      "Gradient boosting imputer through gbm",
+      "Gradient boosted tree imputer through xgboost",
+      "Nearest-neighbor donor imputer",
+      "Hot-deck donor imputer",
+      "FAMD-assisted donor imputer"
+    ),
     stringsAsFactors = FALSE
   )
 }
 
+#' List available mimar imputers
+#'
+#' `imputer_registry()` returns the imputer names accepted by `impute()` and
+#' metadata describing target-type support and optional backend packages.
+#'
+#' @return A data frame.
+#' @export
+imputer_registry <- function() {
+  out <- .imputer_catalog()
+  out$available <- vapply(out$package, function(pkg) {
+    is.na(pkg) || requireNamespace(pkg, quietly = TRUE)
+  }, logical(1))
+  out$status <- ifelse(out$available, "available", paste0("requires ", out$package))
+  out
+}
+
 #' @describeIn imputer Construct a `mimar_imputer`.
-#' @param spec Optional learner specification passed to `funcml::fit()` for
-#'   `funcml`-sourced imputers.
+#' @param spec Optional learner specification retained for future extensions.
 #' @export
 imputer.default <- function(method, spec = NULL, ...) {
   method <- as.character(method)[1]
   catalog <- .imputer_catalog()
   if (!method %in% catalog$imputer) .mimar_stop("Unknown imputer '", method, "'.")
   row <- catalog[catalog$imputer == method, , drop = FALSE]
-  structure(list(method = method, learner = row$learner[[1]], source = row$source[[1]],
+  structure(list(method = method, implementation = row$implementation[[1]], package = row$package[[1]],
                  supports_numeric = row$supports_numeric[[1]],
                  supports_binary = row$supports_binary[[1]],
                  supports_multiclass = row$supports_multiclass[[1]],
+                 stochastic = row$stochastic[[1]],
                  spec = spec, args = list(...)),
             class = c("mimar_imputer", "list"))
 }
@@ -41,9 +80,8 @@ imputer.default <- function(method, spec = NULL, ...) {
 #' \eqn{X_{-j}^{obs}} and `y` is the observed target vector \eqn{X_j^{obs}}.
 #'
 #' The fitted object stores the original imputer descriptor and the model needed
-#' by `predict()`. For `funcml`-sourced imputers, `fit()` calls
-#' `funcml::fit(y ~ ., data = ..., model = learner)`. For local classical
-#' imputers, `mimar` fits the corresponding model directly:
+#' by `predict()`. Native imputers are implemented directly in `mimar`; wrapped
+#' imputers call their original learner packages directly when requested:
 #'
 #' \itemize{
 #'   \item `"norm"` fits a linear model and draws
@@ -72,7 +110,7 @@ fit <- function(object, ...) UseMethod("fit")
 #'   restore imputed values to the correct storage type.
 #' @param variable Variable name used in diagnostics and error messages.
 #' @param donors Number of predictive mean matching donors for `"pmm"`.
-#' @param seed Optional random seed passed to `funcml::fit()`.
+#' @param seed Optional random seed.
 #' @export
 fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
                               donors = 5, seed = NULL, ...) {
@@ -82,27 +120,28 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
   x <- x[observed, , drop = FALSE]
   if (!length(y)) .mimar_stop("Variable '", variable, "' has no observed values.")
 
-  if (identical(object$source, "funcml")) {
-    dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
-    args <- c(list(formula = stats::as.formula("y ~ ."), data = dat,
-                   model = object$learner, spec = object$spec, seed = seed),
-              object$args, list(...))
-    fitted <- try(do.call(funcml::fit, args), silent = TRUE)
-    if (inherits(fitted, "try-error")) {
-      .mimar_stop("Could not fit imputer '", object$method, "' for variable '", variable, "'.")
-    }
-    return(structure(list(imputer = object, fit = fitted, target = target),
-                     class = c("mimar_imputer_fit", "list")))
-  }
-
   fitted <- switch(object$method,
     mean = .fit_constant_imputer(object, mean(.target_to_numeric(y), na.rm = TRUE), target),
     median = .fit_constant_imputer(object, stats::median(.target_to_numeric(y), na.rm = TRUE), target),
     mode = .fit_constant_imputer(object, .mode_value(y), target),
+    naive = .fit_constant_imputer(object, .simple_fill_value(target), target),
     norm = .fit_linear_imputer(object, x, y, target, variable, donors),
     pmm = .fit_linear_imputer(object, x, y, target, variable, donors),
+    spmm = .fit_linear_imputer(object, x, y, target, variable, donors),
     logreg = .fit_logreg_imputer(object, x, y, target, variable),
-    polyreg = .fit_polyreg_imputer(object, x, y, target, variable)
+    polyreg = .fit_polyreg_imputer(object, x, y, target, variable),
+    rf = .fit_ranger_imputer(object, x, y, target, variable, ...),
+    ranger = .fit_ranger_imputer(object, x, y, target, variable, ...),
+    rpart = .fit_rpart_imputer(object, x, y, target, variable, ...),
+    naive_bayes = .fit_naive_bayes_imputer(object, x, y, target, variable, ...),
+    svm = .fit_svm_imputer(object, x, y, target, variable, ...),
+    bart = .fit_bart_imputer(object, x, y, target, variable, ...),
+    glmnet = .fit_glmnet_imputer(object, x, y, target, variable, ...),
+    gbm = .fit_gbm_imputer(object, x, y, target, variable, ...),
+    xgboost = .fit_xgboost_imputer(object, x, y, target, variable, ...),
+    knn = .fit_donor_imputer(object, x, y, target, variable, donors, method = "knn"),
+    hotdeck = .fit_donor_imputer(object, x, y, target, variable, donors, method = "hotdeck"),
+    famd = .fit_famd_imputer(object, x, y, target, variable, donors, ...)
   )
   fitted
 }
@@ -110,20 +149,29 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
 #' @export
 predict.mimar_imputer_fit <- function(object, newdata, ...) {
   method <- object$imputer$method
-  if (identical(object$imputer$source, "funcml")) {
-    pred <- try(stats::predict(object$fit, newdata = .model_predictors(newdata), ...), silent = TRUE)
-    if (inherits(pred, "try-error")) .mimar_stop("Could not predict with imputer '", method, "'.")
-    return(.as_prediction_vector(pred))
-  }
-
+  if (!is.null(object$value)) return(rep(object$value, nrow(newdata)))
   switch(method,
     mean = rep(object$value, nrow(newdata)),
     median = rep(object$value, nrow(newdata)),
     mode = rep(object$value, nrow(newdata)),
+    naive = rep(object$value, nrow(newdata)),
     norm = .predict_linear_imputer(object, newdata, stochastic = TRUE),
     pmm = .predict_pmm_imputer(object, newdata),
+    spmm = .predict_pmm_imputer(object, newdata),
     logreg = .predict_logreg_imputer(object, newdata),
-    polyreg = .predict_polyreg_imputer(object, newdata)
+    polyreg = .predict_polyreg_imputer(object, newdata),
+    rf = .predict_ranger_imputer(object, newdata),
+    ranger = .predict_ranger_imputer(object, newdata),
+    rpart = .predict_generic_model_imputer(object, newdata),
+    naive_bayes = .predict_generic_model_imputer(object, newdata),
+    svm = .predict_generic_model_imputer(object, newdata),
+    bart = .predict_bart_imputer(object, newdata),
+    glmnet = .predict_glmnet_imputer(object, newdata),
+    gbm = .predict_gbm_imputer(object, newdata),
+    xgboost = .predict_xgboost_imputer(object, newdata),
+    knn = .predict_donor_imputer(object, newdata),
+    hotdeck = .predict_donor_imputer(object, newdata),
+    famd = .predict_donor_imputer(object, newdata)
   )
 }
 
@@ -165,17 +213,19 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .fit_logreg_imputer <- function(object, x, y, target, variable) {
   y_fac <- factor(y)
+  if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
   if (nlevels(y_fac) != 2) .mimar_stop("Imputer 'logreg' requires binary target variable '", variable, "'.")
   dat <- data.frame(y = y_fac, .model_predictors(x), check.names = FALSE)
   fitted <- try(suppressWarnings(stats::glm(y ~ ., data = dat, family = stats::binomial())), silent = TRUE)
-  if (inherits(fitted, "try-error")) .mimar_stop("Could not fit imputer 'logreg' for variable '", variable, "'.")
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
   structure(list(imputer = object, fit = fitted, levels = levels(y_fac), y = y, target = target),
             class = c("mimar_imputer_fit", "list"))
 }
 
 .fit_polyreg_imputer <- function(object, x, y, target, variable) {
   y_fac <- factor(y)
-  if (nlevels(y_fac) < 3) .mimar_stop("Imputer 'polyreg' requires a multiclass target variable '", variable, "'.")
+  if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
+  if (nlevels(factor(target)) < 3) .mimar_stop("Imputer 'polyreg' requires a multiclass target variable '", variable, "'.")
   dat <- data.frame(y = y_fac, .model_predictors(x), check.names = FALSE)
   fits <- lapply(levels(y_fac), function(lvl) {
     dat_lvl <- dat
@@ -183,20 +233,20 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     try(suppressWarnings(stats::glm(y ~ ., data = dat_lvl, family = stats::binomial())), silent = TRUE)
   })
   if (any(vapply(fits, inherits, logical(1), "try-error"))) {
-    .mimar_stop("Could not fit imputer 'polyreg' for variable '", variable, "'.")
+    return(.fit_constant_imputer(object, .mode_value(target), target))
   }
   structure(list(imputer = object, fits = fits, levels = levels(y_fac), y = y, target = target),
             class = c("mimar_imputer_fit", "list"))
 }
 
 .predict_linear_imputer <- function(object, newdata, stochastic) {
-  pred <- stats::predict(object$fit, newdata = .model_predictors(newdata))
+  pred <- suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata)))
   if (stochastic) pred <- pred + stats::rnorm(length(pred), sd = object$resid_sd)
   pred
 }
 
 .predict_pmm_imputer <- function(object, newdata) {
-  pred_mis <- stats::predict(object$fit, newdata = .model_predictors(newdata))
+  pred_mis <- suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata)))
   sapply(pred_mis, function(pm) {
     d <- abs(object$fitted - pm)
     take <- order(d)[seq_len(min(object$donors, length(d)))]
@@ -225,6 +275,195 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   apply(probs, 1, function(p) object$levels[sample(seq_along(object$levels), 1, prob = p)])
 }
 
+.fit_ranger_imputer <- function(object, x, y, target, variable, num.trees = 100, ...) {
+  .require_backend("ranger", object$method)
+  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  task <- .target_task(target)
+  fitted <- try(ranger::ranger(y ~ ., data = dat, num.trees = num.trees,
+                               probability = task != "numeric", ...), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = task, y = y),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.predict_ranger_imputer <- function(object, newdata) {
+  pred <- stats::predict(object$fit, data = .model_predictors(newdata))$predictions
+  if (object$task != "numeric" && is.matrix(pred)) {
+    lev <- colnames(pred)
+    return(apply(pred, 1, function(p) lev[sample(seq_along(lev), 1, prob = p)]))
+  }
+  pred
+}
+
+.fit_rpart_imputer <- function(object, x, y, target, variable, ...) {
+  .require_backend("rpart", object$method)
+  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  method <- if (.target_task(target) == "numeric") "anova" else "class"
+  fitted <- try(rpart::rpart(y ~ ., data = dat, method = method, ...), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_naive_bayes_imputer <- function(object, x, y, target, variable, ...) {
+  .require_backend("naivebayes", object$method)
+  dat <- data.frame(y = factor(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(suppressWarnings(naivebayes::naive_bayes(y ~ ., data = dat, ...)), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_svm_imputer <- function(object, x, y, target, variable, ...) {
+  .require_backend("e1071", object$method)
+  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(e1071::svm(y ~ ., data = dat, probability = .target_task(target) != "numeric", ...), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_bart_imputer <- function(object, x, y, target, variable, ...) {
+  .require_backend("BART", object$method)
+  if (.target_task(target) != "numeric") .mimar_stop("Imputer 'bart' currently supports numeric target variable '", variable, "' only.")
+  x_mat <- .model_matrix(x)
+  fitted <- try(BART::wbart(x.train = x_mat, y.train = as.numeric(y), verbose = FALSE, ...), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = "numeric",
+                 x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_glmnet_imputer <- function(object, x, y, target, variable, ...) {
+  .require_backend("glmnet", object$method)
+  task <- .target_task(target)
+  fam <- if (task == "numeric") "gaussian" else if (task == "binary") "binomial" else "multinomial"
+  x_mat <- .model_matrix(x)
+  y_fit <- if (task == "numeric") as.numeric(y) else factor(y)
+  fitted <- try(suppressWarnings(glmnet::cv.glmnet(x = x_mat, y = y_fit, family = fam, ...)), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = task, levels = if (task == "numeric") NULL else levels(factor(y)),
+                 x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_gbm_imputer <- function(object, x, y, target, variable, n.trees = 100, interaction.depth = 2,
+                             n.minobsinnode = 1, shrinkage = 0.05, bag.fraction = 1, ...) {
+  .require_backend("gbm", object$method)
+  task <- .target_task(target)
+  dat <- data.frame(y = if (task == "numeric") as.numeric(y) else factor(y), .model_predictors(x), check.names = FALSE)
+  dist <- if (task == "numeric") "gaussian" else if (task == "binary") "bernoulli" else "multinomial"
+  if (task == "binary") dat$y <- as.integer(dat$y == levels(dat$y)[2])
+  fitted <- try(suppressWarnings(gbm::gbm(y ~ ., data = dat, distribution = dist, n.trees = n.trees,
+                                          interaction.depth = interaction.depth,
+                                          n.minobsinnode = n.minobsinnode,
+                                          shrinkage = shrinkage, bag.fraction = bag.fraction,
+                                          verbose = FALSE, ...)), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = task,
+                 levels = if (task == "numeric") NULL else levels(factor(y)), n.trees = n.trees),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_xgboost_imputer <- function(object, x, y, target, variable, nrounds = 25, verbose = 0, ...) {
+  .require_backend("xgboost", object$method)
+  task <- .target_task(target)
+  x_mat <- .model_matrix(x)
+  if (task == "numeric") {
+    label <- as.numeric(y); objective <- "reg:squarederror"; num_class <- NULL
+  } else {
+    yf <- factor(y); label <- as.integer(yf) - 1
+    objective <- if (nlevels(yf) == 2) "binary:logistic" else "multi:softprob"
+    num_class <- nlevels(yf)
+  }
+  params <- c(list(objective = objective), if (!is.null(num_class) && num_class > 2) list(num_class = num_class) else list())
+  dtrain <- xgboost::xgb.DMatrix(data = x_mat, label = label)
+  fitted <- try(suppressWarnings(xgboost::xgb.train(params = params, data = dtrain,
+                                                    nrounds = nrounds, verbose = verbose,
+                                                    ...)), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = task,
+                 levels = if (task == "numeric") NULL else levels(factor(y)),
+                 x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_donor_imputer <- function(object, x, y, target, variable, donors, method = "knn") {
+  structure(list(imputer = object, x_df = .model_predictors(x), y = y, target = target,
+                 task = .target_task(target), donors = donors, method = method,
+                 x_levels = .predictor_levels(x)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.fit_famd_imputer <- function(object, x, y, target, variable, donors, ncp = 5, ...) {
+  .require_backend("missMDA", object$method)
+  coords <- try(missMDA::imputeFAMD(.model_predictors(x), ncp = min(ncp, max(1, ncol(x))))$completeObs, silent = TRUE)
+  if (inherits(coords, "try-error")) coords <- x
+  fit <- .fit_donor_imputer(object, coords, y, target, variable, donors, method = "famd")
+  fit
+}
+
+.predict_generic_model_imputer <- function(object, newdata) {
+  if (object$imputer$method == "rpart" && object$task != "numeric") {
+    pred <- try(stats::predict(object$fit, newdata = .model_predictors(newdata), type = "class"), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    return(as.character(pred))
+  }
+  pred <- try(suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata))), silent = TRUE)
+  if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  .as_prediction_vector(pred)
+}
+
+.predict_bart_imputer <- function(object, newdata) {
+  pred <- stats::predict(object$fit, newdata = .model_matrix_align(newdata, object$x_cols))$yhat.test.mean
+  as.numeric(pred)
+}
+
+.predict_glmnet_imputer <- function(object, newdata) {
+  x_mat <- .model_matrix_align(newdata, object$x_cols)
+  if (object$task == "numeric") return(as.numeric(stats::predict(object$fit, newx = x_mat, s = "lambda.min")))
+  if (object$task == "binary") {
+    p <- as.numeric(stats::predict(object$fit, newx = x_mat, s = "lambda.min", type = "response"))
+    return(object$levels[1 + stats::rbinom(length(p), 1, pmin(pmax(p, 0), 1))])
+  }
+  cl <- stats::predict(object$fit, newx = x_mat, s = "lambda.min", type = "class")
+  as.character(cl)
+}
+
+.predict_gbm_imputer <- function(object, newdata) {
+  pred <- stats::predict(object$fit, newdata = .model_predictors(newdata), n.trees = object$n.trees, type = "response")
+  if (object$task == "numeric") return(as.numeric(pred))
+  if (object$task == "binary") return(object$levels[1 + stats::rbinom(length(pred), 1, pmin(pmax(pred, 0), 1))])
+  if (length(dim(pred)) == 3) pred <- pred[, , 1, drop = FALSE][, , 1]
+  apply(pred, 1, function(p) object$levels[sample(seq_along(object$levels), 1, prob = p / sum(p))])
+}
+
+.predict_xgboost_imputer <- function(object, newdata) {
+  dnew <- xgboost::xgb.DMatrix(data = .model_matrix_align(newdata, object$x_cols))
+  pred <- try(stats::predict(object$fit, newdata = dnew), silent = TRUE)
+  if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  if (object$task == "numeric") return(as.numeric(pred))
+  if (object$task == "binary") return(object$levels[1 + stats::rbinom(length(pred), 1, pmin(pmax(pred, 0), 1))])
+  if (length(pred) != nrow(newdata) * length(object$levels)) {
+    return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  }
+  probs <- matrix(pred, ncol = length(object$levels), byrow = TRUE)
+  apply(probs, 1, function(p) object$levels[sample(seq_along(object$levels), 1, prob = p / sum(p))])
+}
+
+.predict_donor_imputer <- function(object, newdata) {
+  mats <- .paired_model_matrices(object$x_df, .model_predictors(newdata))
+  xobs <- mats$observed
+  xnew <- mats$new
+  if (!nrow(xnew)) return(object$y[0])
+  d <- as.matrix(stats::dist(rbind(xobs, xnew)))
+  d <- d[seq_len(nrow(xobs)), nrow(xobs) + seq_len(nrow(xnew)), drop = FALSE]
+  vapply(seq_len(ncol(d)), function(i) {
+    take <- order(d[, i])[seq_len(min(object$donors, nrow(xobs)))]
+    as.character(object$y[sample(take, 1)])
+  }, character(1))
+}
+
 .model_predictors <- function(x) {
   out <- as.data.frame(x, stringsAsFactors = FALSE)
   for (nm in names(out)) {
@@ -232,6 +471,37 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     if (inherits(out[[nm]], "Date")) out[[nm]] <- as.numeric(out[[nm]])
   }
   out
+}
+
+.model_matrix <- function(x) {
+  x <- .model_predictors(x)
+  if (!ncol(x)) return(matrix(0, nrow(x), 1))
+  keep <- vapply(x, function(v) !(is.factor(v) && nlevels(droplevels(v)) < 2), logical(1))
+  x <- x[keep]
+  if (!ncol(x)) return(matrix(0, nrow(x), 1, dimnames = list(NULL, "intercept")))
+  stats::model.matrix(~ . - 1, data = x)
+}
+
+.model_matrix_align <- function(x, cols) {
+  mat <- try(.model_matrix(x), silent = TRUE)
+  if (inherits(mat, "try-error")) mat <- matrix(0, nrow(x), 0)
+  out <- matrix(0, nrow(x), length(cols), dimnames = list(NULL, cols))
+  common <- intersect(colnames(mat), cols)
+  if (length(common)) out[, common] <- mat[, common, drop = FALSE]
+  out
+}
+
+.paired_model_matrices <- function(observed, newdata) {
+  combined <- rbind(observed, newdata)
+  mat <- .model_matrix(combined)
+  list(
+    observed = mat[seq_len(nrow(observed)), , drop = FALSE],
+    new = mat[nrow(observed) + seq_len(nrow(newdata)), , drop = FALSE]
+  )
+}
+
+.predictor_levels <- function(x) {
+  lapply(.model_predictors(x), function(v) if (is.factor(v)) levels(v) else NULL)
 }
 
 .model_target <- function(y) {
@@ -247,9 +517,17 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 .restore_imputed_values <- function(target, pred, n) {
   pred <- pred[seq_len(n)]
   if (inherits(target, "Date")) return(as.Date(round(as.numeric(pred)), origin = "1970-01-01"))
+  if (is.numeric(target)) return(as.numeric(pred))
   if (is.integer(target)) return(as.integer(round(as.numeric(pred))))
   if (is.factor(target)) return(factor(as.character(pred), levels = levels(target), ordered = is.ordered(target)))
   if (is.logical(target)) return(as.logical(as.character(pred)))
   if (is.character(target)) return(as.character(pred))
   pred
+}
+
+.require_backend <- function(package, imputer) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    .mimar_stop("Package '", package, "' is required for imputer = '", imputer, "'. Install it or choose another imputer.")
+  }
+  invisible(TRUE)
 }

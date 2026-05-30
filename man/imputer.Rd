@@ -14,8 +14,7 @@ imputer(method, ...)
 
 \item{...}{Passed to the imputer constructor.}
 
-\item{spec}{Optional learner specification passed to \code{funcml::fit()} for
-\code{funcml}-sourced imputers.}
+\item{spec}{Optional learner specification retained for future extensions.}
 }
 \value{
 A \code{mimar_imputer} object.
@@ -31,11 +30,12 @@ imputation engine. All imputers expose the same standard lifecycle:
 \item impute new rows with \code{predict(fitted, newdata)}.
 }
 
-Classical learners implemented in \code{mimar} are \code{"mean"}, \code{"median"}, \code{"mode"},
-\code{"norm"}, \code{"pmm"}, \code{"logreg"}, and \code{"polyreg"}. Machine-learning learners are
-treated as ordinary \code{mimar} imputers and are fitted through the required
-\code{funcml} fit/predict API: \code{"randomForest"}, \code{"knn"}, \code{"xgboost"}, \code{"svm"},
-\code{"bart"}, \code{"naive_bayes"}, \code{"rpart"}, and \code{"glmnet"}.
+Native learners implemented in \code{mimar} include \code{"mean"}, \code{"median"},
+\code{"mode"}, \code{"naive"}, \code{"norm"}, \code{"pmm"}, \code{"spmm"}, \code{"logreg"},
+\code{"polyreg"}, \code{"knn"}, and \code{"hotdeck"}. Optional learner-backed imputers
+such as \code{"rf"}, \code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"naive_bayes"},
+\code{"rpart"}, \code{"glmnet"}, \code{"gbm"}, and \code{"famd"} call their original
+packages directly when those packages are installed.
 
 Compatibility with target types is explicit. If an imputer does not support a
 numeric, binary, or multiclass target, \code{mimar} stops with an error rather than

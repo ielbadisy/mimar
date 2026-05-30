@@ -2,4 +2,5 @@
 
 * Initial compact missing-data grammar.
 * Added description, amputation, imputation, evaluation, pooling, and plotting.
-* Added optional `mice` and `funcml` imputation adapters.
+* Added chained native and optional learner-backed imputation adapters without
+  a `funcml` dependency.

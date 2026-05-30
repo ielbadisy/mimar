@@ -79,6 +79,6 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
 
 #' @export
 evaluate.mimar_amputation <- function(x, ...) {
-  imp <- impute(x, m = 1, imputer = "meanmode")
+  imp <- impute(x, m = 1, imputer = "naive")
   evaluate(imp, ...)
 }

@@ -42,10 +42,11 @@ ampute <- function(x, ...) UseMethod("ampute")
 
 #' Impute missing data
 #'
-#' `impute()` performs single or multiple imputation. The default
-#' `imputer = "mi"` runs a chained-equation algorithm. A named imputer such as
-#' `"pmm"`, `"logreg"`, `"randomForest"`, or `"glmnet"` can also be supplied to
-#' use that learner for every incomplete variable it supports. The returned
+#' `impute()` performs single or multiple imputation through a chained update
+#' procedure owned by `mimar`. The default `imputer = "pmm"` uses predictive
+#' mean matching. A named imputer such as `"naive"`, `"rf"`, `"xgboost"`,
+#' `"knn"`, or `"glmnet"` can also be supplied to use that learner for every
+#' incomplete variable it supports. The returned
 #' object keeps completed datasets first; use `complete()` to extract one
 #' completed dataset, all completed datasets, or a stacked long data frame.
 #'
@@ -58,10 +59,8 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' learner-agnostic: each imputer is constructed with `imputer()`, trained with
 #' `fit()`, and used through `predict()`.
 #'
-#' Default method selection inside `imputer = "mi"` is type-aware: predictive
-#' mean matching (`"pmm"`) for numeric, integer, and Date targets, logistic
-#' regression (`"logreg"`) for binary targets, and multinomial one-vs-rest
-#' logistic regression (`"polyreg"`) for multiclass targets.
+#' Each requested imputer is applied to all incomplete variables it supports.
+#' Use `imputer_registry()` to inspect target-type compatibility.
 #'
 #' @param x A data frame or `mimar_amputation` object.
 #' @param ... Passed to methods.
@@ -93,11 +92,12 @@ complete <- function(x, ...) UseMethod("complete")
 #'   \item impute new rows with `predict(fitted, newdata)`.
 #' }
 #'
-#' Classical learners implemented in `mimar` are `"mean"`, `"median"`, `"mode"`,
-#' `"norm"`, `"pmm"`, `"logreg"`, and `"polyreg"`. Machine-learning learners are
-#' treated as ordinary `mimar` imputers and are fitted through the required
-#' `funcml` fit/predict API: `"randomForest"`, `"knn"`, `"xgboost"`, `"svm"`,
-#' `"bart"`, `"naive_bayes"`, `"rpart"`, and `"glmnet"`.
+#' Native learners implemented in `mimar` include `"mean"`, `"median"`,
+#' `"mode"`, `"naive"`, `"norm"`, `"pmm"`, `"spmm"`, `"logreg"`, `"polyreg"`,
+#' `"knn"`, and `"hotdeck"`. Optional learner-backed imputers such as `"rf"`,
+#' `"xgboost"`, `"svm"`, `"bart"`, `"naive_bayes"`, `"rpart"`, `"glmnet"`,
+#' `"gbm"`, and `"famd"` are called directly through their original packages
+#' when those packages are installed.
 #'
 #' Compatibility with target types is explicit. If an imputer does not support a
 #' numeric, binary, or multiclass target, `mimar` stops with an error rather than

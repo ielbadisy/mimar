@@ -8,9 +8,9 @@
 \usage{
 impute(x, ...)
 
-\method{impute}{data.frame}(x, m = 5, imputer = "mi", maxit = 5, seed = NULL, ...)
+\method{impute}{data.frame}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ...)
 
-\method{impute}{mimar_amputation}(x, m = 5, imputer = "mi", maxit = 5, seed = NULL, ...)
+\method{impute}{mimar_amputation}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ...)
 }
 \arguments{
 \item{x}{A data frame or \code{mimar_amputation} object.}
@@ -19,10 +19,8 @@ impute(x, ...)
 
 \item{m}{Number of completed data sets to generate.}
 
-\item{imputer}{Imputation engine or learner name. \code{"mi"} runs type-specific
-chained equations. \code{"meanmode"} runs deterministic median/mode imputation.
-Any name returned by \code{describe("imputers")} can be supplied to use that
-learner for all incomplete variables it supports.}
+\item{imputer}{Imputer name. Any name returned by \code{imputer_registry()} can
+be supplied to use that imputer for all incomplete variables it supports.}
 
 \item{maxit}{Number of chained-equation iterations.}
 
@@ -32,10 +30,11 @@ learner for all incomplete variables it supports.}
 A \code{mimar_imputation} object.
 }
 \description{
-\code{impute()} performs single or multiple imputation. The default
-\code{imputer = "mi"} runs a chained-equation algorithm. A named imputer such as
-\code{"pmm"}, \code{"logreg"}, \code{"randomForest"}, or \code{"glmnet"} can also be supplied to
-use that learner for every incomplete variable it supports. The returned
+\code{impute()} performs single or multiple imputation through a chained update
+procedure owned by \code{mimar}. The default \code{imputer = "pmm"} uses predictive
+mean matching. A named imputer such as \code{"naive"}, \code{"rf"}, \code{"xgboost"},
+\code{"knn"}, or \code{"glmnet"} can also be supplied to use that learner for every
+incomplete variable it supports. The returned
 object keeps completed datasets first; use \code{complete()} to extract one
 completed dataset, all completed datasets, or a stacked long data frame.
 }
@@ -49,10 +48,8 @@ repeated across incomplete variables for \code{maxit} iterations and across
 learner-agnostic: each imputer is constructed with \code{imputer()}, trained with
 \code{fit()}, and used through \code{predict()}.
 
-Default method selection inside \code{imputer = "mi"} is type-aware: predictive
-mean matching (\code{"pmm"}) for numeric, integer, and Date targets, logistic
-regression (\code{"logreg"}) for binary targets, and multinomial one-vs-rest
-logistic regression (\code{"polyreg"}) for multiclass targets.
+Each requested imputer is applied to all incomplete variables it supports.
+Use \code{imputer_registry()} to inspect target-type compatibility.
 }
 \section{Methods (by class)}{
 \itemize{
