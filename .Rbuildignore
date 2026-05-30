@@ -1,2 +1,5 @@
 ^doc$
 ^Meta$
+^\.git$
+^\.gitignore$
+^R/\.Rhistory$
