@@ -2,3 +2,5 @@
 /Meta/
 R/.Rhistory
 tests/testthat/Rplots.pdf
+*.Rcheck/
+*.tar.gz
