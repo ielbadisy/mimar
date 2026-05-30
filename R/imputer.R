@@ -43,7 +43,9 @@
 #' List available mimar imputers
 #'
 #' `imputer_registry()` returns the imputer names accepted by `impute()` and
-#' metadata describing target-type support and optional backend packages.
+#' metadata describing target-type support and optional backend packages. Native
+#' `mimar` methods display `package = "internal"`. The result is returned as a
+#' tibble when the optional `tibble` package is installed.
 #'
 #' @return A data frame.
 #' @export
@@ -53,7 +55,8 @@ imputer_registry <- function() {
     is.na(pkg) || requireNamespace(pkg, quietly = TRUE)
   }, logical(1))
   out$status <- ifelse(out$available, "available", paste0("requires ", out$package))
-  out
+  out$package[is.na(out$package)] <- "internal"
+  if (requireNamespace("tibble", quietly = TRUE)) tibble::as_tibble(out) else out
 }
 
 #' @describeIn imputer Construct a `mimar_imputer`.

@@ -26,8 +26,13 @@ pool()
 plot()
 ```
 
-The imputation principle is simple: `mimar` owns the chained imputation
-procedure, and every imputer is a variable-update rule inside that procedure.
+The imputation principle is deliberately narrow: `mimar` owns the chained
+imputation procedure, and every imputer is a variable-update rule inside that
+procedure. This follows the chained-equation view popularized by MICE
+(van Buuren and Groothuis-Oudshoorn 2011), while keeping the update contract
+small enough to support native methods, donor methods, and optional
+learner-backed methods through the same user-facing call.
+
 Native imputers and optional learner-backed imputers are called the same way:
 
 ```r
@@ -36,8 +41,8 @@ impute(data, imputer = "rf", m = 5, maxit = 5)
 impute(data, imputer = "xgboost", m = 5, maxit = 5)
 ```
 
-There is no dependency on `funcml`; wrapped learners call their original
-packages directly when requested.
+There is no dependency on a separate modelling framework; wrapped learners call
+their original packages directly when requested.
 
 ```{r}
 library(mimar)
@@ -194,45 +199,42 @@ Then it updates the missing cells:
 
 where \(g_j\) is the prediction or donor-sampling rule for the selected imputer.
 
-### Pseudo Algorithm
+### Algorithm
 
-```text
-Input:
-  X: data frame with missing values
-  h: imputer name or named imputer vector
-  m: number of completed datasets
-  T: number of chained iterations
+The chained imputation routine can be written compactly as follows. Let \(h\)
+be the requested imputer name, \(T\) the number of chained iterations, and
+\(\mathcal{B}(O_j)\) a bootstrap sample from the observed rows of variable
+\(j\).
 
-Initialize:
-  Fill missing numeric values with medians.
-  Fill missing categorical values with modes.
+\[
+\begin{array}{ll}
+\textbf{Input:} &
+X,\ R,\ h,\ m,\ T.\\[2mm]
+\textbf{Initialize:} &
+\tilde X^{(0)} \leftarrow \operatorname{init}(X),
+\quad\text{using medians for numeric variables and modes for categorical variables.}\\[2mm]
+\textbf{For } k=1,\ldots,m: &
+\tilde X_k^{(0)} \leftarrow \tilde X^{(0)}.\\[1mm]
+& \textbf{For } t=1,\ldots,T: \\[1mm]
+& \quad \textbf{For each } j \textbf{ with } M_j \ne \varnothing: \\[1mm]
+& \quad\quad B_j \leftarrow \mathcal{B}(O_j).\\[1mm]
+& \quad\quad \hat f_{jk}^{(t)} \leftarrow
+  \operatorname{fit}_h\!\left(\tilde X_{k,B_j,-j}^{(t-1)}, X_{B_j,j}\right).\\[1mm]
+& \quad\quad \tilde X_{k,M_j,j}^{(t)} \leftarrow
+  \operatorname{restore}_j\!\left[
+  g_h\!\left(\hat f_{jk}^{(t)}, \tilde X_{k,M_j,-j}^{(t-1)}\right)
+  \right].\\[1mm]
+& \quad\quad \tilde X_{k,O_j,j}^{(t)} \leftarrow X_{O_j,j}.\\[2mm]
+\textbf{Return:} &
+\{\tilde X_1^{(T)},\ldots,\tilde X_m^{(T)}\}
+\text{ as a } \texttt{mimar\_imputation}\text{ object.}
+\end{array}
+\]
 
-For k = 1,...,m:
-  Set seed for imputation k.
-  Start from initialized data X_tilde.
-
-  For t = 1,...,T:
-    For each variable j with missing cells:
-      O_j <- observed rows for X_j
-      M_j <- missing rows for X_j
-      h_j <- selected imputer for X_j
-      B_j <- bootstrap sample from O_j
-
-      Fit h_j on:
-        predictors X_tilde[B_j, -j]
-        target     X[B_j, j]
-
-      Predict or sample:
-        X_tilde[M_j, j] <- h_j(X_tilde[M_j, -j])
-
-      Restore storage type:
-        numeric, integer, Date, logical, factor, or character
-
-  Store X_tilde as completed dataset k.
-
-Return:
-  mimar_imputation object with m completed datasets and diagnostics.
-```
+The `restore` step converts predictions back to the target storage type:
+numeric, integer, `Date`, logical, factor, or character. This is what allows
+the same update loop to work on numeric-only, categorical-only, and mixed-type
+data frames.
 
 ## Implemented Update Equations
 
@@ -291,6 +293,9 @@ The imputed value is sampled from the nearest donor set:
 \]
 
 `spmm` uses the same update rule but is treated as a single-step PMM method.
+Predictive mean matching is commonly used in chained-equation imputation
+because it imputes observed donor values rather than unconstrained model
+predictions (van Buuren and Groothuis-Oudshoorn 2011).
 
 ### Logistic Regression
 
@@ -339,7 +344,8 @@ d(i,\ell) = \left\|Z_i - Z_\ell\right\|_2.
 `knn` samples from the nearest donor set. `hotdeck` uses the same standardized
 donor mechanism as a stochastic hot-deck update inside the chain. `famd` first
 builds FAMD-assisted completed predictor coordinates when `missMDA` is
-available, then uses donor matching in that coordinate space.
+available, then uses donor matching in that coordinate space, following the
+mixed-data imputation ideas implemented in `missMDA` (Josse and Husson 2016).
 
 ### Learner-Backed Imputers
 
@@ -355,7 +361,13 @@ predictions. Binary and multiclass targets use class predictions or sampled
 class probabilities when the backend exposes probabilities.
 
 `rf` is a random forest imputer inside `mimar`'s chained update loop. It is a
-variable-level supervised update, not a whole-dataframe imputation engine.
+variable-level supervised update, not a whole-dataframe imputation engine. This
+is conceptually related to the random-forest imputation strategy of
+Stekhoven and Buehlmann (2012), but the outer loop, multiple-imputation
+replication, and output structure are controlled by `mimar`. The `ranger`,
+`glmnet`, and `xgboost` wrappers use the corresponding modelling systems
+described by Wright and Ziegler (2017), Friedman, Hastie, and Tibshirani (2010),
+and Chen and Guestrin (2016).
 
 ## Single and Multiple Imputation
 
@@ -459,3 +471,35 @@ external_results <- data.frame(
 p <- pool(external_results)
 p
 ```
+
+## References
+
+Chen T, Guestrin C. 2016. XGBoost: A scalable tree boosting system.
+Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge
+Discovery and Data Mining, 785--794. doi:10.1145/2939672.2939785.
+
+Friedman JH. 2001. Greedy function approximation: A gradient boosting machine.
+The Annals of Statistics 29(5):1189--1232. doi:10.1214/aos/1013203451.
+
+Friedman J, Hastie T, Tibshirani R. 2010. Regularization paths for generalized
+linear models via coordinate descent. Journal of Statistical Software 33(1):
+1--22. doi:10.18637/jss.v033.i01.
+
+Josse J, Husson F. 2016. missMDA: A package for handling missing values in
+multivariate data analysis. Journal of Statistical Software 70(1):1--31.
+doi:10.18637/jss.v070.i01.
+
+Rubin DB. 1987. Multiple Imputation for Nonresponse in Surveys. New York:
+John Wiley & Sons.
+
+Stekhoven DJ, Buehlmann P. 2012. MissForest--non-parametric missing value
+imputation for mixed-type data. Bioinformatics 28(1):112--118.
+doi:10.1093/bioinformatics/btr597.
+
+van Buuren S, Groothuis-Oudshoorn K. 2011. mice: Multivariate imputation by
+chained equations in R. Journal of Statistical Software 45(3):1--67.
+doi:10.18637/jss.v045.i03.
+
+Wright MN, Ziegler A. 2017. ranger: A fast implementation of random forests
+for high dimensional data in C++ and R. Journal of Statistical Software
+77(1):1--17. doi:10.18637/jss.v077.i01.
