@@ -5,7 +5,7 @@ missingness, chained single and multiple imputation, imputation evaluation,
 pooling, and diagnostic plotting.
 
 The package owns the imputation loop. Every imputer, whether implemented
-natively or backed by an optional learner package, is called the same way:
+natively or backed by a learner package, is called the same way:
 
 ```r
 impute(data, imputer = "pmm", m = 5, maxit = 5, seed = 1)
@@ -13,8 +13,9 @@ impute(data, imputer = "rf", m = 5, seed = 1)
 impute(data, imputer = "xgboost", m = 5, seed = 1)
 ```
 
-There is no dependency on `funcml`. Optional learner packages are used directly
-only when the corresponding imputer is requested.
+There is no dependency on `funcml`. Learner-backed imputers call their original
+packages directly, and those backend packages are hard dependencies so users can
+run any registered imputer without manually resolving learner installations.
 
 ## Grammar
 
@@ -80,7 +81,7 @@ Core native imputers:
 - `knn`: nearest-neighbor donor imputation
 - `hotdeck`: stochastic donor imputation
 
-Optional learner-backed imputers:
+Learner-backed imputers:
 
 - `rf`: MissForest-style chained random forest imputer through `ranger`
 - `ranger`: random forest through `ranger`
@@ -201,14 +202,7 @@ interquartile range, and range across imputations.
 
 ## Installation Notes
 
-The base package installs without learner backends beyond base R dependencies.
-Optional packages are needed only for their imputers. For example:
-
-```r
-install.packages("ranger")   # for imputer = "rf" or "ranger"
-install.packages("glmnet")   # for imputer = "glmnet"
-install.packages("xgboost")  # for imputer = "xgboost"
-```
-
-If an optional package is absent, `mimar` gives a direct message naming the
-required package.
+Learner backends are hard dependencies. Installing `mimar` installs the
+packages needed by the registered learner-backed imputers, including `ranger`,
+`rpart`, `naivebayes`, `e1071`, `BART`, `glmnet`, `gbm`, `xgboost`, and
+`missMDA`.

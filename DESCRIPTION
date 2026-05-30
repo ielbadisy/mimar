@@ -2,26 +2,25 @@ Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
 Version: 0.0.1
 Authors@R: c(person(given = "Imad", family = "EL BADISY", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
-Description: Provides a compact grammar for missing-data description, artificial missingness generation, single and multiple imputation, imputation evaluation, pooling, and diagnostic plotting. Native and optional learner-backed imputers are standardized through a chained imputation workflow owned by the package.
+Description: Provides a compact grammar for missing-data description, artificial missingness generation, single and multiple imputation, imputation evaluation, pooling, and diagnostic plotting. Native and learner-backed imputers are standardized through a chained imputation workflow owned by the package.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
-    ggplot2,
-    stats,
-    tibble
-Suggests:
     BART,
-    FNN,
+    e1071,
     gbm,
+    ggplot2,
     glmnet,
     missMDA,
     naivebayes,
     ranger,
     rpart,
-    xgboost,
-    e1071,
+    stats,
+    tibble,
+    xgboost
+Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,

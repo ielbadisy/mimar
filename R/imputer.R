@@ -43,7 +43,7 @@
 #' List available mimar imputers
 #'
 #' `imputer_registry()` returns the imputer names accepted by `impute()` and
-#' metadata describing target-type support and optional backend packages. Native
+#' metadata describing target-type support and backend packages. Native
 #' `mimar` methods display `package = "internal"`. The result is returned as a
 #' tibble.
 #'
@@ -84,7 +84,7 @@ imputer.default <- function(method, spec = NULL, ...) {
 #'
 #' The fitted object stores the original imputer descriptor and the model needed
 #' by `predict()`. Native imputers are implemented directly in `mimar`; wrapped
-#' imputers call their original learner packages directly when requested:
+#' imputers call their original learner packages directly:
 #'
 #' \itemize{
 #'   \item `"norm"` fits a linear model and draws
