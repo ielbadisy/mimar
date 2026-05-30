@@ -18,8 +18,8 @@ print.mimar_amputation <- function(x, ...) {
 
 #' @export
 summary.mimar_amputation <- function(object, ...) {
-  data.frame(variable = names(object$data), original = colSums(object$mask_original),
-             added = colSums(object$mask_added), total = colSums(object$mask_total), row.names = NULL)
+  .as_tibble(data.frame(variable = names(object$data), original = colSums(object$mask_original),
+                        added = colSums(object$mask_added), total = colSums(object$mask_total), row.names = NULL))
 }
 
 #' @export
@@ -59,9 +59,9 @@ summary.mimar_imputation <- function(object, ...) {
 #' @export
 print.summary_mimar_imputation <- function(x, ...) {
   cat("mimar imputation summary\n")
-  print(x$overview, row.names = FALSE)
+  print(x$overview)
   cat("\nVariables:\n")
-  print(x$variables, row.names = FALSE)
+  print(x$variables)
   invisible(x)
 }
 
@@ -88,6 +88,6 @@ summary.mimar_pool <- function(object, ...) object$pooled
 #' @export
 print.mimar_imputers <- function(x, ...) {
   cat("mimar available imputers\n")
-  print.data.frame(x, row.names = FALSE)
+  print(.as_tibble(x))
   invisible(x)
 }

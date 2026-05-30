@@ -47,8 +47,8 @@ variable. In the imputation loop, \code{x} is the predictor block
 }
 \details{
 The fitted object stores the original imputer descriptor and the model needed
-by \code{predict()}. Native imputers are implemented directly in \code{mimar};
-wrapped imputers call their original learner packages directly when requested:
+by \code{predict()}. Native imputers are implemented directly in \code{mimar}; wrapped
+imputers call their original learner packages directly when requested:
 
 \itemize{
 \item \code{"norm"} fits a linear model and draws

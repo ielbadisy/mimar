@@ -1,13 +1,13 @@
 #' @export
 describe.data.frame <- function(x, ...) {
   .check_data_frame(x)
-  variable_summary <- data.frame(
+  variable_summary <- .as_tibble(data.frame(
     variable = names(x),
     type = vapply(x, .variable_type, character(1)),
     n_missing = colSums(is.na(x)),
     prop_missing = colMeans(is.na(x)),
     row.names = NULL
-  )
+  ))
   complete_cases <- sum(stats::complete.cases(x))
   out <- list(
     call = match.call(),
@@ -18,7 +18,7 @@ describe.data.frame <- function(x, ...) {
     row_summary = .row_summary(x),
     complete_cases = complete_cases,
     complete_case_prop = complete_cases / max(nrow(x), 1),
-    data = x
+    data = .as_tibble(x)
   )
   class(out) <- c("mimar_missing", "list")
   out
@@ -30,7 +30,7 @@ describe.character <- function(x, ...) {
     .mimar_stop('Only describe("imputers") is supported for character input.')
   }
   out <- imputer_registry()
-  class(out) <- c("mimar_imputers", "data.frame")
+  class(out) <- c("mimar_imputers", setdiff(class(out), "mimar_imputers"))
   out
 }
 

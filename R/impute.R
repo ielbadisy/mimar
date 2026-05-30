@@ -12,9 +12,10 @@ impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
   imputer <- as.character(imputer)[1]
   imputer(imputer)
   res <- .impute_chained(x, m = m, maxit = maxit, seed = seed, method = imputer, ...)
-  first <- res$imputations[[1]]
-  out <- list(imputations = res$imputations, data = first,
-              call = match.call(), data_original = x,
+  imputations <- lapply(res$imputations, .as_tibble)
+  first <- imputations[[1]]
+  out <- list(imputations = imputations, data = first,
+              call = match.call(), data_original = .as_tibble(x),
               m = m, imputer = imputer, maxit = maxit, seed = seed,
               variable_methods = res$variable_methods,
               imputed_cells = .imputed_cells_summary(x, first),
