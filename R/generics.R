@@ -94,10 +94,10 @@ complete <- function(x, ...) UseMethod("complete")
 #'
 #' Native learners implemented in `mimar` include `"mean"`, `"median"`,
 #' `"mode"`, `"naive"`, `"norm"`, `"pmm"`, `"spmm"`, `"logreg"`, `"polyreg"`,
-#' `"knn"`, and `"hotdeck"`. Optional learner-backed imputers such as `"rf"`,
+#' `"knn"`, and `"hotdeck"`. Learner-backed imputers such as `"rf"`,
 #' `"xgboost"`, `"svm"`, `"bart"`, `"naive_bayes"`, `"rpart"`, `"glmnet"`,
 #' `"gbm"`, and `"famd"` are called directly through their original packages
-#' when those packages are installed.
+#' installed with `mimar`.
 #'
 #' Compatibility with target types is explicit. If an imputer does not support a
 #' numeric, binary, or multiclass target, `mimar` stops with an error rather than
