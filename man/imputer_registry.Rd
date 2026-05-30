@@ -11,5 +11,7 @@ A data frame.
 }
 \description{
 \code{imputer_registry()} returns the imputer names accepted by \code{impute()} and
-metadata describing target-type support and optional backend packages.
+metadata describing target-type support and optional backend packages. Native
+\code{mimar} methods display \code{package = "internal"}. The result is returned as a
+tibble when the optional \code{tibble} package is installed.
 }

@@ -25,6 +25,7 @@ Suggests:
     knitr,
     rmarkdown,
     ggplot2,
-    pkgload
+    pkgload,
+    tibble
 Config/testthat/edition: 3
 VignetteBuilder: knitr

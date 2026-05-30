@@ -70,6 +70,7 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_error(imputer("missforest"), "Unknown imputer")
   expect_error(imputer("mixgb"), "Unknown imputer")
   expect_s3_class(imputer_registry(), "data.frame")
+  expect_equal(imputer_registry()$package[imputer_registry()$imputer == "knn"], "internal")
   expect_error(imputer("mice"), "Unknown imputer")
 })
 
