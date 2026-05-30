@@ -6,7 +6,7 @@
 pool.data.frame <- function(x, ...) {
   if (all(c("term", "estimate", "std.error", "imputation") %in% names(x))) {
     spl <- split(x, x$term)
-    pooled <- do.call(rbind, lapply(names(spl), function(term) {
+    pooled <- .as_tibble(do.call(rbind, lapply(names(spl), function(term) {
       d <- spl[[term]]
       q <- d$estimate
       u <- d$std.error^2
@@ -29,11 +29,11 @@ pool.data.frame <- function(x, ...) {
                  within_variance = ubar, between_variance = b,
                  total_variance = total, relative_increase_variance = r,
                  row.names = NULL)
-    }))
-    out <- list(call = match.call(), pooled = pooled, type = "estimate", data = x)
+    })))
+    out <- list(call = match.call(), pooled = pooled, type = "estimate", data = .as_tibble(x))
   } else if (all(c("metric", "value", "imputation") %in% names(x))) {
     spl <- split(x, x$metric)
-    pooled <- do.call(rbind, lapply(names(spl), function(metric) {
+    pooled <- .as_tibble(do.call(rbind, lapply(names(spl), function(metric) {
       d <- spl[[metric]]
       q <- d$value
       m <- length(q)
@@ -45,8 +45,8 @@ pool.data.frame <- function(x, ...) {
                  conf.low = est - stats::qnorm(.975) * se,
                  conf.high = est + stats::qnorm(.975) * se, m = m,
                  between_variance = b, row.names = NULL)
-    }))
-    out <- list(call = match.call(), pooled = pooled, type = "metric", data = x)
+    })))
+    out <- list(call = match.call(), pooled = pooled, type = "metric", data = .as_tibble(x))
   } else {
     .mimar_stop("Pooling requires columns `term`, `estimate`, `std.error`, `imputation` or `metric`, `value`, `imputation`.")
   }

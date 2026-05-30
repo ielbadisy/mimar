@@ -9,7 +9,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     ggplot2,
-    stats
+    stats,
+    tibble
 Suggests:
     BART,
     FNN,
@@ -24,7 +25,6 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
-    pkgload,
-    tibble
+    pkgload
 Config/testthat/edition: 3
 VignetteBuilder: knitr

@@ -7,7 +7,7 @@ complete.mimar_imputation <- function(x, action = 1, ...) {
       cbind(.imp = i, x$imputations[[i]], row.names = NULL)
     }))
     row.names(out) <- NULL
-    return(out)
+    return(.as_tibble(out))
   }
 
   if (!is.numeric(action) || length(action) != 1 || is.na(action)) {
@@ -17,5 +17,5 @@ complete.mimar_imputation <- function(x, action = 1, ...) {
   if (action < 1 || action > length(x$imputations)) {
     .mimar_stop("`action` must select an imputation between 1 and ", length(x$imputations), ".")
   }
-  x$imputations[[action]]
+  .as_tibble(x$imputations[[action]])
 }

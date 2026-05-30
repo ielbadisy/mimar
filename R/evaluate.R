@@ -30,8 +30,8 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
     }, numeric(1))
     data.frame(variable = nm, between_imputation_sd = stats::sd(vals), row.names = NULL)
   }))
-  recovery <- data.frame()
-  recovery_by_imputation <- data.frame()
+  recovery <- .as_tibble(data.frame())
+  recovery_by_imputation <- .as_tibble(data.frame())
   if (!is.null(truth) && !is.null(mask)) {
     recovery_by_imputation <- .rbind_or_empty(lapply(seq_along(x$imputations), function(mi) {
       completed <- x$imputations[[mi]]
@@ -65,11 +65,12 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
         recovery_by_imputation[c("variable", "type")],
         function(z) mean(z, na.rm = TRUE)
       )
+      recovery <- .as_tibble(recovery)
     }
   }
-  summary <- data.frame(n_imputations = x$m, imputer = x$imputer,
-                        total_missing = sum(is.na(original)),
-                        evaluated_cells = if (is.null(mask)) 0 else sum(as.matrix(mask)), row.names = NULL)
+  summary <- .as_tibble(data.frame(n_imputations = x$m, imputer = x$imputer,
+                                   total_missing = sum(is.na(original)),
+                                   evaluated_cells = if (is.null(mask)) 0 else sum(as.matrix(mask)), row.names = NULL))
   out <- list(call = match.call(), summary = summary, distribution = distribution,
               recovery = recovery, recovery_by_imputation = recovery_by_imputation,
               variability = variability, diagnostics = x$diagnostics)
