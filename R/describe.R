@@ -29,21 +29,7 @@ describe.character <- function(x, ...) {
   if (length(x) != 1 || !identical(tolower(x), "imputers")) {
     .mimar_stop('Only describe("imputers") is supported for character input.')
   }
-  base <- data.frame(
-    imputer = "meanmode", source = "mimar", supports_numeric = TRUE,
-    supports_binary = TRUE, supports_multiclass = TRUE, available = TRUE,
-    status = "available", row.names = NULL
-  )
-  mi <- data.frame(
-    imputer = "mi", source = "mimar", supports_numeric = TRUE,
-    supports_binary = TRUE, supports_multiclass = TRUE, available = TRUE,
-    status = "available", row.names = NULL
-  )
-  methods <- .imputer_catalog()
-  methods$available <- TRUE
-  methods$status <- "available"
-  methods$learner <- NULL
-  out <- rbind(base, mi, methods)
+  out <- imputer_registry()
   class(out) <- c("mimar_imputers", "data.frame")
   out
 }
