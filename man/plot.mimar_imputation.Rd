@@ -8,7 +8,6 @@
   x,
   type = c("imputed", "missing", "density", "strip", "methods", "variability"),
   variable = NULL,
-  engine = c("ggplot2", "base"),
   ...
 )
 }
@@ -20,14 +19,10 @@
 
 \item{variable}{Optional variable name or names used by distribution plots.}
 
-\item{engine}{Plotting engine. \code{"ggplot2"} is used when available; \code{"base"}
-uses base graphics.}
-
-\item{...}{Passed to base graphics methods.}
+\item{...}{Unused.}
 }
 \value{
-A \code{ggplot} object when \code{engine = "ggplot2"} and \code{ggplot2} is
-installed; otherwise invisibly returns \code{x}.
+A \code{ggplot} object.
 }
 \description{
 \code{plot.mimar_imputation()} draws imputation diagnostics. By default it shows

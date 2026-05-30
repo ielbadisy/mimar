@@ -8,7 +8,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
-    graphics,
+    ggplot2,
     stats
 Suggests:
     BART,
@@ -24,7 +24,6 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,
-    ggplot2,
     pkgload,
     tibble
 Config/testthat/edition: 3

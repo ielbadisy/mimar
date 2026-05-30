@@ -1,26 +1,27 @@
 #' @export
-plot.mimar_missing <- function(x, engine = c("base", "ggplot2"), ...) {
-  engine <- match.arg(engine)
+plot.mimar_missing <- function(x, ...) {
   d <- x$variable_summary
-  if (engine == "ggplot2" && requireNamespace("ggplot2", quietly = TRUE)) {
-    d$variable <- stats::reorder(d$variable, d$prop_missing)
-    return(
-      ggplot2::ggplot(d, .gg_aes(x = "prop_missing", y = "variable")) +
-        ggplot2::geom_col(fill = "#2F6F73", width = 0.72) +
-        ggplot2::scale_x_continuous(labels = function(z) paste0(round(100 * z), "%")) +
-        ggplot2::labs(x = "Missing proportion", y = NULL) +
-        ggplot2::theme_minimal(base_size = 12)
-    )
-  }
-  graphics::barplot(stats::setNames(d$prop_missing, d$variable), horiz = TRUE, xlab = "Missing proportion", ...)
+  d$variable <- stats::reorder(d$variable, d$prop_missing)
+  ggplot2::ggplot(d, .gg_aes(x = "prop_missing", y = "variable")) +
+    ggplot2::geom_col(fill = "#2F6F73", width = 0.72) +
+    ggplot2::scale_x_continuous(labels = function(z) paste0(round(100 * z), "%")) +
+    ggplot2::labs(x = "Missing proportion", y = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
 }
 
 #' @export
 plot.mimar_amputation <- function(x, ...) {
   d <- summary(x)
-  mat <- t(as.matrix(d[, c("original", "added", "total")]))
-  colnames(mat) <- d$variable
-  graphics::barplot(mat, beside = TRUE, legend.text = TRUE, ylab = "Missing cells", ...)
+  long <- .rbind_or_empty(lapply(c("original", "added", "total"), function(status) {
+    data.frame(variable = d$variable, status = status, n_missing = d[[status]], row.names = NULL)
+  }))
+  long$status <- factor(long$status, levels = c("original", "added", "total"))
+  ggplot2::ggplot(long, .gg_aes(x = "variable", y = "n_missing", fill = "status")) +
+    ggplot2::geom_col(position = "dodge", width = 0.72) +
+    ggplot2::scale_fill_manual(values = c(original = "#4F5D75", added = "#B84A62", total = "#2F6F73")) +
+    ggplot2::labs(x = NULL, y = "Missing cells", fill = NULL) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
 
 #' Diagnostic plots for mimar imputations
@@ -34,97 +35,27 @@ plot.mimar_amputation <- function(x, ...) {
 #' @param type Plot type: `"imputed"`, `"missing"`, `"density"`, `"strip"`,
 #'   `"methods"`, or `"variability"`.
 #' @param variable Optional variable name or names used by distribution plots.
-#' @param engine Plotting engine. `"ggplot2"` is used when available; `"base"`
-#'   uses base graphics.
-#' @param ... Passed to base graphics methods.
-#' @return A `ggplot` object when `engine = "ggplot2"` and `ggplot2` is
-#'   installed; otherwise invisibly returns `x`.
+#' @param ... Unused.
+#' @return A `ggplot` object.
 #' @export
 plot.mimar_imputation <- function(x, type = c("imputed", "missing", "density", "strip", "methods", "variability"),
-                                  variable = NULL, engine = c("ggplot2", "base"), ...) {
+                                  variable = NULL, ...) {
   type <- match.arg(type)
-  engine <- match.arg(engine)
-  if (engine == "ggplot2" && requireNamespace("ggplot2", quietly = TRUE)) {
-    return(.plot_imputation_ggplot(x, type = type, variable = variable))
-  }
-  .plot_imputation_base(x, type = type, variable = variable, ...)
+  .plot_imputation_ggplot(x, type = type, variable = variable)
 }
 
 #' @export
 plot.mimar_evaluation <- function(x, ...) {
   d <- x$recovery
-  if (is.null(d) || !nrow(d)) {
-    graphics::plot.new(); graphics::text(.5, .5, "No recovery metrics available"); return(invisible(x))
-  }
-  val <- ifelse(!is.na(d$rmse), d$rmse, 1 - d$accuracy)
-  graphics::barplot(stats::setNames(val, d$variable), horiz = TRUE, xlab = "RMSE or 1 - accuracy", ...)
-}
-
-.plot_imputation_base <- function(x, type, variable = NULL, ...) {
-  if (identical(type, "imputed")) {
-    d <- .imputation_variable_summary(x)
-    graphics::barplot(stats::setNames(d$n_imputed, d$variable), horiz = TRUE, xlab = "Imputed cells", ...)
-    return(invisible(x))
-  }
-  if (identical(type, "missing")) {
-    return(plot(describe(x$data_original), ...))
-  }
-  if (identical(type, "methods")) {
-    d <- .imputation_variable_summary(x)
-    tab <- sort(table(d$method[d$n_missing_before > 0]), decreasing = TRUE)
-    graphics::barplot(tab, ylab = "Variables", ...)
-    return(invisible(x))
-  }
-  if (identical(type, "variability")) {
-    d <- .imputation_variable_summary(x)
-    val <- d$between_imputation_sd
-    if (!any(is.finite(val))) {
-      graphics::plot.new()
-      graphics::text(.5, .5, "No between-imputation variability available")
-      return(invisible(x))
-    }
-    graphics::barplot(stats::setNames(val, d$variable), horiz = TRUE,
-                      xlab = "Between-imputation SD", ...)
-    return(invisible(x))
-  }
-  .plot_distribution_base(x, type = type, variable = variable, ...)
-}
-
-.plot_distribution_base <- function(x, type, variable = NULL, ...) {
-  data <- .observed_imputed_plot_data(x, variable = variable)
-  if (!nrow(data)) {
-    graphics::plot.new()
-    graphics::text(.5, .5, "No plottable imputed variables")
-    return(invisible(x))
-  }
-  variable <- unique(data$variable)[1]
-  d <- data[data$variable == variable, , drop = FALSE]
-  if (identical(type, "density") && identical(unique(d$value_type), "numeric")) {
-    obs <- as.numeric(d$value[d$status == "observed"])
-    imp <- as.numeric(d$value[d$status == "imputed"])
-    if (length(unique(stats::na.omit(obs))) < 2 || length(unique(stats::na.omit(imp))) < 2) {
-      d$value_plot <- as.numeric(d$value)
-      graphics::stripchart(value_plot ~ status, data = d, vertical = TRUE, method = "jitter",
-                           ylab = variable, xlab = "", ...)
-      return(invisible(x))
-    }
-    graphics::plot(stats::density(obs, na.rm = TRUE), main = variable, xlab = variable, ...)
-    graphics::lines(stats::density(imp, na.rm = TRUE), col = "#B84A62")
-    graphics::legend("topright", legend = c("observed", "imputed"), lty = 1, col = c("black", "#B84A62"))
-    return(invisible(x))
-  }
-  if (identical(unique(d$value_type), "numeric")) {
-    d$value_plot <- as.numeric(d$value)
-  } else {
-    levels <- sort(unique(d$value))
-    d$value_plot <- as.numeric(factor(d$value, levels = levels))
-  }
-  graphics::stripchart(value_plot ~ status, data = d, vertical = TRUE, method = "jitter",
-                       ylab = variable, xlab = "", ...)
-  if (!identical(unique(d$value_type), "numeric")) {
-    graphics::axis(2, at = seq_along(levels), labels = levels, las = 1)
-  }
-  invisible(x)
+  if (is.null(d) || !nrow(d)) return(.empty_ggplot("No recovery metrics available"))
+  d$value <- ifelse(!is.na(d$rmse), d$rmse, 1 - d$accuracy)
+  d$metric <- ifelse(!is.na(d$rmse), "RMSE", "1 - accuracy")
+  d$variable <- stats::reorder(d$variable, d$value)
+  ggplot2::ggplot(d, .gg_aes(x = "value", y = "variable", fill = "metric")) +
+    ggplot2::geom_col(width = 0.72) +
+    ggplot2::scale_fill_manual(values = c(RMSE = "#2F6F73", `1 - accuracy` = "#B84A62")) +
+    ggplot2::labs(x = "Recovery error", y = NULL, fill = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
 }
 
 .plot_imputation_ggplot <- function(x, type, variable = NULL) {
@@ -138,12 +69,11 @@ plot.mimar_evaluation <- function(x, ...) {
         ggplot2::theme_minimal(base_size = 12)
     )
   }
-  if (identical(type, "missing")) {
-    return(.plot_missing_map_ggplot(x))
-  }
+  if (identical(type, "missing")) return(.plot_missing_map_ggplot(x))
   if (identical(type, "methods")) {
     d <- .imputation_variable_summary(x)
     d <- d[d$n_missing_before > 0, , drop = FALSE]
+    if (!nrow(d)) return(.empty_ggplot("No variables were imputed"))
     d$variable <- stats::reorder(d$variable, d$n_missing_before)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "n_missing_before", y = "variable", fill = "method")) +
@@ -156,7 +86,9 @@ plot.mimar_evaluation <- function(x, ...) {
   if (identical(type, "variability")) {
     d <- .imputation_variable_summary(x)
     d <- d[!is.na(d$between_imputation_sd), , drop = FALSE]
-    if (!nrow(d)) .mimar_stop("No between-imputation variability is available.")
+    if (!nrow(d) || !any(is.finite(d$between_imputation_sd))) {
+      return(.empty_ggplot("No between-imputation variability available"))
+    }
     d$variable <- stats::reorder(d$variable, d$between_imputation_sd)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "between_imputation_sd", y = "variable")) +
@@ -189,10 +121,10 @@ plot.mimar_evaluation <- function(x, ...) {
 
 .plot_distribution_ggplot <- function(x, type, variable = NULL) {
   d <- .observed_imputed_plot_data(x, variable = variable)
-  if (!nrow(d)) .mimar_stop("No plottable imputed variables are available.")
+  if (!nrow(d)) return(.empty_ggplot("No plottable imputed variables available"))
   if (identical(type, "density")) {
     d <- d[d$value_type == "numeric", , drop = FALSE]
-    if (!nrow(d)) .mimar_stop("Density diagnostics require at least one numeric imputed variable.")
+    if (!nrow(d)) return(.empty_ggplot("Density diagnostics require numeric imputed variables"))
     d$value <- as.numeric(d$value)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", fill = "status")) +
@@ -242,19 +174,37 @@ plot.mimar_evaluation <- function(x, ...) {
   do.call(ggplot2::aes, lapply(args, as.name))
 }
 
+.empty_ggplot <- function(label) {
+  ggplot2::ggplot(data.frame(x = 0, y = 0, label = label), .gg_aes(x = "x", y = "y")) +
+    ggplot2::geom_text(.gg_aes(label = "label"), size = 4) +
+    ggplot2::xlim(-1, 1) +
+    ggplot2::ylim(-1, 1) +
+    ggplot2::theme_void()
+}
+
 #' @export
 plot.mimar_pool <- function(x, ...) {
   d <- x$pooled
-  lab <- if ("term" %in% names(d)) d$term else d$metric
-  y <- seq_len(nrow(d))
-  graphics::plot(d$estimate, y, xlim = range(c(d$conf.low, d$conf.high), na.rm = TRUE),
-                 yaxt = "n", ylab = "", xlab = "Pooled estimate", ...)
-  graphics::axis(2, at = y, labels = lab, las = 1)
-  graphics::segments(d$conf.low, y, d$conf.high, y)
+  d$label <- if ("term" %in% names(d)) d$term else d$metric
+  d$label <- stats::reorder(d$label, d$estimate)
+  ggplot2::ggplot(d, .gg_aes(x = "estimate", y = "label")) +
+    ggplot2::geom_vline(xintercept = 0, colour = "#B8C0C7", linewidth = 0.35) +
+    ggplot2::geom_errorbar(.gg_aes(xmin = "conf.low", xmax = "conf.high"),
+                           orientation = "y", width = 0.18, colour = "#4F5D75") +
+    ggplot2::geom_point(size = 2.2, colour = "#2F6F73") +
+    ggplot2::labs(x = "Pooled estimate", y = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
 }
 
 #' @export
 plot.mimar_imputers <- function(x, ...) {
-  val <- rowSums(x[, c("supports_numeric", "supports_binary", "supports_multiclass")])
-  graphics::barplot(stats::setNames(val, x$imputer), ylim = c(0, 3), ylab = "Supported task types", ...)
+  d <- as.data.frame(x)
+  d$supported_tasks <- rowSums(d[, c("supports_numeric", "supports_binary", "supports_multiclass")])
+  d$imputer <- stats::reorder(d$imputer, d$supported_tasks)
+  ggplot2::ggplot(d, .gg_aes(x = "supported_tasks", y = "imputer", fill = "implementation")) +
+    ggplot2::geom_col(width = 0.72) +
+    ggplot2::scale_x_continuous(breaks = 0:3, limits = c(0, 3)) +
+    ggplot2::scale_fill_manual(values = c(mimar = "#2F6F73", wrapped = "#7768AE")) +
+    ggplot2::labs(x = "Supported task types", y = NULL, fill = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
 }
