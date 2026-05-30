@@ -1,7 +1,7 @@
 .imputer_catalog <- function() {
   data.frame(
     imputer = c("mean", "median", "mode", "naive", "norm", "pmm", "spmm",
-                "logreg", "polyreg", "rf", "ranger", "rpart", "naive_bayes",
+                "logreg", "polyreg", "rf", "ranger", "rpart", "nbayes",
                 "svm", "bart", "glmnet", "gbm", "xgboost", "knn", "hotdeck",
                 "famd"),
     implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped"),
@@ -136,7 +136,7 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     rf = .fit_ranger_imputer(object, x, y, target, variable, ...),
     ranger = .fit_ranger_imputer(object, x, y, target, variable, ...),
     rpart = .fit_rpart_imputer(object, x, y, target, variable, ...),
-    naive_bayes = .fit_naive_bayes_imputer(object, x, y, target, variable, ...),
+    nbayes = .fit_naive_bayes_imputer(object, x, y, target, variable, ...),
     svm = .fit_svm_imputer(object, x, y, target, variable, ...),
     bart = .fit_bart_imputer(object, x, y, target, variable, ...),
     glmnet = .fit_glmnet_imputer(object, x, y, target, variable, ...),
@@ -166,7 +166,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     rf = .predict_ranger_imputer(object, newdata),
     ranger = .predict_ranger_imputer(object, newdata),
     rpart = .predict_generic_model_imputer(object, newdata),
-    naive_bayes = .predict_generic_model_imputer(object, newdata),
+    nbayes = .predict_generic_model_imputer(object, newdata),
     svm = .predict_generic_model_imputer(object, newdata),
     bart = .predict_bart_imputer(object, newdata),
     glmnet = .predict_glmnet_imputer(object, newdata),
@@ -310,10 +310,23 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .fit_naive_bayes_imputer <- function(object, x, y, target, variable, ...) {
   .require_backend("naivebayes", object$method)
+  task <- .target_task(target)
+  if (task == "numeric") {
+    breaks <- unique(stats::quantile(as.numeric(y), probs = seq(0, 1, length.out = min(6, length(unique(y)) + 1)),
+                                     na.rm = TRUE, names = FALSE))
+    if (length(breaks) < 3) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+    y_bin <- cut(as.numeric(y), breaks = breaks, include.lowest = TRUE, ordered_result = TRUE)
+    dat <- data.frame(y = y_bin, .model_predictors(x), check.names = FALSE)
+    fitted <- try(suppressWarnings(naivebayes::naive_bayes(y ~ ., data = dat, ...)), silent = TRUE)
+    if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+    return(structure(list(imputer = object, fit = fitted, target = target, task = task,
+                          y = y, y_bin = y_bin, levels = levels(y_bin)),
+                     class = c("mimar_imputer_fit", "list")))
+  }
   dat <- data.frame(y = factor(y), .model_predictors(x), check.names = FALSE)
   fitted <- try(suppressWarnings(naivebayes::naive_bayes(y ~ ., data = dat, ...)), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
-  structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
+  structure(list(imputer = object, fit = fitted, target = target, task = task),
             class = c("mimar_imputer_fit", "list"))
 }
 
@@ -326,13 +339,35 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
             class = c("mimar_imputer_fit", "list"))
 }
 
-.fit_bart_imputer <- function(object, x, y, target, variable, ...) {
+.fit_bart_imputer <- function(object, x, y, target, variable, rm.const = FALSE, ...) {
   .require_backend("BART", object$method)
-  if (.target_task(target) != "numeric") .mimar_stop("Imputer 'bart' currently supports numeric target variable '", variable, "' only.")
+  task <- .target_task(target)
   x_mat <- .model_matrix(x)
-  fitted <- try(BART::wbart(x.train = x_mat, y.train = as.numeric(y), verbose = FALSE, ...), silent = TRUE)
-  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
-  structure(list(imputer = object, fit = fitted, target = target, task = "numeric",
+  if (task == "numeric") {
+    fitted <- try(BART::wbart(x.train = x_mat, y.train = as.numeric(y), verbose = FALSE,
+                              rm.const = rm.const, ...), silent = TRUE)
+    if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+    return(structure(list(imputer = object, fit = fitted, target = target, task = task,
+                          x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
+                     class = c("mimar_imputer_fit", "list")))
+  }
+  levels <- levels(factor(y))
+  if (length(levels) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
+  fits <- lapply(levels[-1], function(lvl) {
+    y_bin <- as.integer(as.character(y) == lvl)
+    fit <- try({
+      utils::capture.output(
+        out <- BART::pbart(x.train = x_mat, y.train = y_bin, printevery = 1000L,
+                           rm.const = rm.const, ...)
+      )
+      out
+    }, silent = TRUE)
+    fit
+  })
+  if (any(vapply(fits, inherits, logical(1), what = "try-error"))) {
+    return(.fit_constant_imputer(object, .mode_value(target), target))
+  }
+  structure(list(imputer = object, fit = fits, target = target, task = task, levels = levels,
                  x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
             class = c("mimar_imputer_fit", "list"))
 }
@@ -407,6 +442,21 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_generic_model_imputer <- function(object, newdata) {
+  if (object$imputer$method == "nbayes" && object$task == "numeric") {
+    pred_bin <- try(stats::predict(object$fit, newdata = .model_predictors(newdata)), silent = TRUE)
+    if (inherits(pred_bin, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    pred_bin <- as.character(pred_bin)
+    return(vapply(pred_bin, function(bin) {
+      donors <- object$y[as.character(object$y_bin) == bin]
+      donors <- donors[!is.na(donors)]
+      if (!length(donors)) return(.simple_fill_value(object$target))
+      sample(donors, 1)
+    }, numeric(1)))
+  } else if (object$imputer$method == "nbayes") {
+    pred <- try(stats::predict(object$fit, newdata = .model_predictors(newdata)), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    return(as.character(pred))
+  }
   if (object$imputer$method == "rpart" && object$task != "numeric") {
     pred <- try(stats::predict(object$fit, newdata = .model_predictors(newdata), type = "class"), silent = TRUE)
     if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
@@ -418,8 +468,23 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_bart_imputer <- function(object, newdata) {
-  pred <- stats::predict(object$fit, newdata = .model_matrix_align(newdata, object$x_cols))$yhat.test.mean
-  as.numeric(pred)
+  x_mat <- .model_matrix_align(newdata, object$x_cols)
+  if (object$task == "numeric") {
+    pred <- stats::predict(object$fit, newdata = x_mat)$yhat.test.mean
+    return(as.numeric(pred))
+  }
+  probs_pos <- sapply(object$fit, function(fit) {
+    pred <- try(utils::capture.output(out <- stats::predict(fit, x_mat)), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(NA_real_, nrow(newdata)))
+    out$prob.test.mean
+  })
+  if (is.null(dim(probs_pos))) probs_pos <- matrix(probs_pos, ncol = 1)
+  probs <- cbind(pmax(0, 1 - rowSums(probs_pos)), probs_pos)
+  probs <- t(apply(probs, 1, function(p) {
+    p <- pmax(p, 0)
+    if (!sum(p)) rep(1 / length(p), length(p)) else p / sum(p)
+  }))
+  apply(probs, 1, function(p) object$levels[sample(seq_along(object$levels), 1, prob = p)])
 }
 
 .predict_glmnet_imputer <- function(object, newdata) {

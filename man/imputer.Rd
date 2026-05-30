@@ -33,7 +33,7 @@ imputation engine. All imputers expose the same standard lifecycle:
 Native learners implemented in \code{mimar} include \code{"mean"}, \code{"median"},
 \code{"mode"}, \code{"naive"}, \code{"norm"}, \code{"pmm"}, \code{"spmm"}, \code{"logreg"}, \code{"polyreg"},
 \code{"knn"}, and \code{"hotdeck"}. Learner-backed imputers such as \code{"rf"},
-\code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"naive_bayes"}, \code{"rpart"}, \code{"glmnet"},
+\code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"nbayes"}, \code{"rpart"}, \code{"glmnet"},
 \code{"gbm"}, and \code{"famd"} are called directly through their original packages
 installed with \code{mimar}.
 

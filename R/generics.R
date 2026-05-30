@@ -95,7 +95,7 @@ complete <- function(x, ...) UseMethod("complete")
 #' Native learners implemented in `mimar` include `"mean"`, `"median"`,
 #' `"mode"`, `"naive"`, `"norm"`, `"pmm"`, `"spmm"`, `"logreg"`, `"polyreg"`,
 #' `"knn"`, and `"hotdeck"`. Learner-backed imputers such as `"rf"`,
-#' `"xgboost"`, `"svm"`, `"bart"`, `"naive_bayes"`, `"rpart"`, `"glmnet"`,
+#' `"xgboost"`, `"svm"`, `"bart"`, `"nbayes"`, `"rpart"`, `"glmnet"`,
 #' `"gbm"`, and `"famd"` are called directly through their original packages
 #' installed with `mimar`.
 #'

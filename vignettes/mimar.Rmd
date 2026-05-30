@@ -382,7 +382,7 @@ donor matching in that space.
 
 ### Learner-Backed Imputers
 
-`rf`, `ranger`, `rpart`, `naive_bayes`, `svm`, `bart`, `glmnet`, `gbm`, and
+`rf`, `ranger`, `rpart`, `nbayes`, `svm`, `bart`, `glmnet`, `gbm`, and
 `xgboost` treat the imputation of each variable as a supervised learning
 problem. The learner is fitted on observed rows and predicts (or draws from)
 the conditional distribution at missing rows:
@@ -409,6 +409,12 @@ of chained-equation cycles per dataset. Increasing `maxit` allows the
 conditional distributions more cycles to converge; in practice, 5 to 10
 iterations is often sufficient for well-behaved data, though convergence
 should be checked for complex missingness patterns.
+
+When a learner-backed imputer is requested, `mimar` applies that imputer to
+each incomplete variable rather than silently substituting another method.
+This keeps benchmark comparisons interpretable: `imputer = "rf"` means that
+random-forest updates are used for numeric, binary, and multiclass targets,
+and the same principle holds for the other learner-backed imputers.
 
 ```{r}
 i_naive <- impute(a, imputer = "naive", m = 3, maxit = 3, seed = 1)

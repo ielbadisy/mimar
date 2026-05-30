@@ -66,8 +66,8 @@
 .compatible_imputer_method <- function(method, x) {
   imputer(method)
   task <- .target_task(x)
-  if (method %in% c("rf", "ranger", "rpart", "svm", "glmnet", "gbm", "xgboost",
-                    "knn", "hotdeck", "famd", "naive")) {
+  if (method %in% c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet",
+                    "gbm", "xgboost", "knn", "hotdeck", "famd", "naive")) {
     return(method)
   }
   if (method %in% c("mean", "median", "norm", "pmm", "spmm")) {
@@ -87,14 +87,6 @@
     if (task == "numeric") return("pmm")
     if (task == "binary") return("logreg")
     return("polyreg")
-  }
-  if (method == "naive_bayes") {
-    if (task == "numeric") return("pmm")
-    return("naive_bayes")
-  }
-  if (method == "bart") {
-    if (task == "numeric") return("bart")
-    return(if (task == "binary") "logreg" else "polyreg")
   }
   method
 }
