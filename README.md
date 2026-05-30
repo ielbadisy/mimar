@@ -121,28 +121,24 @@ Multiple imputation is produced by repeating the same chained procedure
 \(m\) times with controlled seeds, bootstrap samples of observed rows, and
 stochastic prediction where supported.
 
-## Pseudo Algorithm
+## Algorithm
 
-```text
-Input: data X with missingness mask R, imputer name h, imputations m, iterations T
-
-Initialize missing cells with a median/mode baseline.
-
-For k = 1,...,m:
-  set seed
-  start from initialized data
-  For t = 1,...,T:
-    For each incomplete variable j:
-      choose method h_j from the requested imputer name
-      bootstrap observed rows O_j
-      fit h_j on completed predictors X_-j and observed target X_j
-      predict rows M_j
-      restore predicted values to the original storage type
-      update X_j[M_j]
-  store completed dataset k
-
-Return a mimar_imputation object.
-```
+\[
+\begin{array}{ll}
+\textbf{Input:} & X,\ R,\ h,\ m,\ T.\\
+\textbf{Initialize:} & \tilde X^{(0)} \leftarrow \operatorname{init}(X).\\
+\textbf{For } k=1,\ldots,m: &
+  \tilde X_k^{(0)} \leftarrow \tilde X^{(0)}.\\
+& \textbf{For } t=1,\ldots,T: \\
+& \quad \textbf{For each incomplete variable } j: \\
+& \quad\quad B_j \leftarrow \mathcal{B}(O_j).\\
+& \quad\quad \hat f_{jk}^{(t)} \leftarrow
+  \operatorname{fit}_h(\tilde X_{k,B_j,-j}^{(t-1)}, X_{B_j,j}).\\
+& \quad\quad \tilde X_{k,M_j,j}^{(t)} \leftarrow
+  \operatorname{restore}_j\{g_h(\hat f_{jk}^{(t)}, \tilde X_{k,M_j,-j}^{(t-1)})\}.\\
+\textbf{Return:} & \{\tilde X_1^{(T)},\ldots,\tilde X_m^{(T)}\}.
+\end{array}
+\]
 
 ## Evaluation and Pooling
 
