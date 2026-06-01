@@ -30,7 +30,8 @@ print.mimar_imputation <- function(x, ...) {
   vars <- imputed$variable[imputed$n_missing_before > 0]
   cat("Completed datasets:", x$m, "\n")
   cat("Rows x columns:", overview$rows, "x", overview$columns, "\n")
-  cat("Imputer:", x$imputer, " maxit:", x$maxit, " stochastic:", x$stochastic, "\n")
+  cat("Imputer:", x$imputer, " maxit:", x$maxit, " ncore:", x$ncore %||% 1L,
+      " stochastic:", x$stochastic, "\n")
   cat("Missing cells imputed:", overview$total_imputed, "/", overview$total_missing_before, "\n")
   if (length(vars)) {
     cat("Variables imputed:", paste(vars, collapse = ", "), "\n")

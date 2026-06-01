@@ -8,9 +8,9 @@
 \usage{
 impute(x, ...)
 
-\method{impute}{data.frame}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ...)
+\method{impute}{data.frame}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ncore = 1, ...)
 
-\method{impute}{mimar_amputation}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ...)
+\method{impute}{mimar_amputation}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ncore = 1, ...)
 }
 \arguments{
 \item{x}{A data frame or \code{mimar_amputation} object.}
@@ -25,6 +25,10 @@ be supplied to use that imputer for all incomplete variables it supports.}
 \item{maxit}{Number of chained-equation iterations.}
 
 \item{seed}{Optional random seed.}
+
+\item{ncore}{Number of CPU cores used to run completed datasets in
+parallel. The default, \code{1}, runs sequentially. Values greater than one are
+passed to \code{functionals::fmap()} as \code{ncores}.}
 }
 \value{
 A \code{mimar_imputation} object.

@@ -68,7 +68,26 @@ test_that("internal chained equation imputation uses fit/predict steps", {
   expect_length(imp$imputations, 2)
   expect_false(anyNA(imp$imputations[[1]]))
   expect_equal(imp$diagnostics$strategy, "chained_equations")
+  expect_s3_class(imp$diagnostics$trace, "tbl_df")
+  expect_true(all(c("imputation", "iteration", "variable", "mean", "sd") %in% names(imp$diagnostics$trace)))
+  expect_equal(imp$diagnostics$ncore, 1)
   expect_true(all(imp$variable_methods[c("a", "b", "c")] %in% "naive"))
+})
+
+test_that("parallel imputations expose ncore and remain reproducible", {
+  dat <- data.frame(
+    a = c(1, 2, NA, 4, 5, NA, 7, 8),
+    b = c(2, NA, 4, 5, NA, 7, 8, 9),
+    c = factor(c("x", "x", "y", NA, "y", "x", NA, "y"))
+  )
+  serial <- impute(dat, m = 2, imputer = "naive", maxit = 2, seed = 20, ncore = 1)
+  parallel <- impute(dat, m = 2, imputer = "naive", maxit = 2, seed = 20, ncore = 2)
+  expect_equal(parallel$ncore, 2)
+  expect_equal(parallel$diagnostics$ncore, 2)
+  expect_length(parallel$imputations, 2)
+  expect_equal(parallel$imputations, serial$imputations)
+  expect_equal(parallel$diagnostics$trace, serial$diagnostics$trace)
+  expect_error(impute(dat, ncore = 0), "`ncore`")
 })
 
 test_that("imputer learners expose a standard fit/predict contract", {
@@ -189,16 +208,27 @@ test_that("pool estimates and metrics", {
 })
 
 test_that("plot methods run", {
-  dat <- data.frame(a = c(1, NA, 3), b = factor(c("x", "y", NA)))
+  dat <- data.frame(
+    a = c(1, NA, 3, 4, NA, 6, 7, 8, 9, 10),
+    b = c(2, 3, NA, 5, 6, NA, 8, 9, 10, 11),
+    c = factor(c("x", "y", NA, "x", "y", "x", NA, "y", "x", "y"))
+  )
   d <- describe(dat)
   a <- ampute(data.frame(a = 1:20, b = rnorm(20)), prop = .1, seed = 1)
-  i <- impute(a, m = 1)
+  i <- impute(dat, m = 2, imputer = "naive", maxit = 2, seed = 1)
   e <- evaluate(i)
   p <- pool(data.frame(term = rep("a", 2), estimate = c(1, 2), std.error = c(.1, .1), imputation = 1:2))
   expect_silent(plot(d))
   expect_silent(plot(a))
   expect_silent(plot(i))
   expect_silent(plot(i, type = "missing"))
+  expect_silent(plot(i, type = "density"))
+  expect_silent(plot(i, type = "strip"))
+  expect_silent(plot(i, type = "boxplot"))
+  expect_silent(plot(i, type = "xy", formula = a ~ b | c))
+  expect_silent(plot(i, type = "proportion"))
+  expect_silent(plot(i, type = "proportion", formula = c ~ a))
+  expect_silent(plot(i, type = "trace"))
   expect_silent(plot(i, type = "methods"))
   expect_silent(plot(i, type = "variability"))
   expect_silent(plot(e))

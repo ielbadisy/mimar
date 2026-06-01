@@ -28,20 +28,30 @@ plot.mimar_amputation <- function(x, ...) {
 #'
 #' `plot.mimar_imputation()` draws imputation diagnostics. By default it shows
 #' imputed cell counts. Other plot types show a cell-status map, observed versus
-#' imputed distributions, variable-level imputation methods, or
-#' between-imputation variability.
+#' imputed distributions, boxplots across imputations, bivariate diagnostics,
+#' categorical proportions, convergence traces, variable-level imputation
+#' methods, or between-imputation variability.
 #'
 #' @param x A `mimar_imputation` object.
 #' @param type Plot type: `"imputed"`, `"missing"`, `"density"`, `"strip"`,
-#'   `"methods"`, or `"variability"`.
+#'   `"boxplot"`, `"xy"`, `"proportion"`, `"trace"`, `"methods"`, or
+#'   `"variability"`.
 #' @param variable Optional variable name or names used by distribution plots.
+#' @param formula Optional formula for bivariate and stratified diagnostics.
+#'   Use forms such as `height ~ weight`, `height ~ weight | gender`, or
+#'   `group ~ sex`.
+#' @param statistic Trace statistic, either `"mean"` or `"sd"`.
 #' @param ... Unused.
 #' @return A `ggplot` object.
 #' @export
-plot.mimar_imputation <- function(x, type = c("imputed", "missing", "density", "strip", "methods", "variability"),
-                                  variable = NULL, ...) {
+plot.mimar_imputation <- function(x, type = c("imputed", "missing", "density", "strip", "boxplot",
+                                              "xy", "proportion", "trace", "methods", "variability"),
+                                  variable = NULL, formula = NULL,
+                                  statistic = c("mean", "sd"), ...) {
   type <- match.arg(type)
-  .plot_imputation_ggplot(x, type = type, variable = variable)
+  statistic <- match.arg(statistic)
+  .plot_imputation_ggplot(x, type = type, variable = variable,
+                          formula = formula, statistic = statistic)
 }
 
 #' @export
@@ -58,7 +68,8 @@ plot.mimar_evaluation <- function(x, ...) {
     ggplot2::theme_minimal(base_size = 12)
 }
 
-.plot_imputation_ggplot <- function(x, type, variable = NULL) {
+.plot_imputation_ggplot <- function(x, type, variable = NULL, formula = NULL,
+                                    statistic = "mean") {
   if (identical(type, "imputed")) {
     d <- .imputation_variable_summary(x)
     d$variable <- stats::reorder(d$variable, d$n_imputed)
@@ -70,6 +81,10 @@ plot.mimar_evaluation <- function(x, ...) {
     )
   }
   if (identical(type, "missing")) return(.plot_missing_map_ggplot(x))
+  if (identical(type, "boxplot")) return(.plot_boxplot_ggplot(x, variable = variable))
+  if (identical(type, "xy")) return(.plot_xy_ggplot(x, formula = formula))
+  if (identical(type, "proportion")) return(.plot_proportion_ggplot(x, variable = variable, formula = formula))
+  if (identical(type, "trace")) return(.plot_trace_ggplot(x, variable = variable, statistic = statistic))
   if (identical(type, "methods")) {
     d <- .imputation_variable_summary(x)
     d <- d[d$n_missing_before > 0, , drop = FALSE]
@@ -126,9 +141,11 @@ plot.mimar_evaluation <- function(x, ...) {
     d <- d[d$value_type == "numeric", , drop = FALSE]
     if (!nrow(d)) return(.empty_ggplot("Density diagnostics require numeric imputed variables"))
     d$value <- as.numeric(d$value)
+    d$series <- ifelse(d$imputation == 0, "observed", paste0("imputation ", d$imputation))
+    d$group_id <- interaction(d$variable, d$series, drop = TRUE)
     return(
-      ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", fill = "status")) +
-        ggplot2::geom_density(alpha = 0.22, na.rm = TRUE) +
+      ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", fill = "status", group = "group_id")) +
+        ggplot2::geom_density(alpha = 0.16, linewidth = 0.55, na.rm = TRUE) +
         ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free") +
         ggplot2::scale_colour_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
         ggplot2::scale_fill_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
@@ -136,32 +153,220 @@ plot.mimar_evaluation <- function(x, ...) {
         ggplot2::theme_minimal(base_size = 12)
     )
   }
-  ggplot2::ggplot(d, .gg_aes(x = "status", y = "value", colour = "status")) +
+  d$imputation <- factor(d$imputation)
+  ggplot2::ggplot(d, .gg_aes(x = "imputation", y = "value", colour = "status")) +
     ggplot2::geom_jitter(width = 0.18, height = 0, alpha = 0.55, na.rm = TRUE) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
     ggplot2::scale_colour_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
-    ggplot2::labs(x = NULL, y = NULL, colour = NULL) +
+    ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
 
 .observed_imputed_plot_data <- function(x, variable = NULL) {
   original <- x$data_original
-  first <- x$imputations[[1]]
   vars <- names(original)[colSums(is.na(original)) > 0]
   if (!is.null(variable)) vars <- intersect(vars, variable)
   .rbind_or_empty(lapply(vars, function(nm) {
     observed <- original[[nm]][!is.na(original[[nm]])]
-    imputed <- first[[nm]][is.na(original[[nm]]) & !is.na(first[[nm]])]
-    if (!length(observed) || !length(imputed)) return(NULL)
     numeric_var <- is.numeric(original[[nm]]) || is.integer(original[[nm]]) || inherits(original[[nm]], "Date")
-    data.frame(
+    obs <- data.frame(
       variable = nm,
-      status = rep(c("observed", "imputed"), c(length(observed), length(imputed))),
-      value = if (numeric_var) as.numeric(c(observed, imputed)) else as.character(c(observed, imputed)),
+      imputation = 0L,
+      status = "observed",
+      value = if (numeric_var) as.numeric(observed) else as.character(observed),
       value_type = if (numeric_var) "numeric" else "categorical",
       row.names = NULL
     )
+    imp <- .rbind_or_empty(lapply(seq_along(x$imputations), function(mi) {
+      completed <- x$imputations[[mi]]
+      imputed <- completed[[nm]][is.na(original[[nm]]) & !is.na(completed[[nm]])]
+      if (!length(imputed)) return(NULL)
+      data.frame(
+        variable = nm,
+        imputation = mi,
+        status = "imputed",
+        value = if (numeric_var) as.numeric(imputed) else as.character(imputed),
+        value_type = if (numeric_var) "numeric" else "categorical",
+        row.names = NULL
+      )
+    }))
+    out <- rbind(obs, imp)
+    if (!any(out$status == "observed") || !any(out$status == "imputed")) return(NULL)
+    out
   }))
+}
+
+.plot_boxplot_ggplot <- function(x, variable = NULL) {
+  d <- .observed_imputed_plot_data(x, variable = variable)
+  d <- d[d$value_type == "numeric", , drop = FALSE]
+  if (!nrow(d)) return(.empty_ggplot("Boxplot diagnostics require numeric imputed variables"))
+  d$imputation <- factor(d$imputation, levels = sort(unique(d$imputation)))
+  ggplot2::ggplot(d, .gg_aes(x = "imputation", y = "value", colour = "status")) +
+    ggplot2::geom_boxplot(outlier.alpha = 0.45, width = 0.62, na.rm = TRUE) +
+    ggplot2::stat_summary(fun = mean, geom = "point", size = 2, na.rm = TRUE) +
+    ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
+    ggplot2::scale_colour_manual(values = c(observed = "#2E86DE", imputed = "#D84A73")) +
+    ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
+}
+
+.plot_trace_ggplot <- function(x, variable = NULL, statistic = "mean") {
+  d <- x$diagnostics$trace
+  if (is.null(d) || !nrow(d)) return(.empty_ggplot("No convergence trace available"))
+  d <- d[!is.na(d[[statistic]]), , drop = FALSE]
+  if (!is.null(variable)) d <- d[d$variable %in% variable, , drop = FALSE]
+  if (!nrow(d)) return(.empty_ggplot("No numeric trace available for selected variables"))
+  d$imputation <- factor(d$imputation)
+  ggplot2::ggplot(d, .gg_aes(x = "iteration", y = statistic, colour = "imputation", group = "imputation")) +
+    ggplot2::geom_line(linewidth = 0.55, alpha = 0.85) +
+    ggplot2::geom_point(size = 1.2, alpha = 0.75) +
+    ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
+    ggplot2::scale_colour_manual(values = .mimar_palette(levels(d$imputation))) +
+    ggplot2::labs(x = "Iteration", y = statistic, colour = "Imputation") +
+    ggplot2::theme_minimal(base_size = 12)
+}
+
+.plot_xy_ggplot <- function(x, formula = NULL) {
+  if (is.null(formula)) .mimar_stop("`formula` is required for type = 'xy'.")
+  spec <- .parse_xy_formula(formula)
+  d <- .xy_plot_data(x, spec)
+  if (!nrow(d)) return(.empty_ggplot("No bivariate diagnostic data available"))
+  p <- ggplot2::ggplot(d, .gg_aes(x = "x", y = "y", colour = "status", fill = "status")) +
+    ggplot2::geom_point(.gg_aes(shape = "status"), alpha = 0.7, size = 1.8, na.rm = TRUE) +
+    ggplot2::scale_colour_manual(values = c(observed = "#2E86DE", imputed = "#D84A73")) +
+    ggplot2::scale_fill_manual(values = c(observed = "#FFFFFF", imputed = "#D84A73")) +
+    ggplot2::scale_shape_manual(values = c(observed = 21, imputed = 19)) +
+    ggplot2::labs(x = spec$x, y = spec$y, colour = NULL, fill = NULL, shape = NULL) +
+    ggplot2::theme_minimal(base_size = 12)
+  if (!is.null(spec$by)) p <- p + ggplot2::facet_wrap(stats::as.formula("~ by"), scales = "free")
+  p
+}
+
+.xy_plot_data <- function(x, spec) {
+  original <- x$data_original
+  needed <- c(spec$x, spec$y, spec$by)
+  if (!all(needed %in% names(original))) {
+    .mimar_stop("All variables in `formula` must be present in the imputed data.")
+  }
+  observed_idx <- !is.na(original[[spec$x]]) & !is.na(original[[spec$y]])
+  obs <- data.frame(
+    imputation = 0L,
+    status = "observed",
+    x = as.numeric(original[[spec$x]][observed_idx]),
+    y = as.numeric(original[[spec$y]][observed_idx]),
+    by = if (is.null(spec$by)) "all" else as.character(original[[spec$by]][observed_idx]),
+    row.names = NULL
+  )
+  imputed_idx <- is.na(original[[spec$x]]) | is.na(original[[spec$y]])
+  imp <- .rbind_or_empty(lapply(seq_along(x$imputations), function(mi) {
+    completed <- x$imputations[[mi]]
+    keep <- imputed_idx & !is.na(completed[[spec$x]]) & !is.na(completed[[spec$y]])
+    if (!any(keep)) return(NULL)
+    data.frame(
+      imputation = mi,
+      status = "imputed",
+      x = as.numeric(completed[[spec$x]][keep]),
+      y = as.numeric(completed[[spec$y]][keep]),
+      by = if (is.null(spec$by)) "all" else as.character(completed[[spec$by]][keep]),
+      row.names = NULL
+    )
+  }))
+  .rbind_or_empty(list(obs, imp))
+}
+
+.parse_xy_formula <- function(formula) {
+  if (!inherits(formula, "formula") || length(formula) != 3) {
+    .mimar_stop("`formula` must have the form y ~ x or y ~ x | group.")
+  }
+  y <- all.vars(formula[[2]])
+  rhs <- formula[[3]]
+  if (is.call(rhs) && identical(as.character(rhs[[1]]), "|")) {
+    x <- all.vars(rhs[[2]])
+    by <- all.vars(rhs[[3]])
+  } else {
+    x <- all.vars(rhs)
+    by <- character()
+  }
+  if (length(y) != 1 || length(x) != 1 || length(by) > 1) {
+    .mimar_stop("`formula` must identify one y variable, one x variable, and at most one grouping variable.")
+  }
+  list(y = y, x = x, by = if (length(by)) by else NULL)
+}
+
+.plot_proportion_ggplot <- function(x, variable = NULL, formula = NULL) {
+  spec <- .parse_proportion_formula(formula)
+  if (!is.null(spec$variable)) variable <- spec$variable
+  d <- .proportion_plot_data(x, variable = variable, strata = spec$strata)
+  if (!nrow(d)) return(.empty_ggplot("No categorical imputation proportions available"))
+  d$imputation <- factor(d$imputation)
+  d$series <- ifelse(d$imputation == "0", "observed", paste0("imp ", d$imputation))
+  p <- ggplot2::ggplot(d, .gg_aes(x = "value", y = "proportion", fill = "series")) +
+    ggplot2::geom_col(position = "dodge", width = 0.72) +
+    ggplot2::facet_wrap(stats::as.formula("~ panel"), scales = "free_x") +
+    ggplot2::scale_fill_manual(values = .mimar_palette(unique(d$series))) +
+    ggplot2::labs(x = NULL, y = "Proportion", fill = NULL) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  p
+}
+
+.parse_proportion_formula <- function(formula) {
+  if (is.null(formula)) return(list(variable = NULL, strata = character()))
+  if (!inherits(formula, "formula") || length(formula) != 3) {
+    .mimar_stop("`formula` must have the form variable ~ strata.")
+  }
+  rhs <- all.vars(formula[[3]])
+  list(variable = all.vars(formula[[2]]), strata = rhs)
+}
+
+.proportion_plot_data <- function(x, variable = NULL, strata = character()) {
+  original <- x$data_original
+  vars <- names(original)[colSums(is.na(original)) > 0]
+  vars <- vars[!vapply(original[vars], function(v) is.numeric(v) || is.integer(v) || inherits(v, "Date"), logical(1))]
+  if (!is.null(variable)) vars <- intersect(vars, variable)
+  if (!length(vars)) return(.as_tibble(data.frame()))
+  if (length(strata) && !all(strata %in% names(original))) {
+    .mimar_stop("All stratifying variables in `formula` must be present in the imputed data.")
+  }
+  raw <- .rbind_or_empty(lapply(vars, function(nm) {
+    obs_idx <- !is.na(original[[nm]])
+    obs <- data.frame(
+      variable = nm,
+      imputation = 0L,
+      value = as.character(original[[nm]][obs_idx]),
+      panel = .strata_label(original, obs_idx, strata, nm),
+      row.names = NULL
+    )
+    imp <- .rbind_or_empty(lapply(seq_along(x$imputations), function(mi) {
+      completed <- x$imputations[[mi]]
+      idx <- is.na(original[[nm]]) & !is.na(completed[[nm]])
+      if (!any(idx)) return(NULL)
+      data.frame(
+        variable = nm,
+        imputation = mi,
+        value = as.character(completed[[nm]][idx]),
+        panel = .strata_label(completed, idx, strata, nm),
+        row.names = NULL
+      )
+    }))
+    .rbind_or_empty(list(obs, imp))
+  }))
+  if (!nrow(raw)) return(raw)
+  counts <- stats::aggregate(list(n = rep(1L, nrow(raw))),
+                             raw[c("variable", "panel", "imputation", "value")],
+                             sum)
+  totals <- stats::aggregate(list(total = counts$n),
+                             counts[c("variable", "panel", "imputation")],
+                             sum)
+  out <- merge(counts, totals, by = c("variable", "panel", "imputation"), all.x = TRUE)
+  out$proportion <- out$n / out$total
+  .as_tibble(out)
+}
+
+.strata_label <- function(data, idx, strata, variable) {
+  if (!length(strata)) return(rep(variable, sum(idx)))
+  parts <- lapply(strata, function(nm) paste0(nm, "=", as.character(data[[nm]][idx])))
+  do.call(paste, c(parts, sep = " | "))
 }
 
 .mimar_palette <- function(x) {

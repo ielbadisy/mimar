@@ -1,9 +1,16 @@
 .impute_chained <- function(x, m = 5, maxit = 5, seed = NULL, method = NULL,
-                            donors = 5, ...) {
+                            donors = 5, ncore = 1, ...) {
   method <- method %||% "pmm"
+  if (!is.numeric(maxit) || length(maxit) != 1 || maxit < 0) {
+    .mimar_stop("`maxit` must be a non-negative integer.")
+  }
+  maxit <- as.integer(maxit)
+  if (!is.numeric(ncore) || length(ncore) != 1 || is.na(ncore) || ncore < 1) {
+    .mimar_stop("`ncore` must be a positive integer.")
+  }
+  ncore <- as.integer(ncore)
   init <- .impute_meanmode(x, m = 1, seed = seed)$imputations[[1]]
   missing_vars <- names(x)[colSums(is.na(x)) > 0]
-  imputations <- vector("list", m)
   variable_methods <- stats::setNames(rep("none", ncol(x)), names(x))
   if (length(missing_vars)) {
     variable_methods[missing_vars] <- vapply(missing_vars, function(nm) {
@@ -11,17 +18,45 @@
     }, character(1))
   }
 
-  for (mi in seq_len(m)) {
-    if (!is.null(seed)) set.seed(seed + mi - 1)
-    completed <- init
-    for (iter in seq_len(maxit)) {
-      for (nm in missing_vars) {
-        obs <- !is.na(x[[nm]])
-        mis <- is.na(x[[nm]])
-        if (!any(obs) || !any(mis)) next
+  chains <- functionals::fmap(
+    seq_len(m),
+    .impute_chained_one,
+    ncores = if (ncore > 1) ncore else NULL,
+    x = x,
+    init = init,
+    missing_vars = missing_vars,
+    variable_methods = variable_methods,
+    maxit = maxit,
+    seed = seed,
+    donors = donors,
+    ...
+  )
+  imputations <- lapply(chains, `[[`, "data")
+  trace <- .rbind_or_empty(lapply(chains, `[[`, "trace"))
+
+  list(imputations = imputations, variable_methods = variable_methods,
+       diagnostics = list(strategy = "chained_equations",
+                          imputer = method,
+                          engine = "internal_fit_predict",
+                          donor_count = donors,
+                          ncore = ncore,
+                          trace = trace),
+       stochastic = TRUE)
+}
+
+.impute_chained_one <- function(mi, x, init, missing_vars, variable_methods,
+                                maxit, seed, donors, ...) {
+  if (!is.null(seed)) set.seed(seed + mi - 1)
+  completed <- init
+  trace <- list()
+  trace_i <- 0L
+  for (iter in seq_len(maxit)) {
+    for (nm in missing_vars) {
+      obs <- !is.na(x[[nm]])
+      mis <- is.na(x[[nm]])
+      method_nm <- variable_methods[[nm]]
+      if (any(obs) && any(mis) && !(identical(method_nm, "spmm") && iter > 1)) {
         predictors <- setdiff(names(x), nm)
-        method_nm <- variable_methods[[nm]]
-        if (identical(method_nm, "spmm") && iter > 1) next
         boot <- sample(which(obs), replace = TRUE)
         learner <- imputer(method_nm)
         fitted <- fit(
@@ -36,16 +71,37 @@
         pred <- stats::predict(fitted, completed[mis, predictors, drop = FALSE], ...)
         completed[[nm]][mis] <- .restore_imputed_values(x[[nm]], pred, n = sum(mis))
       }
+      if (any(mis)) {
+        trace_i <- trace_i + 1L
+        trace[[trace_i]] <- .imputation_trace_row(
+          imputation = mi,
+          iteration = iter,
+          variable = nm,
+          method = method_nm,
+          target = x[[nm]],
+          values = completed[[nm]][mis]
+        )
+      }
     }
-    imputations[[mi]] <- completed
   }
+  list(data = completed, trace = .rbind_or_empty(trace))
+}
 
-  list(imputations = imputations, variable_methods = variable_methods,
-       diagnostics = list(strategy = "chained_equations",
-                          imputer = method,
-                          engine = "internal_fit_predict",
-                          donor_count = donors),
-       stochastic = TRUE)
+.imputation_trace_row <- function(imputation, iteration, variable, method, target, values) {
+  numeric_var <- is.numeric(target) || is.integer(target) || inherits(target, "Date")
+  values <- values[!is.na(values)]
+  data.frame(
+    imputation = imputation,
+    iteration = iteration,
+    variable = variable,
+    method = method,
+    type = .variable_type(target),
+    n_imputed = length(values),
+    mean = if (numeric_var && length(values)) mean(as.numeric(values), na.rm = TRUE) else NA_real_,
+    sd = if (numeric_var && length(values) > 1) stats::sd(as.numeric(values), na.rm = TRUE) else NA_real_,
+    unique = length(unique(values)),
+    row.names = NULL
+  )
 }
 
 .chained_method_for <- function(x, method = NULL, variable = NULL) {
