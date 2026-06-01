@@ -24,6 +24,17 @@ There is no dependency on `funcml`. Learner-backed imputers call their original
 packages directly, and those backend packages are hard dependencies so users can
 run any registered imputer without manually resolving learner installations.
 
+## Succinct Use
+
+For normal use, `impute()` is the only function you need. The input data can
+contain `NA`, and the completed outputs returned by `complete()` do not.
+
+```r
+i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1)
+complete(i, 1)
+complete(i, "all")
+```
+
 ## Grammar
 
 ```r
@@ -130,10 +141,10 @@ directly through `...` in `impute()`. Donor-based imputers use the explicit
 rf_spec <- imputer("rf", num.trees = 500)
 xgb_spec <- imputer("xgboost", nrounds = 100, max_depth = 3)
 
-i1 <- impute(dat, imputer = rf_spec, m = 5, maxit = 5, seed = 1)
-i2 <- impute(dat, imputer = "xgboost", m = 5, maxit = 5, seed = 1,
+i1 <- impute(a, imputer = rf_spec, m = 5, maxit = 5, seed = 1)
+i2 <- impute(a, imputer = "xgboost", m = 5, maxit = 5, seed = 1,
              nrounds = 100, max_depth = 3)
-i3 <- impute(dat, imputer = "knn", m = 5, maxit = 5, seed = 1, donors = 10)
+i3 <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, donors = 10)
 ```
 
 The same hyperparameter set is reused across all incomplete variables that a
