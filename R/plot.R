@@ -144,12 +144,11 @@ plot.mimar_evaluation <- function(x, ...) {
     d$series <- ifelse(d$imputation == 0, "observed", paste0("imputation ", d$imputation))
     d$group_id <- interaction(d$variable, d$series, drop = TRUE)
     return(
-      ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", fill = "status", group = "group_id")) +
-        ggplot2::geom_density(alpha = 0.16, linewidth = 0.55, na.rm = TRUE) +
+      ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", group = "group_id")) +
+        ggplot2::geom_density(linewidth = 0.65, na.rm = TRUE) +
         ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free") +
         ggplot2::scale_colour_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
-        ggplot2::scale_fill_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
-        ggplot2::labs(x = NULL, y = "Density", colour = NULL, fill = NULL) +
+        ggplot2::labs(x = NULL, y = "Density", colour = NULL) +
         ggplot2::theme_minimal(base_size = 12)
     )
   }

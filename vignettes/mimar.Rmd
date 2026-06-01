@@ -417,10 +417,10 @@ random-forest updates are used for numeric, binary, and multiclass targets,
 and the same principle holds for the other learner-backed imputers.
 
 ```{r}
-i_naive <- impute(a, imputer = "naive", m = 3, maxit = 3, seed = 1)
-i_naive
-summary(i_naive)
-complete(i_naive, 1)
+i_knn <- impute(a, imputer = "knn", m = 3, maxit = 3, seed = 1)
+i_knn
+summary(i_knn)
+complete(i_knn, 1)
 ```
 
 The `m` completed datasets are conditionally independent once their random
@@ -435,7 +435,7 @@ a fixed `seed`, `m`, `maxit`, and imputer.
 ```r
 i_parallel <- impute(
   a,
-  imputer = "naive",
+  imputer = "knn",
   m       = 5,
   maxit   = 5,
   seed    = 1,
@@ -455,10 +455,10 @@ Methods that differ in their statistical assumptions can be compared by
 running them on the same amputed object:
 
 ```{r}
-i_knn     <- impute(a, imputer = "knn",     m = 1, maxit = 2, seed = 1)
+i_knn_small <- impute(a, imputer = "knn",     m = 1, maxit = 2, seed = 1)
 i_hotdeck <- impute(a, imputer = "hotdeck", m = 1, maxit = 2, seed = 1)
 
-summary(i_knn)
+summary(i_knn_small)
 summary(i_hotdeck)
 ```
 
@@ -508,16 +508,16 @@ Balanced accuracy averages per-class recall and is more informative when
 class frequencies are unequal among the missing cells.
 
 ```{r}
-e <- evaluate(i_naive)
+e <- evaluate(i_knn)
 e
 describe(e)
 head(e$recovery_by_imputation)
 ```
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive)
-plot(i_naive, type = "missing")
-plot(i_naive, type = "density")
+plot(i_knn)
+plot(i_knn, type = "missing")
+plot(i_knn, type = "density")
 plot(e)
 ```
 
@@ -538,7 +538,7 @@ deviation of the current imputed values. These summaries are small enough to
 store by default but rich enough to support convergence trace plots.
 
 ```{r}
-head(i_naive$diagnostics$trace)
+head(i_knn$diagnostics$trace)
 ```
 
 The trace plot shows how a summary of the imputed values changes over the
@@ -551,20 +551,23 @@ methods such as `pmm`, `norm`, `logreg`, `polyreg`, and learner-backed
 imputers.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "trace", statistic = "mean")
+plot(i_knn, type = "trace", statistic = "mean")
 ```
 
 Density plots compare the observed distribution with the distribution of
 imputed values. The observed data are drawn once, while imputed values are
 drawn separately for each completed dataset. This mirrors the common
 diagnostic style where the observed curve acts as a reference and each
-imputation contributes its own imputed curve. The marginal distributions do not
-have to be identical under MAR, because missingness may depend on observed
-covariates. Large differences should still be investigated because they may
-represent either a real conditional difference or an imputation-model problem.
+imputation contributes its own imputed curve. Density diagnostics are drawn as
+lines rather than filled areas so that several completed datasets can be
+compared without the later layers obscuring the earlier ones. The marginal
+distributions do not have to be identical under MAR, because missingness may
+depend on observed covariates. Large differences should still be investigated
+because they may represent either a real conditional difference or an
+imputation-model problem.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "density", variable = "bmi")
+plot(i_knn, type = "density", variable = "bmi")
 ```
 
 Box-and-whisker diagnostics provide the same comparison in a more robust form.
@@ -574,7 +577,7 @@ are few imputed values or because the variable has a skewed distribution with
 outliers.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "boxplot", variable = "bmi")
+plot(i_knn, type = "boxplot", variable = "bmi")
 ```
 
 The strip plot displays individual observed and imputed values by imputation
@@ -583,7 +586,7 @@ cells, and situations where overplotting is limited. A tight pile of imputed
 points at one value reveals deterministic or overly concentrated imputation.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "strip", variable = "bmi")
+plot(i_knn, type = "strip", variable = "bmi")
 ```
 
 Bivariate diagnostics examine whether the imputed rows preserve relationships
@@ -592,7 +595,7 @@ with an optional conditioning variable after `|`. Observed points are shown
 separately from rows where either plotted variable had to be imputed.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "xy", formula = bmi ~ age | sex)
+plot(i_knn, type = "xy", formula = bmi ~ age | sex)
 ```
 
 For categorical variables, density and boxplot diagnostics are not meaningful.
@@ -602,8 +605,8 @@ formula can be used when a categorical discrepancy may be explained by another
 observed variable.
 
 ```{r, fig.width=7, fig.height=4}
-plot(i_naive, type = "proportion", variable = "group")
-plot(i_naive, type = "proportion", formula = group ~ sex)
+plot(i_knn, type = "proportion", variable = "group")
+plot(i_knn, type = "proportion", formula = group ~ sex)
 ```
 
 ## Pooling Across Imputations
