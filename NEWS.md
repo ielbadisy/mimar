@@ -1,4 +1,6 @@
-# mimar 0.1.0
+# mimar 0.7
+
+First public release candidate.
 
 * Added `ncore` to `impute()` for completed-dataset-level parallel imputation
   through `functionals::fmap()`.
