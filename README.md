@@ -4,6 +4,13 @@
 missingness, chained single and multiple imputation, imputation evaluation,
 pooling, and diagnostic plotting.
 
+The package is built around a complete missing-data workflow: describe the
+missingness, create benchmark amputations when needed, impute with native or
+learner-backed update rules, inspect diagnostics, evaluate recovered cells when
+truth is available, and pool post-fit quantities. The goal is a concise grammar
+for the whole workflow, not a replacement for every specialist feature in
+larger imputation systems.
+
 The package owns the imputation loop. Every imputer, whether implemented
 natively or backed by a learner package, is called the same way:
 
@@ -125,6 +132,12 @@ Multiple imputation is produced by repeating the same chained procedure
 \(m\) times with controlled seeds, bootstrap samples of observed rows, and
 stochastic prediction where supported.
 
+Learner-backed imputers are practical stochastic update rules inside this
+chained workflow. They can improve predictive recovery, but users should inspect
+trace, distribution, categorical-proportion, and downstream sensitivity
+diagnostics rather than assuming every learner automatically supplies proper
+multiple-imputation uncertainty for every analysis.
+
 ## Algorithm
 
 \[
@@ -202,6 +215,15 @@ pool(betas, covariance = covariances)
 When no reliable complete-data variance is supplied, as is common for some
 performance metrics, `pool()` reports robust summaries by default: median,
 interquartile range, and range across imputations.
+
+## Limitations
+
+`mimar` intentionally exposes a compact grammar. It does not yet provide a full
+predictor-matrix interface, passive-imputation grammar for deterministic
+derived variables, formal convergence statistic, or automatic tuning layer for
+learner-backed methods. For inferential work, compare plausible imputers,
+inspect diagnostics, and check whether conclusions are robust to imputation
+choices.
 
 ## Installation Notes
 

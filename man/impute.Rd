@@ -54,6 +54,10 @@ learner-agnostic: each imputer is constructed with \code{imputer()}, trained wit
 
 Each requested imputer is applied to all incomplete variables it supports.
 Use \code{imputer_registry()} to inspect target-type compatibility.
+Learner-backed methods are supervised stochastic update rules inside the
+chained workflow; inspect diagnostics and downstream sensitivity rather than
+treating any single learner as a guarantee of proper uncertainty
+quantification.
 }
 \section{Methods (by class)}{
 \itemize{

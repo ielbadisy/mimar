@@ -29,7 +29,16 @@ completions of the data and combining results using Rubin's pooling rules
 have been into the final estimates. The chained-equation formulation, sometimes
 called fully conditional specification, makes multiple imputation tractable for
 mixed-type data by modeling each incomplete variable conditionally on all
-others, cycling through variables until convergence [@vanbuuren2011mice].
+others, cycling through variables until the chained summaries appear stable
+[@vanbuuren2011mice].
+
+`mimar` is designed for analyses where missing-data handling, artificial
+missingness benchmarks, imputation diagnostics, and downstream pooling should
+live in one compact grammar. Its contribution is not to replace the mature
+special-purpose imputation ecosystem, but to make a complete workflow concise:
+describe the missingness, create benchmark amputations when needed, impute with
+native or learner-backed update rules, inspect diagnostics, evaluate recovered
+cells when truth is available, and pool post-fit quantities.
 
 `mimar` organizes this workflow into a small set of composable functions:
 
@@ -61,6 +70,18 @@ No external modelling framework is required. Learner-backed imputers call their
 original packages directly, and those backend packages are installed with
 `mimar` so all registered imputers are available without extra installation
 steps.
+
+The workflow can be summarized as:
+
+| Stage | Function | Main object |
+|---|---|---|
+| Missingness description | `describe()` | `mimar_missing` |
+| Artificial missingness | `ampute()` | `mimar_amputation` |
+| Imputation | `impute()` | `mimar_imputation` |
+| Completed data extraction | `complete()` | data frame or list |
+| Quality assessment | `evaluate()` | `mimar_evaluation` |
+| Post-fit pooling | `pool()` | `mimar_pool` |
+| Diagnostics | `plot()` | `ggplot` |
 
 ```{r}
 library(mimar)
@@ -392,7 +413,12 @@ $$
 $$
 
 Numeric targets use regression predictions; binary and multiclass targets use
-sampled class probabilities when the backend exposes them. `rf` operates as
+sampled class probabilities when the backend exposes them. These learner-backed
+methods are pragmatic stochastic chained update rules. They are useful for
+predictive recovery and sensitivity analyses, but users should inspect
+between-imputation variability, convergence-screening plots, and downstream
+model sensitivity rather than assuming that every learner automatically yields
+proper multiple-imputation uncertainty. `rf` operates as
 a variable-level supervised update inside `mimar`'s chained loop; it is not
 a whole-dataframe imputation engine. This is conceptually related to the
 missForest strategy [@stekhoven2012missforest], but the outer
@@ -407,8 +433,8 @@ All imputers are called through the same `impute()` interface. The `m`
 argument controls the number of completed datasets and `maxit` the number
 of chained-equation cycles per dataset. Increasing `maxit` allows the
 conditional distributions more cycles to converge; in practice, 5 to 10
-iterations is often sufficient for well-behaved data, though convergence
-should be checked for complex missingness patterns.
+iterations is often sufficient for well-behaved data, though trace diagnostics
+and sensitivity analyses should be checked for complex missingness patterns.
 
 When a learner-backed imputer is requested, `mimar` applies that imputer to
 each incomplete variable rather than silently substituting another method.
@@ -422,6 +448,11 @@ i_knn
 summary(i_knn)
 complete(i_knn, 1)
 ```
+
+The vignette uses `knn` for the main diagnostics because it is dependency-light,
+fast on the small example data, and produces visible stochastic donor variation
+across imputations. The same plotting calls work for the other registered
+imputers.
 
 The `m` completed datasets are conditionally independent once their random
 seeds have been fixed. `mimar` therefore parallelises at the completed-dataset
@@ -525,8 +556,9 @@ plot(e)
 
 Diagnostic plotting is not a cosmetic step in multiple imputation. The pooled
 analysis assumes that the imputed values are plausible draws from the
-conditional distribution implied by the imputation model. No single plot can
-prove that assumption, but several simple graphics expose common failures:
+conditional distribution implied by the imputation model. No single plot proves
+that assumption or establishes convergence, but several simple graphics expose
+common failures:
 chains that have not stabilised, imputed values with implausible marginal
 distributions, categorical levels that are over- or under-produced, and
 relationships between variables that are distorted among the imputed cells.
@@ -535,7 +567,7 @@ relationships between variables that are distorted among the imputed cells.
 each completed dataset, iteration, and incomplete variable, it records the
 number of imputed cells and, for numeric variables, the mean and standard
 deviation of the current imputed values. These summaries are small enough to
-store by default but rich enough to support convergence trace plots.
+store by default but rich enough to support convergence-screening trace plots.
 
 ```{r}
 head(i_knn$diagnostics$trace)
@@ -543,12 +575,12 @@ head(i_knn$diagnostics$trace)
 
 The trace plot shows how a summary of the imputed values changes over the
 chained iterations. Strong monotone trends or chains that remain separated can
-signal lack of convergence, feedback between derived variables, or a poor
+signal unstable chained updates, feedback between derived variables, or a poor
 predictor specification. Flat traces are not automatically good: deterministic
 or constant imputers such as `naive` can be flat because they do not generate
-meaningful stochastic updates. Trace plots are most informative for stochastic
-methods such as `pmm`, `norm`, `logreg`, `polyreg`, and learner-backed
-imputers.
+meaningful stochastic updates. Trace plots are screening tools, not formal
+proofs of convergence, and are most informative for stochastic methods such as
+`pmm`, `norm`, `logreg`, `polyreg`, and learner-backed imputers.
 
 ```{r, fig.width=7, fig.height=4}
 plot(i_knn, type = "trace", statistic = "mean")
@@ -717,5 +749,22 @@ performance measures, Marshall et al. recommend robust summaries. Accordingly,
 `pool()` reports the median, interquartile range, and range by default for such
 quantities. Use `rule = "mean"` only when a mean and between-imputation standard
 error are substantively appropriate.
+
+## Limitations and Future Work
+
+`mimar` is intentionally compact. It standardizes missingness description,
+amputation, imputation, diagnostics, evaluation, and pooling, but it does not
+yet expose all controls available in larger imputation systems. In particular,
+there is no full predictor-matrix interface, passive-imputation grammar for
+deterministic derived variables, formal convergence statistic, or automatic
+tuning layer for learner-backed imputers.
+
+The learner-backed methods should be interpreted as supervised update rules
+inside a chained stochastic workflow. They can improve predictive recovery, but
+they do not by themselves guarantee congeniality with a downstream analysis
+model or valid uncertainty quantification in every setting. For inferential
+analyses, users should compare methods, inspect trace and distribution
+diagnostics, evaluate recovery when benchmark truth is available, and assess
+whether substantive conclusions are robust to plausible imputation choices.
 
 ## References
