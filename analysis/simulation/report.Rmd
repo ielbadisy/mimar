@@ -1,0 +1,87 @@
+---
+title: "mimar simulation report"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(ggplot2)
+library(tibble)
+library(knitr)
+```
+
+```{r load}
+res <- readRDS("analysis/simulation/results/simulation_results.rds")
+results <- as.data.frame(res$results)
+summary_stats <- as.data.frame(res$summary)
+ranking <- as.data.frame(res$ranking)
+failure_rate <- as.data.frame(res$failure_rate)
+params <- res$params
+```
+
+## Design
+
+This simulation varies MNAR missingness from 0.1 to 0.7, uses `m = 5` completed
+datasets and `maxit = 5` chained iterations, and repeats each condition across
+`r params$n_rep` Monte Carlo replicates. The data-generating processes are:
+
+1. linear Gaussian dependence
+2. nonlinear interaction structure
+3. latent factor structure
+
+## Summary
+
+```{r}
+kable(head(ranking, 12), digits = 3)
+```
+
+## Main Plot
+
+```{r fig.width=14, fig.height=10}
+plot_data <- subset(summary_stats, status == "ok")
+plot_data$method <- factor(plot_data$method, levels = unique(ranking$method))
+
+ggplot(plot_data, aes(x = prop, y = nrmse, color = dgp, group = dgp)) +
+  geom_line(linewidth = 0.6) +
+  geom_point(size = 1.2) +
+  facet_wrap(~ method, ncol = 4) +
+  scale_x_continuous(breaks = seq(0.1, 0.7, by = 0.1)) +
+  labs(
+    x = "MNAR proportion",
+    y = "Mean NRMSE",
+    color = "DGP",
+    title = "MNAR recovery curves by imputer"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Failure Rate
+
+```{r fig.width=14, fig.height=10}
+fail_plot <- failure_rate
+fail_plot$method <- factor(fail_plot$method, levels = unique(ranking$method))
+ggplot(fail_plot, aes(x = prop, y = failure_rate, color = dgp, group = dgp)) +
+  geom_line(linewidth = 0.6) +
+  geom_point(size = 1.2) +
+  facet_wrap(~ method, ncol = 4) +
+  scale_x_continuous(breaks = seq(0.1, 0.7, by = 0.1)) +
+  scale_y_continuous(labels = function(x) sprintf("%.0f%%", 100 * x)) +
+  labs(
+    x = "MNAR proportion",
+    y = "Failure rate",
+    color = "DGP",
+    title = "Imputation failures by imputer"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Notes
+
+The ranking table orders methods by mean NRMSE and then by runtime. In the full
+paper draft, these outputs can be used to build a main comparison table and a
+supplementary figure on runtime and failure behavior.
