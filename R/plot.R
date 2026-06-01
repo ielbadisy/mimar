@@ -147,7 +147,7 @@ plot.mimar_evaluation <- function(x, ...) {
       ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", group = "group_id")) +
         ggplot2::geom_density(linewidth = 0.65, na.rm = TRUE) +
         ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free") +
-        ggplot2::scale_colour_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
+        ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
         ggplot2::labs(x = NULL, y = "Density", colour = NULL) +
         ggplot2::theme_minimal(base_size = 12)
     )
@@ -156,7 +156,7 @@ plot.mimar_evaluation <- function(x, ...) {
   ggplot2::ggplot(d, .gg_aes(x = "imputation", y = "value", colour = "status")) +
     ggplot2::geom_jitter(width = 0.18, height = 0, alpha = 0.55, na.rm = TRUE) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
-    ggplot2::scale_colour_manual(values = c(observed = "#4F5D75", imputed = "#B84A62")) +
+    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
     ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
@@ -204,7 +204,7 @@ plot.mimar_evaluation <- function(x, ...) {
     ggplot2::geom_boxplot(outlier.alpha = 0.45, width = 0.62, na.rm = TRUE) +
     ggplot2::stat_summary(fun = mean, geom = "point", size = 2, na.rm = TRUE) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
-    ggplot2::scale_colour_manual(values = c(observed = "#2E86DE", imputed = "#D84A73")) +
+    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
     ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
@@ -232,8 +232,8 @@ plot.mimar_evaluation <- function(x, ...) {
   if (!nrow(d)) return(.empty_ggplot("No bivariate diagnostic data available"))
   p <- ggplot2::ggplot(d, .gg_aes(x = "x", y = "y", colour = "status", fill = "status")) +
     ggplot2::geom_point(.gg_aes(shape = "status"), alpha = 0.7, size = 1.8, na.rm = TRUE) +
-    ggplot2::scale_colour_manual(values = c(observed = "#2E86DE", imputed = "#D84A73")) +
-    ggplot2::scale_fill_manual(values = c(observed = "#FFFFFF", imputed = "#D84A73")) +
+    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
+    ggplot2::scale_fill_manual(values = c(observed = "#FFFFFF", imputed = .mimar_status_palette()[["imputed"]])) +
     ggplot2::scale_shape_manual(values = c(observed = 21, imputed = 19)) +
     ggplot2::labs(x = spec$x, y = spec$y, colour = NULL, fill = NULL, shape = NULL) +
     ggplot2::theme_minimal(base_size = 12)
@@ -369,8 +369,12 @@ plot.mimar_evaluation <- function(x, ...) {
 }
 
 .mimar_palette <- function(x) {
-  pal <- c("#2F6F73", "#B84A62", "#7768AE", "#D99A3D", "#4F5D75", "#5B8E7D")
+  pal <- c("#2F6F73", "#D99A3D", "#6E5F9F", "#C76E4C", "#3F7D8C", "#7A8B4F")
   stats::setNames(rep(pal, length.out = length(x)), x)
+}
+
+.mimar_status_palette <- function() {
+  c(observed = "#264653", imputed = "#D99A3D")
 }
 
 .gg_aes <- function(...) {
