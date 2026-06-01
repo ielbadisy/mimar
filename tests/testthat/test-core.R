@@ -75,6 +75,7 @@ test_that("internal chained equation imputation uses fit/predict steps", {
 })
 
 test_that("parallel imputations expose ncore and remain reproducible", {
+  skip_on_cran()
   dat <- data.frame(
     a = c(1, 2, NA, 4, 5, NA, 7, 8),
     b = c(2, NA, 4, 5, NA, 7, 8, 9),
