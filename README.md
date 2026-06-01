@@ -61,7 +61,7 @@ a <- ampute(
   seed = 1
 )
 
-i <- impute(a, imputer = "naive", m = 5, maxit = 5, seed = 1)
+i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 complete(i, 1)
 summary(i)
 evaluate(i)
@@ -105,6 +105,46 @@ Imputer names are strict: use the names shown by `imputer_registry()`.
 Learner-backed imputers are applied as requested to numeric, binary, and
 multiclass targets; `mimar` does not silently swap them for another imputer
 inside benchmark runs.
+
+## Parallel Imputation
+
+The `ncore` argument runs independent completed datasets in parallel. The
+parallel boundary is the outer imputation index: each completed dataset gets a
+deterministic seed offset, so a fixed `seed`, `m`, `maxit`, and imputer remain
+reproducible.
+
+```r
+i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
+```
+
+Use `ncore = 1` for sequential execution, small examples, and the most
+conservative behavior in constrained environments.
+
+## Diagnostic Plots
+
+`plot()` methods return `ggplot` objects. For `mimar_imputation` objects, the
+main diagnostic types are:
+
+```r
+plot(i)                                      # imputed cell counts
+plot(i, type = "missing")                   # observed/imputed cell map
+plot(i, type = "trace", statistic = "mean") # convergence-screening trace
+plot(i, type = "density", variable = "bmi") # line-only density overlays
+plot(i, type = "boxplot", variable = "bmi") # observed vs imputation 1:m
+plot(i, type = "strip", variable = "bmi")   # individual values by imputation
+```
+
+Formula diagnostics are available for bivariate and categorical checks:
+
+```r
+plot(i, type = "xy", formula = bmi ~ age | sex)
+plot(i, type = "proportion", formula = group ~ sex)
+```
+
+For `type = "xy"`, formulas use `y ~ x` or `y ~ x | group`. For
+`type = "proportion"`, formulas use `categorical_variable ~ strata`. Density
+diagnostics use line-only overlays so several imputations remain visible rather
+than obscuring each other with filled areas.
 
 ## Chained Imputation Model
 
