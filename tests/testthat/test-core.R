@@ -137,6 +137,8 @@ test_that("imputation accepts explicit hyperparameters and donor tuning", {
 })
 
 test_that("all registered imputers run on numeric, categorical, and mixed data frames", {
+  skip_on_cran()
+
   numeric_dat <- data.frame(
     x1 = c(1, 2, NA, 4, 5, 6, NA, 8, 9, 10, 11, 12),
     x2 = c(2, 1, 3, NA, 5, 4, 7, 8, NA, 10, 12, 11),
