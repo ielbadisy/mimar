@@ -1,5 +1,5 @@
 .impute_chained <- function(x, m = 5, maxit = 5, seed = NULL, method = NULL,
-                            donors = 5, ncore = 1, ...) {
+                            imputer_spec = NULL, donors = 5, ncore = 1) {
   method <- method %||% "pmm"
   if (!is.numeric(maxit) || length(maxit) != 1 || maxit < 0) {
     .mimar_stop("`maxit` must be a non-negative integer.")
@@ -9,6 +9,10 @@
     .mimar_stop("`ncore` must be a positive integer.")
   }
   ncore <- as.integer(ncore)
+  if (!is.numeric(donors) || length(donors) != 1 || is.na(donors) || donors < 1) {
+    .mimar_stop("`donors` must be a positive integer.")
+  }
+  donors <- as.integer(donors)
   init <- .impute_meanmode(x, m = 1, seed = seed)$imputations[[1]]
   missing_vars <- names(x)[colSums(is.na(x)) > 0]
   variable_methods <- stats::setNames(rep("none", ncol(x)), names(x))
@@ -16,6 +20,9 @@
     variable_methods[missing_vars] <- vapply(missing_vars, function(nm) {
       .chained_method_for(x[[nm]], method = method, variable = nm)
     }, character(1))
+  }
+  if (is.null(imputer_spec)) {
+    imputer_spec <- do.call(imputer, list(method))
   }
 
   chains <- functionals::fmap(
@@ -28,8 +35,8 @@
     variable_methods = variable_methods,
     maxit = maxit,
     seed = seed,
-    donors = donors,
-    ...
+    imputer_spec = imputer_spec,
+    donors = donors
   )
   imputations <- lapply(chains, `[[`, "data")
   trace <- .rbind_or_empty(lapply(chains, `[[`, "trace"))
@@ -45,7 +52,7 @@
 }
 
 .impute_chained_one <- function(mi, x, init, missing_vars, variable_methods,
-                                maxit, seed, donors, ...) {
+                                maxit, seed, imputer_spec, donors) {
   if (!is.null(seed)) set.seed(seed + mi - 1)
   completed <- init
   trace <- list()
@@ -58,17 +65,16 @@
       if (any(obs) && any(mis) && !(identical(method_nm, "spmm") && iter > 1)) {
         predictors <- setdiff(names(x), nm)
         boot <- sample(which(obs), replace = TRUE)
-        learner <- imputer(method_nm)
+        learner <- .clone_imputer_spec(imputer_spec, method_nm)
         fitted <- fit(
           learner,
           x = completed[boot, predictors, drop = FALSE],
           y = x[[nm]][boot],
           target = x[[nm]],
           variable = nm,
-          donors = donors,
-          ...
+          donors = donors
         )
-        pred <- stats::predict(fitted, completed[mis, predictors, drop = FALSE], ...)
+        pred <- stats::predict(fitted, completed[mis, predictors, drop = FALSE])
         completed[[nm]][mis] <- .restore_imputed_values(x[[nm]], pred, n = sum(mis))
       }
       if (any(mis)) {
@@ -85,6 +91,14 @@
     }
   }
   list(data = completed, trace = .rbind_or_empty(trace))
+}
+
+.clone_imputer_spec <- function(template, method) {
+  if (is.null(template)) {
+    return(do.call(imputer, list(method)))
+  }
+  args <- template$args %||% list()
+  do.call(imputer, c(list(method, spec = template$spec), args))
 }
 
 .imputation_trace_row <- function(imputation, iteration, variable, method, target, values) {

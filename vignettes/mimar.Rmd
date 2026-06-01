@@ -514,6 +514,26 @@ impute(a, imputer = "glmnet",  m = 5, maxit = 5, seed = 1)
 impute(a, imputer = "xgboost", m = 5, maxit = 5, seed = 1)
 ```
 
+## Tuning Imputers
+
+Learner-backed imputers expose their hyperparameters through a reusable
+specification object, or directly through `...` when calling `impute()`. The
+same hyperparameter set is applied across the full chained-imputation
+pipeline.
+
+```{r}
+rf_spec <- imputer("rf", num.trees = 500)
+xgb_spec <- imputer("xgboost", nrounds = 100, max_depth = 3)
+
+i_rf <- impute(dat, imputer = rf_spec, m = 3, maxit = 3, seed = 1)
+i_xgb <- impute(dat, imputer = xgb_spec, m = 3, maxit = 3, seed = 1)
+i_knn <- impute(dat, imputer = "knn", m = 3, maxit = 3, seed = 1, donors = 10)
+
+summary(i_rf)
+summary(i_xgb)
+summary(i_knn)
+```
+
 ## Evaluating Imputation Quality
 
 When the imputation object was produced from an amputed dataset, the true

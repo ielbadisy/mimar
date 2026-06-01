@@ -12,7 +12,7 @@ imputer(method, ...)
 \arguments{
 \item{method}{Imputer method name.}
 
-\item{...}{Passed to the imputer constructor.}
+\item{...}{Hyperparameters retained for later use by \code{impute()} or \code{fit()}.}
 
 \item{spec}{Optional learner specification retained for future extensions.}
 }
@@ -35,7 +35,8 @@ Native learners implemented in \code{mimar} include \code{"mean"}, \code{"median
 \code{"knn"}, and \code{"hotdeck"}. Learner-backed imputers such as \code{"rf"},
 \code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"nbayes"}, \code{"rpart"}, \code{"glmnet"},
 \code{"gbm"}, and \code{"famd"} are called directly through their original packages
-installed with \code{mimar}.
+installed with \code{mimar}. Additional arguments supplied to \code{imputer()} are
+retained as hyperparameters and used by \code{impute()} and \code{fit()}.
 
 Compatibility with target types is explicit. If an imputer does not support a
 numeric, binary, or multiclass target, \code{mimar} stops with an error rather than

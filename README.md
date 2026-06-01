@@ -120,6 +120,26 @@ i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 Use `ncore = 1` for sequential execution, small examples, and the most
 conservative behavior in constrained environments.
 
+## Tuning Imputers
+
+Learner-backed imputers expose their hyperparameters through `imputer()` or
+directly through `...` in `impute()`. Donor-based imputers use the explicit
+`donors` argument.
+
+```r
+rf_spec <- imputer("rf", num.trees = 500)
+xgb_spec <- imputer("xgboost", nrounds = 100, max_depth = 3)
+
+i1 <- impute(dat, imputer = rf_spec, m = 5, maxit = 5, seed = 1)
+i2 <- impute(dat, imputer = "xgboost", m = 5, maxit = 5, seed = 1,
+             nrounds = 100, max_depth = 3)
+i3 <- impute(dat, imputer = "knn", m = 5, maxit = 5, seed = 1, donors = 10)
+```
+
+The same hyperparameter set is reused across all incomplete variables that a
+given imputer supports, which keeps the full chained-imputation pipeline
+reproducible and easy to tune.
+
 ## Diagnostic Plots
 
 `plot()` methods return `ggplot` objects. For `mimar_imputation` objects, the

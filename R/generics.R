@@ -50,6 +50,11 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' object keeps completed datasets first; use `complete()` to extract one
 #' completed dataset, all completed datasets, or a stacked long data frame.
 #'
+#' Hyperparameters for learner-backed imputers can be supplied through the
+#' `imputer()` specification or directly through `...` when calling `impute()`.
+#' For donor-based imputers, `donors` controls the donor pool used by `"pmm"`,
+#' `"spmm"`, `"knn"`, and `"hotdeck"`.
+#'
 #' Let \eqn{X_j} be an incomplete variable and \eqn{X_{-j}} all remaining
 #' variables. At each iteration, `mimar` fits an imputer learner on observed rows
 #' \deqn{\hat f_j: X_{-j}^{obs} \rightarrow X_j^{obs}}
@@ -67,10 +72,19 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' quantification.
 #'
 #' @param x A data frame or `mimar_amputation` object.
+#' @param m Number of completed data sets to generate.
+#' @param imputer Imputer name or a `mimar_imputer` specification.
+#' @param maxit Number of chained-equation iterations.
+#' @param seed Optional random seed.
+#' @param donors Number of candidate donors used by donor-based imputers.
+#' @param ncore Number of CPU cores used to run completed datasets in
+#'   parallel. The default, `1`, runs sequentially. Values greater than one are
+#'   passed to `functionals::fmap()` as `ncores`.
 #' @param ... Passed to methods.
 #' @return A `mimar_imputation` object.
 #' @export
-impute <- function(x, ...) UseMethod("impute")
+impute <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
+                   donors = 5, ncore = 1, ...) UseMethod("impute")
 
 #' Extract completed imputed data
 #'
@@ -101,7 +115,8 @@ complete <- function(x, ...) UseMethod("complete")
 #' `"knn"`, and `"hotdeck"`. Learner-backed imputers such as `"rf"`,
 #' `"xgboost"`, `"svm"`, `"bart"`, `"nbayes"`, `"rpart"`, `"glmnet"`,
 #' `"gbm"`, and `"famd"` are called directly through their original packages
-#' installed with `mimar`.
+#' installed with `mimar`. Additional arguments supplied to `imputer()` are
+#' retained as hyperparameters and used by `impute()` and `fit()`.
 #'
 #' Compatibility with target types is explicit. If an imputer does not support a
 #' numeric, binary, or multiclass target, `mimar` stops with an error rather than

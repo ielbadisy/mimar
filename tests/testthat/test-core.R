@@ -111,6 +111,31 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_error(imputer("mice"), "Unknown imputer")
 })
 
+test_that("imputation accepts explicit hyperparameters and donor tuning", {
+  dat <- data.frame(
+    a = c(1, 2, NA, 4, 5, NA, 7, 8),
+    b = c(2, NA, 4, 5, NA, 7, 8, 9),
+    c = factor(c("x", "x", "y", NA, "y", "x", NA, "y"))
+  )
+
+  spec <- imputer("rf", num.trees = 5)
+  i_spec <- impute(dat, m = 1, imputer = spec, maxit = 1, seed = 1)
+  expect_s3_class(i_spec$imputer_spec, "mimar_imputer")
+  expect_equal(i_spec$imputer, "rf")
+  expect_equal(i_spec$imputer_spec$args$num.trees, 5)
+
+  i_dots <- impute(dat, m = 1, imputer = "xgboost", maxit = 1, seed = 1,
+                   nrounds = 1, verbose = 0)
+  expect_s3_class(i_dots$imputer_spec, "mimar_imputer")
+  expect_equal(i_dots$imputer_spec$args$nrounds, 1)
+  expect_equal(i_dots$imputer_spec$args$verbose, 0)
+
+  i_donors <- impute(dat, m = 1, imputer = "knn", maxit = 1, seed = 1, donors = 3)
+  expect_equal(i_donors$donors, 3)
+  expect_error(impute(dat, imputer = "pmm", maxit = 1, seed = 1, nrounds = 1),
+               "does not accept additional hyperparameters")
+})
+
 test_that("all registered imputers run on numeric, categorical, and mixed data frames", {
   numeric_dat <- data.frame(
     x1 = c(1, 2, NA, 4, 5, 6, NA, 8, 9, 10, 11, 12),
