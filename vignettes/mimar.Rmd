@@ -222,6 +222,19 @@ a
 summary(a)
 ```
 
+## Quick Visual Checks
+
+The first thing most users want to see is whether the diagnostics are actually
+visible and legible. This compact set of plots appears early in the vignette so
+the rendered HTML shows the core visual outputs without requiring a long
+scroll.
+
+```{r, fig.width=7, fig.height=4, fig.show='hold'}
+i_knn <- impute(a, imputer = "knn", m = 3, maxit = 3, seed = 1)
+plot(i_knn, type = "density", variable = "bmi")
+plot(i_knn, type = "xy", formula = bmi ~ age | sex)
+```
+
 ## The Chained Imputation Algorithm
 
 The fully conditional specification approach imputes each incomplete variable
