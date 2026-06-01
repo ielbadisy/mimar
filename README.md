@@ -1,8 +1,8 @@
 # mimar
 
-`mimar` is a compact R package for missing-data description, artificial
-missingness, chained single and multiple imputation, imputation evaluation,
-pooling, and diagnostic plotting.
+`mimar` implements a compact chained-imputation workflow in R for missing-data
+analysis, artificial amputation, native and learner-backed single and multiple
+imputation, diagnostic evaluation, and post-imputation pooling.
 
 The package is built around a complete missing-data workflow: describe the
 missingness, create benchmark amputations when needed, impute with native or
