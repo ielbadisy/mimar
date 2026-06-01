@@ -4,7 +4,7 @@ Version: 0.7
 Authors@R: c(person(given = "Imad", family = "EL BADISY", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Author: Imad EL BADISY [aut, cre]
 Maintainer: Imad EL BADISY <elbadisyimad@gmail.com>
-Description: Provides a compact grammar for missing-data description, artificial missingness generation, single and multiple imputation, imputation evaluation, pooling, and diagnostic plotting. Native and learner-backed imputers are standardized through a chained imputation workflow owned by the package.
+Description: Implements a compact chained-imputation workflow for missing-data analysis, artificial amputation, native and learner-backed single and multiple imputation, diagnostic evaluation, and post-imputation pooling.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
