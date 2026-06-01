@@ -543,13 +543,16 @@ xgb_spec <- imputer("xgboost", nrounds = 100, max_depth = 3)
 
 describe(a)
 
-i_rf <- impute(a, imputer = rf_spec, m = 3, maxit = 3, seed = 1)
-i_xgb <- impute(a, imputer = xgb_spec, m = 3, maxit = 3, seed = 1)
 i_knn <- impute(a, imputer = "knn", m = 3, maxit = 3, seed = 1, donors = 10)
 
-summary(i_rf)
-summary(i_xgb)
 summary(i_knn)
+```
+
+The learner-backed specifications can then be used in the same pipeline:
+
+```r
+i_rf <- impute(a, imputer = rf_spec, m = 3, maxit = 3, seed = 1)
+i_xgb <- impute(a, imputer = xgb_spec, m = 3, maxit = 3, seed = 1)
 ```
 
 ## Evaluating Imputation Quality

@@ -1,6 +1,10 @@
 ^doc$
 ^Meta$
 ^final-rendered-plots$
+^analysis$
+^.*\.Rcheck$
+^.*\.tar\.gz$
+^cran-comments\.md$
 ^\.git$
 ^\.gitignore$
 ^R/\.Rhistory$
