@@ -236,3 +236,25 @@ test_that("plot methods run", {
   expect_silent(plot(p))
   expect_silent(plot(describe("imputers")))
 })
+
+test_that("formula diagnostics parse and generate ggplots", {
+  dat <- data.frame(
+    a = c(1, NA, 3, 4, NA, 6, 7, 8, 9, 10),
+    b = c(2, 3, NA, 5, 6, NA, 8, 9, 10, 11),
+    c = factor(c("x", "y", NA, "x", "y", "x", NA, "y", "x", "y"))
+  )
+  i <- impute(dat, m = 2, imputer = "knn", maxit = 2, seed = 1)
+
+  p_xy <- plot(i, type = "xy", formula = a ~ b | c)
+  p_prop <- plot(i, type = "proportion", formula = c ~ a)
+  p_density <- plot(i, type = "density", variable = c("a", "b"))
+
+  expect_s3_class(p_xy, "ggplot")
+  expect_s3_class(p_prop, "ggplot")
+  expect_s3_class(p_density, "ggplot")
+  expect_equal(p_xy$labels$x, "b")
+  expect_equal(p_xy$labels$y, "a")
+  expect_error(plot(i, type = "xy"), "`formula` is required")
+  expect_error(plot(i, type = "xy", formula = a ~ b + c), "one y variable, one x variable")
+  expect_error(plot(i, type = "proportion", formula = c), "variable ~ strata")
+})
