@@ -148,61 +148,53 @@ than obscuring each other with filled areas.
 
 ## Chained Imputation Model
 
-Let \(X\) be an \(n \times p\) data frame and let \(R_{ij}=1\) if cell
-\((i,j)\) is missing. For an incomplete variable \(X_j\), define observed and
-missing row sets:
+Let `X` be an `n x p` data frame and let `R_ij = 1` when cell `(i, j)` is
+missing. For each incomplete variable `X_j`:
 
-\[
-O_j = \{i: R_{ij}=0\}, \qquad M_j = \{i: R_{ij}=1\}.
-\]
+- `O_j = {i : R_ij = 0}` are the observed rows
+- `M_j = {i : R_ij = 1}` are the missing rows
 
-At each chained update, `mimar` fits an imputer-specific model
+At each chained update, `mimar` fits an imputer-specific model from the
+observed rows and then predicts the missing rows from the current completed
+data. In compact form:
 
-\[
-\hat f_j: X_{-j,O_j} \rightarrow X_{j,O_j}
-\]
+```text
+fit model on X_-j, O_j -> X_j, O_j
+update X_j, M_j using the fitted model
+```
 
-and then updates
-
-\[
-\tilde X_{j,M_j} \leftarrow \hat f_j(\tilde X_{-j,M_j}).
-\]
-
-Multiple imputation is produced by repeating the same chained procedure
-\(m\) times with controlled seeds, bootstrap samples of observed rows, and
-stochastic prediction where supported.
+Multiple imputation repeats the same chained procedure `m` times with
+controlled seeds, bootstrap samples of observed rows, and stochastic prediction
+where supported.
 
 Learner-backed imputers are practical stochastic update rules inside this
-chained workflow. They can improve predictive recovery, but users should inspect
-trace, distribution, categorical-proportion, and downstream sensitivity
+chained workflow. They can improve predictive recovery, but users should still
+inspect trace, distribution, categorical-proportion, and downstream sensitivity
 diagnostics rather than assuming every learner automatically supplies proper
 multiple-imputation uncertainty for every analysis.
 
 ## Algorithm
 
-\[
-\begin{array}{ll}
-\textbf{Input:} & X,\ R,\ h,\ m,\ T.\\
-\textbf{Initialize:} & \tilde X^{(0)} \leftarrow \operatorname{init}(X).\\
-\textbf{For } k=1,\ldots,m: &
-  \tilde X_k^{(0)} \leftarrow \tilde X^{(0)}.\\
-& \textbf{For } t=1,\ldots,T: \\
-& \quad \textbf{For each incomplete variable } j: \\
-& \quad\quad B_j \leftarrow \mathcal{B}(O_j).\\
-& \quad\quad \hat f_{jk}^{(t)} \leftarrow
-  \operatorname{fit}_h(\tilde X_{k,B_j,-j}^{(t-1)}, X_{B_j,j}).\\
-& \quad\quad \tilde X_{k,M_j,j}^{(t)} \leftarrow
-  \operatorname{restore}_j\{g_h(\hat f_{jk}^{(t)}, \tilde X_{k,M_j,-j}^{(t-1)})\}.\\
-\textbf{Return:} & \{\tilde X_1^{(T)},\ldots,\tilde X_m^{(T)}\}.
-\end{array}
-\]
+```text
+Input: X, R, h, m, T
+Initialize: X~(0) <- init(X)
+For k = 1,...,m:
+  X~_k(0) <- X~(0)
+  For t = 1,...,T:
+    For each incomplete variable j:
+      B_j <- bootstrap sample of O_j
+      fit h on X~_k, B_j, -j and X_Bj,j
+      update missing rows M_j using the fitted model
+      restore observed rows O_j to their original values
+Return: {X~_1(T), ..., X~_m(T)}
+```
 
 ## Evaluation and Pooling
 
 When imputation is run on an `ampute()` object, `evaluate()` uses the retained
-truth and scores only artificially removed cells. Numeric recovery reports RMSE,
-MAE, bias, and correlation. Categorical recovery reports accuracy and balanced
-accuracy.
+truth and scores only artificially removed cells. Numeric recovery reports
+RMSE, MAE, bias, and correlation. Categorical recovery reports accuracy and
+balanced accuracy.
 
 `pool()` combines post-fit quantities estimated separately in each completed
 dataset. The statistical target is the quantity itself, not a data frame. A
@@ -210,18 +202,15 @@ quantity can be a scalar, coefficient vector, covariance-aware parameter vector,
 matrix of survival probabilities, or a scalar metric. Data frames are accepted
 only as a tidy adapter for scalar model output.
 
-For a scalar quantity with complete-data variance estimates, `pool()` applies
+For scalar quantities with complete-data variance estimates, `pool()` applies
 Rubin-style pooling:
 
-\[
-\bar Q = \frac{1}{m}\sum_{k=1}^m Q_k,\quad
-\bar U = \frac{1}{m}\sum_{k=1}^m U_k,\quad
-B = \frac{1}{m-1}\sum_{k=1}^m (Q_k-\bar Q)^2,
-\]
-
-\[
-T = \bar U + \left(1 + \frac{1}{m}\right)B.
-\]
+```text
+Q_bar = mean(Q_k)
+U_bar = mean(U_k)
+B     = sample variance of Q_k
+T     = U_bar + (1 + 1/m) * B
+```
 
 ```r
 results <- data.frame(
