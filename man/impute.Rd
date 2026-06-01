@@ -6,29 +6,59 @@
 \alias{impute.mimar_amputation}
 \title{Impute missing data}
 \usage{
-impute(x, ...)
+impute(
+  x,
+  m = 5,
+  imputer = "pmm",
+  maxit = 5,
+  seed = NULL,
+  donors = 5,
+  ncore = 1,
+  ...
+)
 
-\method{impute}{data.frame}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ncore = 1, ...)
+\method{impute}{data.frame}(
+  x,
+  m = 5,
+  imputer = "pmm",
+  maxit = 5,
+  seed = NULL,
+  donors = 5,
+  ncore = 1,
+  ...
+)
 
-\method{impute}{mimar_amputation}(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL, ncore = 1, ...)
+\method{impute}{mimar_amputation}(
+  x,
+  m = 5,
+  imputer = "pmm",
+  maxit = 5,
+  seed = NULL,
+  donors = 5,
+  ncore = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{A data frame or \code{mimar_amputation} object.}
 
-\item{...}{Passed to methods.}
-
 \item{m}{Number of completed data sets to generate.}
 
-\item{imputer}{Imputer name. Any name returned by \code{imputer_registry()} can
-be supplied to use that imputer for all incomplete variables it supports.}
+\item{imputer}{Imputer name or a \code{mimar_imputer} specification. Any name
+returned by \code{imputer_registry()} can be supplied to use that imputer for
+all incomplete variables it supports.}
 
 \item{maxit}{Number of chained-equation iterations.}
 
 \item{seed}{Optional random seed.}
 
+\item{donors}{Number of donor candidates used by donor-based imputers.}
+
 \item{ncore}{Number of CPU cores used to run completed datasets in
 parallel. The default, \code{1}, runs sequentially. Values greater than one are
 passed to \code{functionals::fmap()} as \code{ncores}.}
+
+\item{...}{Passed to methods.}
 }
 \value{
 A \code{mimar_imputation} object.
@@ -43,6 +73,11 @@ object keeps completed datasets first; use \code{complete()} to extract one
 completed dataset, all completed datasets, or a stacked long data frame.
 }
 \details{
+Hyperparameters for learner-backed imputers can be supplied through the
+\code{imputer()} specification or directly through \code{...} when calling \code{impute()}.
+For donor-based imputers, \code{donors} controls the donor pool used by \code{"pmm"},
+\code{"spmm"}, \code{"knn"}, and \code{"hotdeck"}.
+
 Let \eqn{X_j} be an incomplete variable and \eqn{X_{-j}} all remaining
 variables. At each iteration, \code{mimar} fits an imputer learner on observed rows
 \deqn{\hat f_j: X_{-j}^{obs} \rightarrow X_j^{obs}}

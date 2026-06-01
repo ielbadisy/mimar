@@ -61,6 +61,7 @@ imputer_registry <- function() {
 
 #' @describeIn imputer Construct a `mimar_imputer`.
 #' @param spec Optional learner specification retained for future extensions.
+#' @param ... Hyperparameters retained for later use by `impute()` or `fit()`.
 #' @export
 imputer.default <- function(method, spec = NULL, ...) {
   method <- as.character(method)[1]
@@ -74,6 +75,11 @@ imputer.default <- function(method, spec = NULL, ...) {
                  stochastic = row$stochastic[[1]],
                  spec = spec, args = list(...)),
             class = c("mimar_imputer", "list"))
+}
+
+#' @export
+imputer.mimar_imputer <- function(method, ...) {
+  method
 }
 
 #' Fit an imputer learner
@@ -122,6 +128,17 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
   y <- y[observed]
   x <- x[observed, , drop = FALSE]
   if (!length(y)) .mimar_stop("Variable '", variable, "' has no observed values.")
+  fit_args <- object$args %||% list()
+  extra_args <- list(...)
+  if (length(extra_args)) {
+    fit_args <- utils::modifyList(fit_args, extra_args)
+  }
+  tunable_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart",
+                       "glmnet", "gbm", "xgboost", "famd")
+  if (length(fit_args) && !(object$method %in% tunable_methods)) {
+    .mimar_stop("Imputer '", object$method, "' does not accept additional hyperparameters via `...`. ",
+                "Use `donors` for donor-based imputers or choose a learner-backed imputer.")
+  }
 
   fitted <- switch(object$method,
     mean = .fit_constant_imputer(object, mean(.target_to_numeric(y), na.rm = TRUE), target),
@@ -133,18 +150,18 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     spmm = .fit_linear_imputer(object, x, y, target, variable, donors),
     logreg = .fit_logreg_imputer(object, x, y, target, variable),
     polyreg = .fit_polyreg_imputer(object, x, y, target, variable),
-    rf = .fit_ranger_imputer(object, x, y, target, variable, ...),
-    ranger = .fit_ranger_imputer(object, x, y, target, variable, ...),
-    rpart = .fit_rpart_imputer(object, x, y, target, variable, ...),
-    nbayes = .fit_naive_bayes_imputer(object, x, y, target, variable, ...),
-    svm = .fit_svm_imputer(object, x, y, target, variable, ...),
-    bart = .fit_bart_imputer(object, x, y, target, variable, ...),
-    glmnet = .fit_glmnet_imputer(object, x, y, target, variable, ...),
-    gbm = .fit_gbm_imputer(object, x, y, target, variable, ...),
-    xgboost = .fit_xgboost_imputer(object, x, y, target, variable, ...),
+    rf = do.call(.fit_ranger_imputer, c(list(object, x, y, target, variable), fit_args)),
+    ranger = do.call(.fit_ranger_imputer, c(list(object, x, y, target, variable), fit_args)),
+    rpart = do.call(.fit_rpart_imputer, c(list(object, x, y, target, variable), fit_args)),
+    nbayes = do.call(.fit_naive_bayes_imputer, c(list(object, x, y, target, variable), fit_args)),
+    svm = do.call(.fit_svm_imputer, c(list(object, x, y, target, variable), fit_args)),
+    bart = do.call(.fit_bart_imputer, c(list(object, x, y, target, variable), fit_args)),
+    glmnet = do.call(.fit_glmnet_imputer, c(list(object, x, y, target, variable), fit_args)),
+    gbm = do.call(.fit_gbm_imputer, c(list(object, x, y, target, variable), fit_args)),
+    xgboost = do.call(.fit_xgboost_imputer, c(list(object, x, y, target, variable), fit_args)),
     knn = .fit_donor_imputer(object, x, y, target, variable, donors, method = "knn"),
     hotdeck = .fit_donor_imputer(object, x, y, target, variable, donors, method = "hotdeck"),
-    famd = .fit_famd_imputer(object, x, y, target, variable, donors, ...)
+    famd = do.call(.fit_famd_imputer, c(list(object, x, y, target, variable, donors), fit_args))
   )
   fitted
 }
@@ -282,8 +299,9 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   .require_backend("ranger", object$method)
   dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
   task <- .target_task(target)
-  fitted <- try(ranger::ranger(y ~ ., data = dat, num.trees = num.trees,
-                               probability = task != "numeric", ...), silent = TRUE)
+  fitted <- try(suppressWarnings(ranger::ranger(y ~ ., data = dat, num.trees = num.trees,
+                                                probability = task != "numeric", ...)),
+                silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
   structure(list(imputer = object, fit = fitted, target = target, task = task, y = y),
             class = c("mimar_imputer_fit", "list"))
