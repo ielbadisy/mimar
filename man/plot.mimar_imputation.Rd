@@ -6,8 +6,11 @@
 \usage{
 \method{plot}{mimar_imputation}(
   x,
-  type = c("imputed", "missing", "density", "strip", "methods", "variability"),
+  type = c("imputed", "missing", "density", "strip", "boxplot", "xy", "proportion",
+    "trace", "methods", "variability"),
   variable = NULL,
+  formula = NULL,
+  statistic = c("mean", "sd"),
   ...
 )
 }
@@ -15,9 +18,16 @@
 \item{x}{A \code{mimar_imputation} object.}
 
 \item{type}{Plot type: \code{"imputed"}, \code{"missing"}, \code{"density"}, \code{"strip"},
-\code{"methods"}, or \code{"variability"}.}
+\code{"boxplot"}, \code{"xy"}, \code{"proportion"}, \code{"trace"}, \code{"methods"}, or
+\code{"variability"}.}
 
 \item{variable}{Optional variable name or names used by distribution plots.}
+
+\item{formula}{Optional formula for bivariate and stratified diagnostics.
+Use forms such as \code{height ~ weight}, \code{height ~ weight | gender}, or
+\code{group ~ sex}.}
+
+\item{statistic}{Trace statistic, either \code{"mean"} or \code{"sd"}.}
 
 \item{...}{Unused.}
 }
@@ -27,6 +37,7 @@ A \code{ggplot} object.
 \description{
 \code{plot.mimar_imputation()} draws imputation diagnostics. By default it shows
 imputed cell counts. Other plot types show a cell-status map, observed versus
-imputed distributions, variable-level imputation methods, or
-between-imputation variability.
+imputed distributions, boxplots across imputations, bivariate diagnostics,
+categorical proportions, convergence traces, variable-level imputation
+methods, or between-imputation variability.
 }

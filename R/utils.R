@@ -145,6 +145,7 @@
     n_imputations = object$m,
     imputer = object$imputer,
     maxit = object$maxit,
+    ncore = object$ncore %||% object$diagnostics$ncore %||% 1L,
     stochastic = object$stochastic,
     total_missing_before = total_missing,
     total_imputed = total_imputed,

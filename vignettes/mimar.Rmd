@@ -423,6 +423,34 @@ summary(i_naive)
 complete(i_naive, 1)
 ```
 
+The `m` completed datasets are conditionally independent once their random
+seeds have been fixed. `mimar` therefore parallelises at the completed-dataset
+level when `ncore > 1`. Internally, the package maps the same single-chain
+imputation routine over `1:m` with `functionals::fmap()`. This is the natural
+parallel boundary: each worker receives the original incomplete data, the
+initial median/mode completion, the imputer specification, and a deterministic
+seed offset. Worker `k` uses `seed + k - 1`, so a run remains reproducible for
+a fixed `seed`, `m`, `maxit`, and imputer.
+
+```r
+i_parallel <- impute(
+  a,
+  imputer = "naive",
+  m       = 5,
+  maxit   = 5,
+  seed    = 1,
+  ncore   = 2
+)
+```
+
+The default `ncore = 1` is deliberately conservative. It avoids parallel
+overhead for small data and gives the most predictable behavior in constrained
+execution environments. Increasing `ncore` is most useful when `m` is greater
+than one and each chain is expensive, for example with random forests,
+gradient boosting, penalized regression, or BART. Parallelism does not change
+the chained-equation model; it only changes how the independent completed
+datasets are scheduled.
+
 Methods that differ in their statistical assumptions can be compared by
 running them on the same amputed object:
 
@@ -491,6 +519,91 @@ plot(i_naive)
 plot(i_naive, type = "missing")
 plot(i_naive, type = "density")
 plot(e)
+```
+
+## Diagnostic Plotting
+
+Diagnostic plotting is not a cosmetic step in multiple imputation. The pooled
+analysis assumes that the imputed values are plausible draws from the
+conditional distribution implied by the imputation model. No single plot can
+prove that assumption, but several simple graphics expose common failures:
+chains that have not stabilised, imputed values with implausible marginal
+distributions, categorical levels that are over- or under-produced, and
+relationships between variables that are distorted among the imputed cells.
+
+`mimar` keeps lightweight iteration diagnostics in the imputation object. For
+each completed dataset, iteration, and incomplete variable, it records the
+number of imputed cells and, for numeric variables, the mean and standard
+deviation of the current imputed values. These summaries are small enough to
+store by default but rich enough to support convergence trace plots.
+
+```{r}
+head(i_naive$diagnostics$trace)
+```
+
+The trace plot shows how a summary of the imputed values changes over the
+chained iterations. Strong monotone trends or chains that remain separated can
+signal lack of convergence, feedback between derived variables, or a poor
+predictor specification. Flat traces are not automatically good: deterministic
+or constant imputers such as `naive` can be flat because they do not generate
+meaningful stochastic updates. Trace plots are most informative for stochastic
+methods such as `pmm`, `norm`, `logreg`, `polyreg`, and learner-backed
+imputers.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "trace", statistic = "mean")
+```
+
+Density plots compare the observed distribution with the distribution of
+imputed values. The observed data are drawn once, while imputed values are
+drawn separately for each completed dataset. This mirrors the common
+diagnostic style where the observed curve acts as a reference and each
+imputation contributes its own imputed curve. The marginal distributions do not
+have to be identical under MAR, because missingness may depend on observed
+covariates. Large differences should still be investigated because they may
+represent either a real conditional difference or an imputation-model problem.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "density", variable = "bmi")
+```
+
+Box-and-whisker diagnostics provide the same comparison in a more robust form.
+Imputation number `0` denotes the observed values and `1:m` denote the
+completed datasets. This is useful when densities are unstable because there
+are few imputed values or because the variable has a skewed distribution with
+outliers.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "boxplot", variable = "bmi")
+```
+
+The strip plot displays individual observed and imputed values by imputation
+number. It is especially helpful for small datasets, variables with few missing
+cells, and situations where overplotting is limited. A tight pile of imputed
+points at one value reveals deterministic or overly concentrated imputation.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "strip", variable = "bmi")
+```
+
+Bivariate diagnostics examine whether the imputed rows preserve relationships
+between variables. The formula interface follows the familiar `y ~ x` pattern,
+with an optional conditioning variable after `|`. Observed points are shown
+separately from rows where either plotted variable had to be imputed.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "xy", formula = bmi ~ age | sex)
+```
+
+For categorical variables, density and boxplot diagnostics are not meaningful.
+The proportion plot compares the category distribution among observed values
+with the category distribution generated within each imputation. A stratified
+formula can be used when a categorical discrepancy may be explained by another
+observed variable.
+
+```{r, fig.width=7, fig.height=4}
+plot(i_naive, type = "proportion", variable = "group")
+plot(i_naive, type = "proportion", formula = group ~ sex)
 ```
 
 ## Pooling Across Imputations
