@@ -137,7 +137,8 @@
   imputer(method)
   task <- .target_task(x)
   if (method %in% c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet",
-                    "gbm", "xgboost", "knn", "hotdeck", "famd", "naive")) {
+                    "gbm", "xgboost", "knn", "hotdeck", "famd", "naive",
+                    "superlearner", "sl")) {
     return(method)
   }
   if (method %in% c("mean", "median", "norm", "pmm", "spmm")) {

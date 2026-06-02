@@ -528,6 +528,7 @@ Learner-backed methods are available through the same call:
 impute(a, imputer = "rf",      m = 5, maxit = 5, seed = 1)
 impute(a, imputer = "glmnet",  m = 5, maxit = 5, seed = 1)
 impute(a, imputer = "xgboost", m = 5, maxit = 5, seed = 1)
+impute(a, imputer = "superlearner", m = 5, maxit = 5, seed = 1)
 ```
 
 ## Tuning Imputers
@@ -553,6 +554,31 @@ The learner-backed specifications can then be used in the same pipeline:
 ```r
 i_rf <- impute(a, imputer = rf_spec, m = 3, maxit = 3, seed = 1)
 i_xgb <- impute(a, imputer = xgb_spec, m = 3, maxit = 3, seed = 1)
+```
+
+## Super Learner Imputation
+
+`superlearner` builds a cross-validated ensemble of candidate imputers. For each
+incomplete variable, the candidate library is evaluated on observed cells,
+non-negative weights are assigned from the observed-cell prediction loss, and
+the weighted ensemble is used inside the same chained-imputation loop.
+
+```{r}
+sl_spec <- imputer(
+  "superlearner",
+  library = c("pmm", "knn", "rpart"),
+  folds = 3,
+  metalearner = "inverse_loss"
+)
+
+i_sl <- impute(a, imputer = sl_spec, m = 2, maxit = 2, seed = 1)
+summary(i_sl)
+```
+
+The shorter `sl` alias is equivalent:
+
+```r
+impute(a, imputer = "sl", m = 5, maxit = 5, seed = 1)
 ```
 
 ## Evaluating Imputation Quality

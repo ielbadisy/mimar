@@ -111,6 +111,7 @@ Learner-backed imputers:
 - `gbm`: gradient boosting through `gbm`
 - `xgboost`: gradient boosted trees through `xgboost`
 - `famd`: FAMD-assisted donor imputation through `missMDA`
+- `superlearner`, `sl`: cross-validated Super Learner-style ensemble imputer
 
 Imputer names are strict: use the names shown by `imputer_registry()`.
 Learner-backed imputers are applied as requested to numeric, binary, and
@@ -150,6 +151,25 @@ i3 <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, donors = 10)
 The same hyperparameter set is reused across all incomplete variables that a
 given imputer supports, which keeps the full chained-imputation pipeline
 reproducible and easy to tune.
+
+## Super Learner Imputation
+
+`superlearner` combines candidate imputers by cross-validating them on observed
+cells, assigning non-negative loss-based weights, and using the weighted
+ensemble inside the chained-imputation loop.
+
+```r
+sl <- imputer(
+  "superlearner",
+  library = c("pmm", "knn", "rpart"),
+  folds = 5,
+  metalearner = "inverse_loss"
+)
+
+i_sl <- impute(a, imputer = sl, m = 5, maxit = 5, seed = 1)
+```
+
+The short alias `imputer = "sl"` is equivalent to `imputer = "superlearner"`.
 
 ## Diagnostic Plots
 
