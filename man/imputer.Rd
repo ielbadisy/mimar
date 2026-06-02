@@ -37,6 +37,9 @@ Native learners implemented in \code{mimar} include \code{"mean"}, \code{"median
 \code{"gbm"}, and \code{"famd"} are called directly through their original packages
 installed with \code{mimar}. Additional arguments supplied to \code{imputer()} are
 retained as hyperparameters and used by \code{impute()} and \code{fit()}.
+The \code{"superlearner"} imputer, also available as \code{"sl"}, cross-validates a
+candidate imputer library on observed cells and combines candidates using
+non-negative loss-based weights.
 
 Compatibility with target types is explicit. If an imputer does not support a
 numeric, binary, or multiclass target, \code{mimar} stops with an error rather than

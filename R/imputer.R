@@ -3,16 +3,18 @@
     imputer = c("mean", "median", "mode", "naive", "norm", "pmm", "spmm",
                 "logreg", "polyreg", "rf", "ranger", "rpart", "nbayes",
                 "svm", "bart", "glmnet", "gbm", "xgboost", "knn", "hotdeck",
-                "famd"),
-    implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped"),
+                "famd", "superlearner", "sl"),
+    implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped",
+                       "mimar", "mimar"),
     package = c(rep(NA_character_, 9), "ranger", "ranger", "rpart", "naivebayes",
-                "e1071", "BART", "glmnet", "gbm", "xgboost", NA, NA, "missMDA"),
-    supports_numeric = rep(TRUE, 21),
-    supports_binary = rep(TRUE, 21),
-    supports_multiclass = rep(TRUE, 21),
+                "e1071", "BART", "glmnet", "gbm", "xgboost", NA, NA, "missMDA",
+                NA, NA),
+    supports_numeric = rep(TRUE, 23),
+    supports_binary = rep(TRUE, 23),
+    supports_multiclass = rep(TRUE, 23),
     stochastic = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE,
                    TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
-                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
     description = c(
       "Mean imputation for numeric targets",
       "Median imputation for numeric targets",
@@ -34,7 +36,9 @@
       "Gradient boosted tree imputer through xgboost",
       "Nearest-neighbor donor imputer",
       "Hot-deck donor imputer",
-      "FAMD-assisted donor imputer"
+      "FAMD-assisted donor imputer",
+      "Cross-validated Super Learner-style ensemble imputer",
+      "Short alias for superlearner"
     ),
     stringsAsFactors = FALSE
   )
@@ -134,7 +138,7 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     fit_args <- utils::modifyList(fit_args, extra_args)
   }
   tunable_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart",
-                       "glmnet", "gbm", "xgboost", "famd")
+                       "glmnet", "gbm", "xgboost", "famd", "superlearner", "sl")
   if (length(fit_args) && !(object$method %in% tunable_methods)) {
     .mimar_stop("Imputer '", object$method, "' does not accept additional hyperparameters via `...`. ",
                 "Use `donors` for donor-based imputers or choose a learner-backed imputer.")
@@ -161,7 +165,9 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     xgboost = do.call(.fit_xgboost_imputer, c(list(object, x, y, target, variable), fit_args)),
     knn = .fit_donor_imputer(object, x, y, target, variable, donors, method = "knn"),
     hotdeck = .fit_donor_imputer(object, x, y, target, variable, donors, method = "hotdeck"),
-    famd = do.call(.fit_famd_imputer, c(list(object, x, y, target, variable, donors), fit_args))
+    famd = do.call(.fit_famd_imputer, c(list(object, x, y, target, variable, donors), fit_args)),
+    superlearner = do.call(.fit_superlearner_imputer, c(list(object, x, y, target, variable, donors), fit_args)),
+    sl = do.call(.fit_superlearner_imputer, c(list(object, x, y, target, variable, donors), fit_args))
   )
   fitted
 }
@@ -191,7 +197,9 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     xgboost = .predict_xgboost_imputer(object, newdata),
     knn = .predict_donor_imputer(object, newdata),
     hotdeck = .predict_donor_imputer(object, newdata),
-    famd = .predict_donor_imputer(object, newdata)
+    famd = .predict_donor_imputer(object, newdata),
+    superlearner = .predict_superlearner_imputer(object, newdata),
+    sl = .predict_superlearner_imputer(object, newdata)
   )
 }
 
@@ -457,6 +465,123 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   if (inherits(coords, "try-error")) coords <- x
   fit <- .fit_donor_imputer(object, coords, y, target, variable, donors, method = "famd")
   fit
+}
+
+.fit_superlearner_imputer <- function(object, x, y, target, variable, donors,
+                                      library = c("pmm", "knn", "rpart"),
+                                      folds = 5,
+                                      metalearner = c("inverse_loss", "best", "equal"),
+                                      ...) {
+  metalearner <- match.arg(metalearner)
+  candidate_library <- unique(as.character(library))
+  candidate_library <- setdiff(candidate_library, c("superlearner", "sl"))
+  if (!length(candidate_library)) {
+    .mimar_stop("`library` must contain at least one non-superlearner imputer.")
+  }
+  methods <- unique(vapply(candidate_library, .compatible_imputer_method, character(1), x = target))
+  methods <- methods[methods != object$method]
+  if (!length(methods)) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+
+  n <- length(y)
+  folds <- min(max(2L, as.integer(folds)), n)
+  fold_id <- sample(rep(seq_len(folds), length.out = n))
+  losses <- vapply(methods, function(method) {
+    fold_losses <- vapply(seq_len(folds), function(fold) {
+      train <- fold_id != fold
+      valid <- fold_id == fold
+      if (!any(train) || !any(valid)) return(NA_real_)
+      learner <- imputer(method)
+      fitted <- try(fit(learner, x = x[train, , drop = FALSE], y = y[train],
+                        target = target, variable = variable, donors = donors),
+                    silent = TRUE)
+      if (inherits(fitted, "try-error")) return(NA_real_)
+      pred <- try(stats::predict(fitted, x[valid, , drop = FALSE]), silent = TRUE)
+      if (inherits(pred, "try-error")) return(NA_real_)
+      .superlearner_loss(y[valid], pred, target)
+    }, numeric(1))
+    mean(fold_losses, na.rm = TRUE)
+  }, numeric(1))
+
+  fits <- lapply(methods, function(method) {
+    try(fit(imputer(method), x = x, y = y, target = target, variable = variable,
+            donors = donors), silent = TRUE)
+  })
+  ok <- !vapply(fits, inherits, logical(1), what = "try-error")
+  methods <- methods[ok]
+  losses <- losses[ok]
+  fits <- fits[ok]
+  if (!length(fits)) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+
+  weights <- .superlearner_weights(losses, metalearner = metalearner)
+  structure(list(imputer = object, fits = fits, methods = methods, weights = weights,
+                 losses = losses, target = target, task = .target_task(target),
+                 metalearner = metalearner, library = candidate_library),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.superlearner_loss <- function(truth, pred, target) {
+  keep <- !is.na(truth) & !is.na(pred)
+  truth <- truth[keep]
+  pred <- pred[keep]
+  if (!length(truth)) return(NA_real_)
+  if (is.numeric(target) || is.integer(target) || inherits(target, "Date")) {
+    pred <- suppressWarnings(as.numeric(pred))
+    truth <- as.numeric(truth)
+    keep <- is.finite(truth) & is.finite(pred)
+    if (!any(keep)) return(NA_real_)
+    return(mean((pred[keep] - truth[keep])^2, na.rm = TRUE))
+  }
+  mean(as.character(pred) != as.character(truth), na.rm = TRUE)
+}
+
+.superlearner_weights <- function(losses, metalearner) {
+  losses[!is.finite(losses)] <- Inf
+  if (identical(metalearner, "equal") || !any(is.finite(losses))) {
+    return(rep(1 / length(losses), length(losses)))
+  }
+  if (identical(metalearner, "best")) {
+    out <- rep(0, length(losses))
+    out[which.min(losses)] <- 1
+    return(out)
+  }
+  inv <- 1 / pmax(losses, .Machine$double.eps)
+  inv[!is.finite(inv)] <- 0
+  if (!sum(inv)) rep(1 / length(inv), length(inv)) else inv / sum(inv)
+}
+
+.predict_superlearner_imputer <- function(object, newdata) {
+  preds <- lapply(object$fits, function(fit) {
+    try(stats::predict(fit, newdata), silent = TRUE)
+  })
+  ok <- !vapply(preds, inherits, logical(1), what = "try-error")
+  preds <- preds[ok]
+  weights <- object$weights[ok]
+  if (!length(preds) || !sum(weights)) {
+    return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  }
+  weights <- weights / sum(weights)
+  if (object$task == "numeric") {
+    mat <- do.call(cbind, lapply(preds, function(p) suppressWarnings(as.numeric(p))))
+    out <- vapply(seq_len(nrow(mat)), function(i) {
+      vals <- mat[i, ]
+      keep <- is.finite(vals) & weights > 0
+      if (!any(keep)) return(as.numeric(.simple_fill_value(object$target)))
+      sum(vals[keep] * weights[keep]) / sum(weights[keep])
+    }, numeric(1))
+    return(out)
+  }
+  lev <- if (is.factor(object$target)) levels(object$target) else unique(as.character(object$target[!is.na(object$target)]))
+  if (!length(lev)) lev <- as.character(.simple_fill_value(object$target))
+  mat <- do.call(cbind, lapply(preds, as.character))
+  vapply(seq_len(nrow(mat)), function(i) {
+    scores <- stats::setNames(rep(0, length(lev)), lev)
+    for (j in seq_along(weights)) {
+      val <- mat[i, j]
+      if (!is.na(val) && val %in% names(scores)) scores[[val]] <- scores[[val]] + weights[[j]]
+    }
+    if (!sum(scores)) return(as.character(.simple_fill_value(object$target)))
+    names(scores)[which.max(scores)]
+  }, character(1))
 }
 
 .predict_generic_model_imputer <- function(object, newdata) {

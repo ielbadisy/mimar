@@ -4,6 +4,8 @@
 ^analysis$
 ^.*\.Rcheck$
 ^.*\.tar\.gz$
+^.*\.csv$
+^.*\.png$
 ^cran-comments\.md$
 ^\.git$
 ^\.gitignore$

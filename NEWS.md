@@ -1,3 +1,13 @@
+# mimar 0.8
+
+* Added `superlearner` and `sl` imputers. These construct a Super
+  Learner-style ensemble by cross-validating candidate imputers on observed
+  cells, assigning non-negative loss-based weights, and combining predictions
+  inside the existing chained-imputation loop.
+* Added `library`, `folds`, and `metalearner` hyperparameters for
+  `superlearner`.
+* Updated CRAN preparation files and vignette examples for the new release.
+
 # mimar 0.7
 
 First public release candidate.

@@ -117,6 +117,9 @@ complete <- function(x, ...) UseMethod("complete")
 #' `"gbm"`, and `"famd"` are called directly through their original packages
 #' installed with `mimar`. Additional arguments supplied to `imputer()` are
 #' retained as hyperparameters and used by `impute()` and `fit()`.
+#' The `"superlearner"` imputer, also available as `"sl"`, cross-validates a
+#' candidate imputer library on observed cells and combines candidates using
+#' non-negative loss-based weights.
 #'
 #' Compatibility with target types is explicit. If an imputer does not support a
 #' numeric, binary, or multiclass target, `mimar` stops with an error rather than

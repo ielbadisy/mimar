@@ -102,6 +102,8 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_equal(imputer("knn")$implementation, "mimar")
   expect_equal(imputer("rpart")$package, "rpart")
   expect_equal(imputer("glmnet")$package, "glmnet")
+  expect_equal(imputer("superlearner")$implementation, "mimar")
+  expect_equal(imputer("sl")$implementation, "mimar")
   expect_error(imputer("missforest"), "Unknown imputer")
   expect_error(imputer("mixgb"), "Unknown imputer")
   expect_error(imputer("naive_bayes"), "Unknown imputer")
@@ -109,6 +111,29 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_s3_class(imputer_registry(), "tbl_df")
   expect_equal(imputer_registry()$package[imputer_registry()$imputer == "knn"], "internal")
   expect_error(imputer("mice"), "Unknown imputer")
+})
+
+test_that("superlearner imputer learns ensemble weights and imputes data", {
+  dat <- data.frame(
+    a = c(1, 2, 3, 4, 5, 6, 7, 8),
+    b = c(1, 1, 2, 3, 5, 8, 13, 21),
+    c = factor(c("x", "x", "y", "y", "x", "y", "x", "y"))
+  )
+  learner <- imputer("superlearner", library = c("pmm", "knn"), folds = 2)
+  fitted <- fit(learner, x = dat[c("b", "c")], y = dat$a, target = dat$a,
+                variable = "a")
+  pred <- predict(fitted, dat[c("b", "c")])
+  expect_s3_class(fitted, "mimar_imputer_fit")
+  expect_equal(sum(fitted$weights), 1, tolerance = 1e-8)
+  expect_length(pred, nrow(dat))
+
+  incomplete <- dat
+  incomplete$a[c(2, 6)] <- NA
+  incomplete$c[4] <- NA
+  imp <- impute(incomplete, m = 1, imputer = learner, maxit = 1, seed = 1)
+  expect_s3_class(imp, "mimar_imputation")
+  expect_false(anyNA(complete(imp)))
+  expect_true(all(imp$variable_methods[c("a", "c")] == "superlearner"))
 })
 
 test_that("imputation accepts explicit hyperparameters and donor tuning", {
