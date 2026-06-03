@@ -72,7 +72,8 @@ plot()
 
 ## Quick Example
 
-```r
+```{r}
+
 library(mimar)
 
 set.seed(1)
@@ -104,7 +105,7 @@ plot(i, type = "density")
 
 Inspect available imputers with:
 
-```r
+```{r}
 imputer_registry()
 describe("imputers")
 ```
@@ -146,7 +147,7 @@ parallel boundary is the outer imputation index: each completed dataset gets a
 deterministic seed offset, so a fixed `seed`, `m`, `maxit`, and imputer remain
 reproducible.
 
-```r
+```{r}
 i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 ```
 
@@ -159,7 +160,7 @@ Learner-backed imputers expose their hyperparameters through `imputer()` or
 directly through `...` in `impute()`. Donor-based imputers use the explicit
 `donors` argument.
 
-```r
+```{r}
 rf_spec <- imputer("rf", num.trees = 500)
 xgb_spec <- imputer("xgboost", nrounds = 100, max_depth = 3)
 
@@ -179,7 +180,7 @@ reproducible and easy to tune.
 cells, assigning non-negative loss-based weights, and using the weighted
 ensemble inside the chained-imputation loop.
 
-```r
+```{r}
 sl <- imputer(
   "superlearner",
   library = c("pmm", "knn", "rpart"),
@@ -197,7 +198,7 @@ The short alias `imputer = "sl"` is equivalent to `imputer = "superlearner"`.
 `plot()` methods return `ggplot` objects. For `mimar_imputation` objects, the
 main diagnostic types are:
 
-```r
+```{r}
 plot(i)                                      # imputed cell counts
 plot(i, type = "missing")                   # observed/imputed cell map
 plot(i, type = "trace", statistic = "mean") # convergence-screening trace
@@ -208,7 +209,7 @@ plot(i, type = "strip", variable = "bmi")   # individual values by imputation
 
 Formula diagnostics are available for bivariate and categorical checks:
 
-```r
+```{r}
 plot(i, type = "xy", formula = bmi ~ age | sex)
 plot(i, type = "proportion", formula = group ~ sex)
 ```
@@ -284,7 +285,7 @@ B     = sample variance of Q_k
 T     = U_bar + (1 + 1/m) * B
 ```
 
-```r
+```{r}
 results <- data.frame(
   term = rep(c("age", "bmi"), each = 3),
   estimate = c(0.10, 0.11, 0.09, 0.30, 0.32, 0.29),
@@ -297,7 +298,7 @@ pool(results)
 
 Direct quantity inputs are preferred when available:
 
-```r
+```{r}
 pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
 
 betas <- list(
@@ -317,16 +318,7 @@ When no reliable complete-data variance is supplied, as is common for some
 performance metrics, `pool()` reports robust summaries by default: median,
 interquartile range, and range across imputations.
 
-## Limitations
-
-`mimar` intentionally exposes a compact grammar. It does not yet provide a full
-predictor-matrix interface, passive-imputation grammar for deterministic
-derived variables, formal convergence statistic, or automatic tuning layer for
-learner-backed methods. For inferential work, compare plausible imputers,
-inspect diagnostics, and check whether conclusions are robust to imputation
-choices.
-
-## Installation Notes
+## Installation notes
 
 Learner backends are hard dependencies. Installing `mimar` installs the
 packages needed by the registered learner-backed imputers, including `ranger`,

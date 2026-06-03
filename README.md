@@ -93,10 +93,62 @@ a <- ampute(
 
 i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 complete(i, 1)
+```
+
+    ## # A tibble: 120 × 5
+    ##      age   bmi sex   group smoker
+    ##    <dbl> <dbl> <fct> <fct> <lgl> 
+    ##  1  43.7  23.0 M     C     FALSE 
+    ##  2  51.8  30.4 F     A     FALSE 
+    ##  3  41.6  24.1 F     B     TRUE  
+    ##  4  66.0  24.3 F     C     TRUE  
+    ##  5  53.3  24.6 F     A     FALSE 
+    ##  6  41.8  27.9 M     C     TRUE  
+    ##  7  54.9  24.7 M     B     TRUE  
+    ##  8  57.4  24.8 F     B     FALSE 
+    ##  9  55.8  22.3 F     B     FALSE 
+    ## 10  46.9  30.8 M     A     FALSE 
+    ## # ℹ 110 more rows
+
+``` r
 summary(i)
+```
+
+    ## mimar imputation summary
+    ## # A tibble: 1 × 11
+    ##    rows columns n_imputations imputer maxit ncore stochastic
+    ##   <int>   <int>         <int> <chr>   <dbl> <int> <lgl>     
+    ## 1   120       5             5 knn         5     2 TRUE      
+    ## # ℹ 4 more variables: total_missing_before <int>, total_imputed <int>,
+    ## #   remaining_missing <int>, variables_imputed <int>
+    ## 
+    ## Variables:
+    ## # A tibble: 5 × 9
+    ##   variable type    method n_missing_before prop_missing_before n_imputed
+    ##   <chr>    <chr>   <chr>             <int>               <dbl>     <int>
+    ## 1 age      numeric none                  0               0             0
+    ## 2 bmi      numeric knn                  26               0.217        26
+    ## 3 sex      factor  none                  0               0             0
+    ## 4 group    factor  knn                  27               0.225        27
+    ## 5 smoker   logical none                  0               0             0
+    ## # ℹ 3 more variables: prop_imputed <dbl>, remaining_missing <int>,
+    ## #   between_imputation_sd <dbl>
+
+``` r
 evaluate(i)
+```
+
+    ## mimar imputation evaluation
+    ## # A tibble: 1 × 4
+    ##   n_imputations imputer total_missing evaluated_cells
+    ##           <int> <chr>           <int>           <int>
+    ## 1             5 knn                53              53
+
+``` r
 plot(i, type = "density")
 ```
+
+![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
 ## Imputers
 
@@ -104,8 +156,46 @@ Inspect available imputers with:
 
 ``` r
 imputer_registry()
+```
+
+    ## # A tibble: 23 × 10
+    ##    imputer implementation package  supports_numeric supports_binary
+    ##    <chr>   <chr>          <chr>    <lgl>            <lgl>          
+    ##  1 mean    mimar          internal TRUE             TRUE           
+    ##  2 median  mimar          internal TRUE             TRUE           
+    ##  3 mode    mimar          internal TRUE             TRUE           
+    ##  4 naive   mimar          internal TRUE             TRUE           
+    ##  5 norm    mimar          internal TRUE             TRUE           
+    ##  6 pmm     mimar          internal TRUE             TRUE           
+    ##  7 spmm    mimar          internal TRUE             TRUE           
+    ##  8 logreg  mimar          internal TRUE             TRUE           
+    ##  9 polyreg mimar          internal TRUE             TRUE           
+    ## 10 rf      wrapped        ranger   TRUE             TRUE           
+    ## # ℹ 13 more rows
+    ## # ℹ 5 more variables: supports_multiclass <lgl>, stochastic <lgl>,
+    ## #   description <chr>, available <lgl>, status <chr>
+
+``` r
 describe("imputers")
 ```
+
+    ## mimar available imputers
+    ## # A tibble: 23 × 10
+    ##    imputer implementation package  supports_numeric supports_binary
+    ##    <chr>   <chr>          <chr>    <lgl>            <lgl>          
+    ##  1 mean    mimar          internal TRUE             TRUE           
+    ##  2 median  mimar          internal TRUE             TRUE           
+    ##  3 mode    mimar          internal TRUE             TRUE           
+    ##  4 naive   mimar          internal TRUE             TRUE           
+    ##  5 norm    mimar          internal TRUE             TRUE           
+    ##  6 pmm     mimar          internal TRUE             TRUE           
+    ##  7 spmm    mimar          internal TRUE             TRUE           
+    ##  8 logreg  mimar          internal TRUE             TRUE           
+    ##  9 polyreg mimar          internal TRUE             TRUE           
+    ## 10 rf      wrapped        ranger   TRUE             TRUE           
+    ## # ℹ 13 more rows
+    ## # ℹ 5 more variables: supports_multiclass <lgl>, stochastic <lgl>,
+    ## #   description <chr>, available <lgl>, status <chr>
 
 Core native imputers:
 
@@ -199,19 +289,53 @@ objects, the main diagnostic types are:
 
 ``` r
 plot(i)                                      # imputed cell counts
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
 plot(i, type = "missing")                   # observed/imputed cell map
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+
+``` r
 plot(i, type = "trace", statistic = "mean") # convergence-screening trace
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-3.png)<!-- -->
+
+``` r
 plot(i, type = "density", variable = "bmi") # line-only density overlays
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-4.png)<!-- -->
+
+``` r
 plot(i, type = "boxplot", variable = "bmi") # observed vs imputation 1:m
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-5.png)<!-- -->
+
+``` r
 plot(i, type = "strip", variable = "bmi")   # individual values by imputation
 ```
+
+![](README_files/figure-gfm/unnamed-chunk-6-6.png)<!-- -->
 
 Formula diagnostics are available for bivariate and categorical checks:
 
 ``` r
 plot(i, type = "xy", formula = bmi ~ age | sex)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
 plot(i, type = "proportion", formula = group ~ sex)
 ```
+
+![](README_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
 For `type = "xy"`, formulas use `y ~ x` or `y ~ x | group`. For
 `type = "proportion"`, formulas use `categorical_variable ~ strata`.
@@ -297,11 +421,30 @@ results <- data.frame(
 pool(results)
 ```
 
+    ## mimar pooled results
+    ## # A tibble: 2 × 14
+    ##   term  estimate std.error statistic    df  p.value conf.low conf.high     m
+    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>    <dbl>    <dbl>     <dbl> <int>
+    ## 1 age      0.1      0.0451      2.22  465. 0.0271     0.0114     0.189     3
+    ## 2 bmi      0.303    0.0853      3.56 1094. 0.000393   0.136      0.471     3
+    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
+    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+
 Direct quantity inputs are preferred when available:
 
 ``` r
 pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
+```
 
+    ## mimar pooled results
+    ## # A tibble: 1 × 14
+    ##   term  estimate std.error statistic    df p.value conf.low conf.high     m
+    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>   <dbl>    <dbl>     <dbl> <int>
+    ## 1 age        0.1    0.0451      2.22  465.  0.0271   0.0114     0.189     3
+    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
+    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+
+``` r
 betas <- list(
   c(age = 0.10, bmi = 0.30),
   c(age = 0.11, bmi = 0.32),
@@ -315,20 +458,20 @@ covariances <- list(
 pool(betas, covariance = covariances)
 ```
 
+    ## mimar pooled results
+    ## # A tibble: 2 × 14
+    ##   term  estimate std.error statistic    df  p.value conf.low conf.high     m
+    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>    <dbl>    <dbl>     <dbl> <int>
+    ## 1 age      0.1      0.0451      2.22  465. 0.0271     0.0114     0.189     3
+    ## 2 bmi      0.303    0.0853      3.56 1094. 0.000393   0.136      0.471     3
+    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
+    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+
 When no reliable complete-data variance is supplied, as is common for
 some performance metrics, `pool()` reports robust summaries by default:
 median, interquartile range, and range across imputations.
 
-## Limitations
-
-`mimar` intentionally exposes a compact grammar. It does not yet provide
-a full predictor-matrix interface, passive-imputation grammar for
-deterministic derived variables, formal convergence statistic, or
-automatic tuning layer for learner-backed methods. For inferential work,
-compare plausible imputers, inspect diagnostics, and check whether
-conclusions are robust to imputation choices.
-
-## Installation Notes
+## Installation notes
 
 Learner backends are hard dependencies. Installing `mimar` installs the
 packages needed by the registered learner-backed imputers, including
