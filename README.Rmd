@@ -45,7 +45,7 @@ Then load the package:
 library(mimar)
 ```
 
-## Succinct Use
+## Quick use
 
 For normal use, `impute()` is the only function you need. The input data can
 contain `NA`, and the completed outputs returned by `complete()` do not.
@@ -70,7 +70,7 @@ pool()
 plot()
 ```
 
-## Quick Example
+## Short example
 
 ```{r}
 
@@ -140,7 +140,7 @@ Learner-backed imputers are applied as requested to numeric, binary, and
 multiclass targets; `mimar` does not silently swap them for another imputer
 inside benchmark runs.
 
-## Parallel Imputation
+## Parallel imputation
 
 The `ncore` argument runs independent completed datasets in parallel. The
 parallel boundary is the outer imputation index: each completed dataset gets a
@@ -154,7 +154,7 @@ i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 Use `ncore = 1` for sequential execution, small examples, and the most
 conservative behavior in constrained environments.
 
-## Tuning Imputers
+## Tuning imputers
 
 Learner-backed imputers expose their hyperparameters through `imputer()` or
 directly through `...` in `impute()`. Donor-based imputers use the explicit
@@ -174,7 +174,7 @@ The same hyperparameter set is reused across all incomplete variables that a
 given imputer supports, which keeps the full chained-imputation pipeline
 reproducible and easy to tune.
 
-## Super Learner Imputation
+## Super Learner imputation
 
 `superlearner` combines candidate imputers by cross-validating them on observed
 cells, assigning non-negative loss-based weights, and using the weighted
@@ -262,12 +262,14 @@ For k = 1,...,m:
 Return: {X~_1(T), ..., X~_m(T)}
 ```
 
-## Evaluation and Pooling
+## Evaluation
 
 When imputation is run on an `ampute()` object, `evaluate()` uses the retained
 truth and scores only artificially removed cells. Numeric recovery reports
 RMSE, MAE, bias, and correlation. Categorical recovery reports accuracy and
 balanced accuracy.
+
+## Pooling
 
 `pool()` combines post-fit quantities estimated separately in each completed
 dataset. The statistical target is the quantity itself, not a data frame. A
