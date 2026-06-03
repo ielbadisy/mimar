@@ -7,6 +7,7 @@
 ^.*\.csv$
 ^.*\.png$
 ^cran-comments\.md$
+^README\.Rmd$
 ^\.git$
 ^\.gitignore$
 ^R/\.Rhistory$

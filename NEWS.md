@@ -1,4 +1,4 @@
-# mimar 0.8
+# mimar 0.8.0
 
 * Added `superlearner` and `sl` imputers. These construct a Super
   Learner-style ensemble by cross-validating candidate imputers on observed
