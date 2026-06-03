@@ -1,5 +1,30 @@
 .mimar_stop <- function(..., call. = FALSE) stop(paste0(...), call. = call.)
 
+.mimar_progress <- function(text) {
+  message("[mimar] ", text)
+}
+
+.plural_s <- function(n) {
+  if (identical(as.integer(n), 1L)) "" else "s"
+}
+
+.format_imputation_progress <- function(row) {
+  details <- sprintf(
+    "    %s: %s imputed %s %s cell%s",
+    row$variable, row$method, row$n_imputed, row$type, .plural_s(row$n_imputed)
+  )
+  if (!is.na(row$mean)) {
+    details <- paste0(details, sprintf(" (mean %.3f", row$mean))
+    if (!is.na(row$sd)) {
+      details <- paste0(details, sprintf(", sd %.3f", row$sd))
+    }
+    details <- paste0(details, ")")
+  } else {
+    details <- paste0(details, sprintf(" (%s unique value%s)", row$unique, .plural_s(row$unique)))
+  }
+  paste0(details, ".")
+}
+
 .as_tibble <- function(x) {
   if (requireNamespace("tibble", quietly = TRUE)) tibble::as_tibble(x) else x
 }

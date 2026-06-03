@@ -46,7 +46,8 @@ library(mimar)
 
 For normal use, `impute()` is the only function you need. The input data
 can contain `NA`, and the completed outputs returned by `complete()` do
-not.
+not. Set `verbose = TRUE` when you want a concise progress log for the
+chained imputation workflow.
 
 ``` r
 i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1)
