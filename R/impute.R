@@ -9,9 +9,11 @@
 #' @param ncore Number of CPU cores used to run completed datasets in
 #'   parallel. The default, `1`, runs sequentially. Values greater than one are
 #'   passed to `functionals::fmap()` as `ncores`.
+#' @param verbose Logical; if `TRUE`, print an informative progress log for the
+#'   chained-imputation workflow. The default, `FALSE`, runs silently.
 #' @export
 impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
-                              donors = 5, ncore = 1, ...) {
+                              donors = 5, ncore = 1, verbose = FALSE, ...) {
   .check_data_frame(x)
   if (!is.numeric(m) || length(m) != 1 || m < 1) .mimar_stop("`m` must be a positive integer.")
   m <- as.integer(m)
@@ -29,7 +31,8 @@ impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
   res <- .impute_chained(x, m = m, maxit = maxit, seed = seed,
                          method = imputer_spec$method,
                          imputer_spec = imputer_spec,
-                         donors = donors, ncore = ncore)
+                         donors = donors, ncore = ncore,
+                         verbose = verbose)
   imputations <- lapply(res$imputations, .as_tibble)
   first <- imputations[[1]]
   out <- list(imputations = imputations, data = first,
@@ -50,9 +53,10 @@ impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
 #' @param donors Number of donor candidates used by donor-based imputers.
 #' @export
 impute.mimar_amputation <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
-                                    donors = 5, ncore = 1, ...) {
+                                    donors = 5, ncore = 1, verbose = FALSE, ...) {
   out <- impute.data.frame(x$data, m = m, imputer = imputer, maxit = maxit,
-                           seed = seed, donors = donors, ncore = ncore, ...)
+                           seed = seed, donors = donors, ncore = ncore,
+                           verbose = verbose, ...)
   out$truth <- x$data_original
   out$amputation <- x
   out$mask_added <- x$mask_added

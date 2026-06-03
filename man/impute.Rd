@@ -14,6 +14,7 @@ impute(
   seed = NULL,
   donors = 5,
   ncore = 1,
+  verbose = FALSE,
   ...
 )
 
@@ -25,6 +26,7 @@ impute(
   seed = NULL,
   donors = 5,
   ncore = 1,
+  verbose = FALSE,
   ...
 )
 
@@ -36,6 +38,7 @@ impute(
   seed = NULL,
   donors = 5,
   ncore = 1,
+  verbose = FALSE,
   ...
 )
 }
@@ -57,6 +60,9 @@ all incomplete variables it supports.}
 \item{ncore}{Number of CPU cores used to run completed datasets in
 parallel. The default, \code{1}, runs sequentially. Values greater than one are
 passed to \code{functionals::fmap()} as \code{ncores}.}
+
+\item{verbose}{Logical; if \code{TRUE}, print an informative progress log for the
+chained-imputation workflow. The default, \code{FALSE}, runs silently.}
 
 \item{...}{Passed to methods.}
 }

@@ -1,10 +1,14 @@
 .impute_chained <- function(x, m = 5, maxit = 5, seed = NULL, method = NULL,
-                            imputer_spec = NULL, donors = 5, ncore = 1) {
+                            imputer_spec = NULL, donors = 5, ncore = 1,
+                            verbose = FALSE) {
   method <- method %||% "pmm"
   if (!is.numeric(maxit) || length(maxit) != 1 || maxit < 0) {
     .mimar_stop("`maxit` must be a non-negative integer.")
   }
   maxit <- as.integer(maxit)
+  if (!is.logical(verbose) || length(verbose) != 1 || is.na(verbose)) {
+    .mimar_stop("`verbose` must be `TRUE` or `FALSE`.")
+  }
   if (!is.numeric(ncore) || length(ncore) != 1 || is.na(ncore) || ncore < 1) {
     .mimar_stop("`ncore` must be a positive integer.")
   }
@@ -24,6 +28,30 @@
   if (is.null(imputer_spec)) {
     imputer_spec <- do.call(imputer, list(method))
   }
+  missing_cells <- sum(is.na(x))
+  if (verbose) {
+    .mimar_progress("Starting chained imputation.")
+    .mimar_progress(sprintf(
+      "Data: %s rows x %s columns; %s missing cell%s in %s variable%s.",
+      nrow(x), ncol(x), missing_cells, .plural_s(missing_cells),
+      length(missing_vars), .plural_s(length(missing_vars))
+    ))
+    .mimar_progress(sprintf(
+      "Plan: m = %s completed dataset%s, maxit = %s iteration%s, imputer = %s, ncore = %s.",
+      m, .plural_s(m), maxit, .plural_s(maxit), method, ncore
+    ))
+    if (length(missing_vars)) {
+      .mimar_progress(sprintf(
+        "Variable methods: %s.",
+        paste(sprintf("%s=%s", missing_vars, variable_methods[missing_vars]), collapse = ", ")
+      ))
+    } else {
+      .mimar_progress("No missing variables detected; returning initialized completed datasets.")
+    }
+    if (ncore > 1) {
+      .mimar_progress("Parallel execution is active; chain messages may arrive out of order.")
+    }
+  }
 
   chains <- functionals::fmap(
     seq_len(m),
@@ -36,10 +64,19 @@
     maxit = maxit,
     seed = seed,
     imputer_spec = imputer_spec,
-    donors = donors
+    donors = donors,
+    verbose = verbose,
+    m_total = m
   )
   imputations <- lapply(chains, `[[`, "data")
   trace <- .rbind_or_empty(lapply(chains, `[[`, "trace"))
+  if (verbose) {
+    .mimar_progress(sprintf(
+      "Finished chained imputation; generated %s completed dataset%s with %s trace row%s.",
+      length(imputations), .plural_s(length(imputations)),
+      nrow(trace), .plural_s(nrow(trace))
+    ))
+  }
 
   list(imputations = imputations, variable_methods = variable_methods,
        diagnostics = list(strategy = "chained_equations",
@@ -52,12 +89,20 @@
 }
 
 .impute_chained_one <- function(mi, x, init, missing_vars, variable_methods,
-                                maxit, seed, imputer_spec, donors) {
+                                maxit, seed, imputer_spec, donors,
+                                verbose = FALSE, m_total = NULL) {
   if (!is.null(seed)) set.seed(seed + mi - 1)
   completed <- init
   trace <- list()
   trace_i <- 0L
+  if (verbose) {
+    seed_note <- if (is.null(seed)) "no fixed seed" else sprintf("seed %s", seed + mi - 1)
+    .mimar_progress(sprintf("Imputation %s/%s started (%s).", mi, m_total %||% mi, seed_note))
+  }
   for (iter in seq_len(maxit)) {
+    if (verbose) {
+      .mimar_progress(sprintf("  Iteration %s/%s.", iter, maxit))
+    }
     for (nm in missing_vars) {
       obs <- !is.na(x[[nm]])
       mis <- is.na(x[[nm]])
@@ -87,8 +132,14 @@
           target = x[[nm]],
           values = completed[[nm]][mis]
         )
+        if (verbose) {
+          .mimar_progress(.format_imputation_progress(trace[[trace_i]]))
+        }
       }
     }
+  }
+  if (verbose) {
+    .mimar_progress(sprintf("Imputation %s/%s finished.", mi, m_total %||% mi))
   }
   list(data = completed, trace = .rbind_or_empty(trace))
 }

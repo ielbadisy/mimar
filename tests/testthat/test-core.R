@@ -72,6 +72,18 @@ test_that("internal chained equation imputation uses fit/predict steps", {
   expect_true(all(c("imputation", "iteration", "variable", "mean", "sd") %in% names(imp$diagnostics$trace)))
   expect_equal(imp$diagnostics$ncore, 1)
   expect_true(all(imp$variable_methods[c("a", "b", "c")] %in% "naive"))
+  expect_silent(impute(dat, m = 1, imputer = "naive", maxit = 1, seed = 10))
+  verbose_messages <- capture.output(
+    verbose_imp <- impute(dat, m = 1, imputer = "naive", maxit = 1,
+                          seed = 10, verbose = TRUE),
+    type = "message"
+  )
+  expect_s3_class(verbose_imp, "mimar_imputation")
+  expect_true(any(grepl("Starting chained imputation", verbose_messages)))
+  expect_true(any(grepl("Iteration 1/1", verbose_messages)))
+  expect_true(any(grepl("a: naive imputed 2 numeric cells", verbose_messages)))
+  expect_true(any(grepl("Finished chained imputation", verbose_messages)))
+  expect_error(impute(dat, m = 1, imputer = "naive", verbose = NA), "`verbose`")
 })
 
 test_that("parallel imputations expose ncore and remain reproducible", {
@@ -150,10 +162,9 @@ test_that("imputation accepts explicit hyperparameters and donor tuning", {
   expect_equal(i_spec$imputer_spec$args$num.trees, 5)
 
   i_dots <- impute(dat, m = 1, imputer = "xgboost", maxit = 1, seed = 1,
-                   nrounds = 1, verbose = 0)
+                   nrounds = 1)
   expect_s3_class(i_dots$imputer_spec, "mimar_imputer")
   expect_equal(i_dots$imputer_spec$args$nrounds, 1)
-  expect_equal(i_dots$imputer_spec$args$verbose, 0)
 
   i_donors <- impute(dat, m = 1, imputer = "knn", maxit = 1, seed = 1, donors = 3)
   expect_equal(i_donors$donors, 3)

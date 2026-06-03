@@ -80,11 +80,13 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' @param ncore Number of CPU cores used to run completed datasets in
 #'   parallel. The default, `1`, runs sequentially. Values greater than one are
 #'   passed to `functionals::fmap()` as `ncores`.
+#' @param verbose Logical; if `TRUE`, print an informative progress log for the
+#'   chained-imputation workflow. The default, `FALSE`, runs silently.
 #' @param ... Passed to methods.
 #' @return A `mimar_imputation` object.
 #' @export
 impute <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
-                   donors = 5, ncore = 1, ...) UseMethod("impute")
+                   donors = 5, ncore = 1, verbose = FALSE, ...) UseMethod("impute")
 
 #' Extract completed imputed data
 #'
