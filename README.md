@@ -29,7 +29,15 @@ resolving learner installations.
 
 ## Installation
 
-Install the development version from GitHub:
+Install the released version from CRAN:
+
+``` r
+install.packages("mimar")
+```
+
+The CRAN package page is <https://CRAN.R-project.org/package=mimar>.
+
+You can install the development version from GitHub:
 
 ``` r
 install.packages("remotes")
