@@ -158,8 +158,135 @@
     .pool_scalar(qmat[, j], variance = vapply(covariance, function(u) u[j, j], numeric(1)),
                  name = names[[j]], conf.level = conf.level)
   })))
-  list(pooled = diag_pooled, estimate = qbar, variance = total,
+list(pooled = diag_pooled, estimate = qbar, variance = total,
        within_variance = ubar, between_variance = b)
+}
+
+.surv_cloglog <- function(p, clip = 1e-12) {
+  p <- pmin(pmax(p, clip), 1 - clip)
+  log(-log(p))
+}
+
+.surv_inv_cloglog <- function(z) exp(-exp(z))
+
+.surv_backtransform_pooled <- function(pooled, z_estimate, rule) {
+  estimate <- .surv_inv_cloglog(z_estimate)
+  estimate_vec <- as.numeric(estimate)
+  pooled$estimate <- estimate_vec
+  if ("std.error" %in% names(pooled) && any(!is.na(pooled$std.error))) {
+    pooled$std.error <- pooled$std.error * estimate_vec * (-log(estimate_vec))
+  }
+  if ("conf.low" %in% names(pooled) && "conf.high" %in% names(pooled)) {
+    low_z <- pooled$conf.low
+    high_z <- pooled$conf.high
+    pooled$conf.low <- .surv_inv_cloglog(high_z)
+    pooled$conf.high <- .surv_inv_cloglog(low_z)
+  }
+  if ("mean" %in% names(pooled)) pooled$mean <- as.numeric(.surv_inv_cloglog(pooled$mean))
+  if ("median" %in% names(pooled)) pooled$median <- estimate_vec
+  if ("q25" %in% names(pooled) && "q75" %in% names(pooled)) {
+    q25_z <- pooled$q25
+    q75_z <- pooled$q75
+    pooled$q25 <- as.numeric(.surv_inv_cloglog(q75_z))
+    pooled$q75 <- as.numeric(.surv_inv_cloglog(q25_z))
+  }
+  if ("min" %in% names(pooled) && "max" %in% names(pooled)) {
+    min_z <- pooled$min
+    max_z <- pooled$max
+    pooled$min <- as.numeric(.surv_inv_cloglog(max_z))
+    pooled$max <- as.numeric(.surv_inv_cloglog(min_z))
+  }
+  if (!is.null(dim(z_estimate))) {
+    dim(estimate) <- dim(z_estimate)
+    dimnames(estimate) <- dimnames(z_estimate)
+  }
+  list(pooled = pooled, estimate = estimate)
+}
+
+#' Pool survival-probability matrices across imputations
+#'
+#' `pool_survmat()` pools a list of same-shaped survival-probability matrices
+#' or arrays by applying Rubin-style pooling on the complementary
+#' log-log scale and back-transforming the result. The helper is designed for
+#' predicted survival probabilities at a grid of times, subjects, or covariate
+#' profiles.
+#'
+#' Let \eqn{S_{ijk}} be the survival probability for imputation \eqn{j}, row
+#' index \eqn{i}, and column index \eqn{k}, with \eqn{j = 1,\ldots,m}. Define
+#' the complementary log-log transform
+#' \deqn{Z_{ijk} = g(S_{ijk}) = \log\{-\log(S_{ijk})\}.}
+#' Rubin pooling is then applied elementwise on \eqn{Z_{ijk}}:
+#' \deqn{\bar Z_{ik} = m^{-1}\sum_{j=1}^m Z_{ijk},}
+#' \deqn{\bar U_{ik} = m^{-1}\sum_{j=1}^m U_{ijk},}
+#' \deqn{B_{ik} = (m-1)^{-1}\sum_{j=1}^m (Z_{ijk} - \bar Z_{ik})^2,}
+#' \deqn{T_{ik} = \bar U_{ik} + (1 + m^{-1})B_{ik}.}
+#' The pooled survival probability is
+#' \deqn{\hat S_{ik} = g^{-1}(\bar Z_{ik}) = \exp\{-\exp(\bar Z_{ik})\}.}
+#' A delta-method standard error on the original scale is
+#' \deqn{\mathrm{SE}(\hat S_{ik}) = \left|\frac{d}{dz} g^{-1}(z)\right|_{z=\bar Z_{ik}}
+#' \sqrt{T_{ik}} = \hat S_{ik}\{-\log(\hat S_{ik})\}\sqrt{T_{ik}}.}
+#' Confidence intervals are obtained on the transformed scale and then
+#' back-transformed:
+#' \deqn{[\;g^{-1}(\bar Z_{ik} + t_{\nu,1-\alpha/2}\sqrt{T_{ik}}),\;
+#' g^{-1}(\bar Z_{ik} - t_{\nu,1-\alpha/2}\sqrt{T_{ik}})\;],}
+#' where \eqn{\nu} is the Rubin degrees of freedom. Because \eqn{g^{-1}} is
+#' decreasing, the lower survival bound comes from the upper transformed bound.
+#'
+#' Probabilities are clipped to \code{[clip, 1 - clip]} before transformation to
+#' avoid \code{log(0)} at the boundaries.
+#'
+#' @param x A non-empty list of numeric matrices or arrays containing survival
+#'   probabilities. All elements must have the same dimensions.
+#' @param variance Optional list of within-imputation variances with the same
+#'   dimensions as \code{x}. When supplied, the variance is pooled on the
+#'   transformed scale.
+#' @param std.error Optional list of within-imputation standard errors with the
+#'   same dimensions as \code{x}. Ignored when \code{variance} is supplied.
+#' @param rule Pooling rule. Defaults to Rubin pooling when within-imputation
+#'   variance is supplied and to the robust median/IQR/range summary otherwise.
+#' @param conf.level Confidence level for interval estimates.
+#' @param clip Small positive value used to keep probabilities away from 0 and 1
+#'   before applying the cloglog transform.
+#' @param ... Passed to lower-level pooling helpers.
+#' @return A `mimar_pool` object with pooled survival probabilities.
+#' @examples
+#' surv <- list(
+#'   matrix(c(0.90, 0.80, 0.70, 0.60), 2, 2),
+#'   matrix(c(0.91, 0.79, 0.72, 0.61), 2, 2),
+#'   matrix(c(0.89, 0.81, 0.71, 0.59), 2, 2)
+#' )
+#' pool_survmat(surv)
+#' @export
+pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
+                         conf.level = 0.95, clip = 1e-12, ...) {
+  if (!is.list(x) || !length(x)) .mimar_stop("`x` must be a non-empty list of survival-probability matrices or arrays.")
+  if (!all(vapply(x, function(u) is.numeric(u) && !is.null(dim(u)), logical(1)))) {
+    .mimar_stop("`x` must contain only numeric matrices or arrays.")
+  }
+  if (!.same_dims(x)) .mimar_stop("Survival matrices must have consistent dimensions across imputations.")
+  if (any(vapply(x, function(u) any(u < 0 | u > 1, na.rm = TRUE), logical(1)))) {
+    .mimar_stop("Survival probabilities must lie in [0, 1].")
+  }
+  z_x <- lapply(x, .surv_cloglog, clip = clip)
+  res <- .pool_elementwise(
+    z_x,
+    variance = variance,
+    std.error = std.error,
+    rule = rule,
+    transform = NULL,
+    inverse = NULL,
+    conf.level = conf.level
+  )
+  bt <- .surv_backtransform_pooled(res$pooled, res$estimate, rule = .pool_rule(rule, !is.null(variance) || !is.null(std.error)))
+  out <- list(
+    call = match.call(),
+    pooled = .as_tibble(bt$pooled),
+    estimate = bt$estimate,
+    type = "survival_matrix",
+    data = x
+  )
+  class(out) <- c("mimar_pool", "list")
+  out
 }
 
 #' @describeIn pool Pool a scalar quantity observed across imputations.

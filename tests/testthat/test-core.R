@@ -255,6 +255,16 @@ test_that("pool estimates and metrics", {
   expect_equal(dim(psurv$estimate), c(2L, 2L))
   expect_true(all(psurv$pooled$rule == "robust"))
 
+  psurv2 <- pool_survmat(surv)
+  zsurv <- lapply(surv, function(S) log(-log(S)))
+  zmat <- do.call(rbind, lapply(zsurv, as.numeric))
+  zmed <- apply(zmat, 2, stats::median)
+  expected <- matrix(exp(-exp(zmed)), 2, 2)
+  expect_equal(psurv2$type, "survival_matrix")
+  expect_equal(psurv2$estimate, expected)
+  expect_true(all(psurv2$pooled$conf.low <= psurv2$pooled$conf.high))
+  expect_true(all(psurv2$estimate > 0 & psurv2$estimate < 1))
+
   res <- data.frame(term = rep(c("a", "b"), each = 3), estimate = 1:6 / 10,
                     std.error = .1, imputation = rep(1:3, 2))
   p <- pool(res)

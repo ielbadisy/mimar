@@ -287,6 +287,10 @@ quantity can be a scalar, coefficient vector, covariance-aware parameter vector,
 matrix of survival probabilities, or a scalar metric. Data frames are accepted
 only as a tidy adapter for scalar model output.
 
+For survival-probability matrices, `pool_survmat()` applies the complementary
+log-log transform internally, pools on that scale, and back-transforms the
+result.
+
 For scalar quantities with complete-data variance estimates, `pool()` applies
 Rubin-style pooling:
 
