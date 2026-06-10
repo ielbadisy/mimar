@@ -124,7 +124,8 @@ pooled covariance matrix. For matrices or arrays, pass a list of same-shaped
 quantities. Unless a joint covariance structure is supplied through a vector
 input, these are pooled element by element, which is appropriate for grids of
 scalar estimands such as survival probabilities at several times and
-covariate profiles.
+covariate profiles. For survival-probability matrices, \code{pool_survmat()}
+applies the complementary log-log transform and back-transform automatically.
 
 Some metrics do not have reliable complete-data variance estimates or do not
 satisfy approximate normality. Following Marshall et al. (2009), \code{pool()}
