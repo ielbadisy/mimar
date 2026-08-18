@@ -27,6 +27,7 @@ impute(
   donors = 5,
   ncore = 1,
   verbose = FALSE,
+  progress = interactive() && !verbose,
   ...
 )
 
@@ -39,6 +40,7 @@ impute(
   donors = 5,
   ncore = 1,
   verbose = FALSE,
+  progress = interactive() && !verbose,
   ...
 )
 }
@@ -65,6 +67,11 @@ passed to \code{functionals::fmap()} as \code{ncores}.}
 chained-imputation workflow. The default, \code{FALSE}, runs silently.}
 
 \item{...}{Passed to methods.}
+
+\item{progress}{Logical; if \code{TRUE}, display a progress bar (elapsed/ETA)
+over completed datasets via \code{functionals::fmap()}. The default runs
+silently unless the session is interactive and \code{verbose = FALSE}. Has no
+effect when \code{imputer = "missknn"}.}
 }
 \value{
 A \code{mimar_imputation} object.

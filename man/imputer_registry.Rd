@@ -7,11 +7,11 @@
 imputer_registry()
 }
 \value{
-A tibble.
+A data.table.
 }
 \description{
 \code{imputer_registry()} returns the imputer names accepted by \code{impute()} and
 metadata describing target-type support and backend packages. Native
 \code{mimar} methods display \code{package = "internal"}. The result is returned as a
-tibble.
+data.table.
 }
