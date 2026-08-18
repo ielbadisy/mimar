@@ -104,54 +104,56 @@ i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 complete(i, 1)
 ```
 
-    ## # A tibble: 120 × 5
-    ##      age   bmi sex   group smoker
-    ##    <dbl> <dbl> <fct> <fct> <lgl> 
-    ##  1  43.7  23.0 M     C     FALSE 
-    ##  2  51.8  30.4 F     A     FALSE 
-    ##  3  41.6  24.1 F     B     TRUE  
-    ##  4  66.0  24.3 F     C     TRUE  
-    ##  5  53.3  24.6 F     A     FALSE 
-    ##  6  41.8  27.9 M     C     TRUE  
-    ##  7  54.9  24.7 M     B     TRUE  
-    ##  8  57.4  24.8 F     B     FALSE 
-    ##  9  55.8  22.3 F     B     FALSE 
-    ## 10  46.9  30.8 M     A     FALSE 
-    ## # ℹ 110 more rows
+    ##           age      bmi    sex  group smoker
+    ##         <num>    <num> <fctr> <fctr> <lgcl>
+    ##   1: 43.73546 22.97617      M      C  FALSE
+    ##   2: 51.83643 30.37216      F      A  FALSE
+    ##   3: 41.64371 24.14168      F      B   TRUE
+    ##   4: 65.95281 24.28177      F      C   TRUE
+    ##   5: 53.29508 24.59924      F      A  FALSE
+    ##  ---                                       
+    ## 116: 46.07192 13.44432      M      C   TRUE
+    ## 117: 46.80007 27.24328      F      C   TRUE
+    ## 118: 47.20887 24.76111      F      A  FALSE
+    ## 119: 54.94188 29.38711      M      C  FALSE
+    ## 120: 48.22670 24.97862      M      B  FALSE
 
 ``` r
 summary(i)
 ```
 
     ## mimar imputation summary
-    ## # A tibble: 1 × 11
-    ##    rows columns n_imputations imputer maxit ncore stochastic
-    ##   <int>   <int>         <int> <chr>   <dbl> <int> <lgl>     
-    ## 1   120       5             5 knn         5     2 TRUE      
-    ## # ℹ 4 more variables: total_missing_before <int>, total_imputed <int>,
-    ## #   remaining_missing <int>, variables_imputed <int>
+    ##     rows columns n_imputations imputer maxit ncore stochastic
+    ##    <int>   <int>         <int>  <char> <num> <int>     <lgcl>
+    ## 1:   120       5             5     knn     5     2       TRUE
+    ##    total_missing_before total_imputed remaining_missing variables_imputed
+    ##                   <int>         <int>             <int>             <int>
+    ## 1:                   53            53                 0                 2
     ## 
     ## Variables:
-    ## # A tibble: 5 × 9
-    ##   variable type    method n_missing_before prop_missing_before n_imputed
-    ##   <chr>    <chr>   <chr>             <int>               <dbl>     <int>
-    ## 1 age      numeric none                  0               0             0
-    ## 2 bmi      numeric knn                  26               0.217        26
-    ## 3 sex      factor  none                  0               0             0
-    ## 4 group    factor  knn                  27               0.225        27
-    ## 5 smoker   logical none                  0               0             0
-    ## # ℹ 3 more variables: prop_imputed <dbl>, remaining_missing <int>,
-    ## #   between_imputation_sd <dbl>
+    ##    variable    type method n_missing_before prop_missing_before n_imputed
+    ##      <char>  <char> <char>            <int>               <num>     <int>
+    ## 1:      age numeric   none                0           0.0000000         0
+    ## 2:      bmi numeric    knn               26           0.2166667        26
+    ## 3:      sex  factor   none                0           0.0000000         0
+    ## 4:    group  factor    knn               27           0.2250000        27
+    ## 5:   smoker logical   none                0           0.0000000         0
+    ##    prop_imputed remaining_missing between_imputation_sd
+    ##           <num>             <int>                 <num>
+    ## 1:            0                 0              0.000000
+    ## 2:            1                 0              0.341076
+    ## 3:            0                 0              0.000000
+    ## 4:            1                 0              0.000000
+    ## 5:            0                 0              0.000000
 
 ``` r
 evaluate(i)
 ```
 
     ## mimar imputation evaluation
-    ## # A tibble: 1 × 4
-    ##   n_imputations imputer total_missing evaluated_cells
-    ##           <int> <chr>           <int>           <int>
-    ## 1             5 knn                53              53
+    ##    n_imputations imputer total_missing evaluated_cells
+    ##            <int>  <char>         <int>           <int>
+    ## 1:             5     knn            53              53
 
 ``` r
 plot(i, type = "density")
@@ -167,44 +169,244 @@ Inspect available imputers with:
 imputer_registry()
 ```
 
-    ## # A tibble: 23 × 10
-    ##    imputer implementation package  supports_numeric supports_binary
-    ##    <chr>   <chr>          <chr>    <lgl>            <lgl>          
-    ##  1 mean    mimar          internal TRUE             TRUE           
-    ##  2 median  mimar          internal TRUE             TRUE           
-    ##  3 mode    mimar          internal TRUE             TRUE           
-    ##  4 naive   mimar          internal TRUE             TRUE           
-    ##  5 norm    mimar          internal TRUE             TRUE           
-    ##  6 pmm     mimar          internal TRUE             TRUE           
-    ##  7 spmm    mimar          internal TRUE             TRUE           
-    ##  8 logreg  mimar          internal TRUE             TRUE           
-    ##  9 polyreg mimar          internal TRUE             TRUE           
-    ## 10 rf      wrapped        ranger   TRUE             TRUE           
-    ## # ℹ 13 more rows
-    ## # ℹ 5 more variables: supports_multiclass <lgl>, stochastic <lgl>,
-    ## #   description <chr>, available <lgl>, status <chr>
+    ##          imputer implementation    package supports_numeric supports_binary
+    ##           <char>         <char>     <char>           <lgcl>          <lgcl>
+    ##  1:         mean          mimar   internal             TRUE            TRUE
+    ##  2:       median          mimar   internal             TRUE            TRUE
+    ##  3:         mode          mimar   internal             TRUE            TRUE
+    ##  4:        naive          mimar   internal             TRUE            TRUE
+    ##  5:         norm          mimar   internal             TRUE            TRUE
+    ##  6:          pmm          mimar   internal             TRUE            TRUE
+    ##  7:         spmm          mimar   internal             TRUE            TRUE
+    ##  8:       logreg          mimar   internal             TRUE            TRUE
+    ##  9:      polyreg          mimar   internal             TRUE            TRUE
+    ## 10:           rf        wrapped     ranger             TRUE            TRUE
+    ## 11:       ranger        wrapped     ranger             TRUE            TRUE
+    ## 12:        rpart        wrapped      rpart             TRUE            TRUE
+    ## 13:       nbayes        wrapped naivebayes             TRUE            TRUE
+    ## 14:          svm        wrapped      e1071             TRUE            TRUE
+    ## 15:         bart        wrapped       BART             TRUE            TRUE
+    ## 16:       glmnet        wrapped     glmnet             TRUE            TRUE
+    ## 17:          gbm        wrapped        gbm             TRUE            TRUE
+    ## 18:      xgboost        wrapped    xgboost             TRUE            TRUE
+    ## 19:          knn          mimar   internal             TRUE            TRUE
+    ## 20:      hotdeck          mimar   internal             TRUE            TRUE
+    ## 21:         famd        wrapped    missMDA             TRUE            TRUE
+    ## 22: superlearner          mimar   internal             TRUE            TRUE
+    ## 23:           sl          mimar   internal             TRUE            TRUE
+    ## 24:     densemlp        wrapped   densemlp             TRUE            TRUE
+    ## 25:      missknn        wrapped    missknn             TRUE            TRUE
+    ##          imputer implementation    package supports_numeric supports_binary
+    ##           <char>         <char>     <char>           <lgcl>          <lgcl>
+    ##     supports_multiclass stochastic
+    ##                  <lgcl>     <lgcl>
+    ##  1:                TRUE      FALSE
+    ##  2:                TRUE      FALSE
+    ##  3:                TRUE      FALSE
+    ##  4:                TRUE      FALSE
+    ##  5:                TRUE       TRUE
+    ##  6:                TRUE       TRUE
+    ##  7:                TRUE       TRUE
+    ##  8:                TRUE       TRUE
+    ##  9:                TRUE       TRUE
+    ## 10:                TRUE       TRUE
+    ## 11:                TRUE       TRUE
+    ## 12:                TRUE       TRUE
+    ## 13:                TRUE       TRUE
+    ## 14:                TRUE       TRUE
+    ## 15:                TRUE       TRUE
+    ## 16:                TRUE       TRUE
+    ## 17:                TRUE       TRUE
+    ## 18:                TRUE       TRUE
+    ## 19:                TRUE       TRUE
+    ## 20:                TRUE       TRUE
+    ## 21:                TRUE       TRUE
+    ## 22:                TRUE       TRUE
+    ## 23:                TRUE       TRUE
+    ## 24:                TRUE       TRUE
+    ## 25:                TRUE       TRUE
+    ##     supports_multiclass stochastic
+    ##                  <lgcl>     <lgcl>
+    ##                                                                              description
+    ##                                                                                   <char>
+    ##  1:                                                  Mean imputation for numeric targets
+    ##  2:                                                Median imputation for numeric targets
+    ##  3:                                              Mode imputation for categorical targets
+    ##  4:                                                         Median/mode chained baseline
+    ##  5:                                         Bayesian normal-style linear regression draw
+    ##  6:                                                             Predictive mean matching
+    ##  7:                                                 Single-step predictive mean matching
+    ##  8:                                                      Binary logistic regression draw
+    ##  9:                                     One-vs-rest multinomial logistic regression draw
+    ## 10:                                               MissForest-style random forest imputer
+    ## 11:                                                 Random forest imputer through ranger
+    ## 12:                                                           Tree imputer through rpart
+    ## 13:                                                                  Naive Bayes imputer
+    ## 14:                                                       Support vector machine imputer
+    ## 15:                                                                         BART imputer
+    ## 16:                                          Penalized regression imputer through glmnet
+    ## 17:                                                Gradient boosting imputer through gbm
+    ## 18:                                        Gradient boosted tree imputer through xgboost
+    ## 19:                                                       Nearest-neighbor donor imputer
+    ## 20:                                                               Hot-deck donor imputer
+    ## 21:                                                          FAMD-assisted donor imputer
+    ## 22:                                 Cross-validated Super Learner-style ensemble imputer
+    ## 23:                                                         Short alias for superlearner
+    ## 24:                                 Dense multilayer perceptron imputer through densemlp
+    ## 25: Whole-table masked k-nearest-neighbor imputer through missknn (single-shot strategy)
+    ##                                                                              description
+    ##                                                                                   <char>
+    ##     available    status
+    ##        <lgcl>    <char>
+    ##  1:      TRUE available
+    ##  2:      TRUE available
+    ##  3:      TRUE available
+    ##  4:      TRUE available
+    ##  5:      TRUE available
+    ##  6:      TRUE available
+    ##  7:      TRUE available
+    ##  8:      TRUE available
+    ##  9:      TRUE available
+    ## 10:      TRUE available
+    ## 11:      TRUE available
+    ## 12:      TRUE available
+    ## 13:      TRUE available
+    ## 14:      TRUE available
+    ## 15:      TRUE available
+    ## 16:      TRUE available
+    ## 17:      TRUE available
+    ## 18:      TRUE available
+    ## 19:      TRUE available
+    ## 20:      TRUE available
+    ## 21:      TRUE available
+    ## 22:      TRUE available
+    ## 23:      TRUE available
+    ## 24:      TRUE available
+    ## 25:      TRUE available
+    ##     available    status
+    ##        <lgcl>    <char>
 
 ``` r
 describe("imputers")
 ```
 
     ## mimar available imputers
-    ## # A tibble: 23 × 10
-    ##    imputer implementation package  supports_numeric supports_binary
-    ##    <chr>   <chr>          <chr>    <lgl>            <lgl>          
-    ##  1 mean    mimar          internal TRUE             TRUE           
-    ##  2 median  mimar          internal TRUE             TRUE           
-    ##  3 mode    mimar          internal TRUE             TRUE           
-    ##  4 naive   mimar          internal TRUE             TRUE           
-    ##  5 norm    mimar          internal TRUE             TRUE           
-    ##  6 pmm     mimar          internal TRUE             TRUE           
-    ##  7 spmm    mimar          internal TRUE             TRUE           
-    ##  8 logreg  mimar          internal TRUE             TRUE           
-    ##  9 polyreg mimar          internal TRUE             TRUE           
-    ## 10 rf      wrapped        ranger   TRUE             TRUE           
-    ## # ℹ 13 more rows
-    ## # ℹ 5 more variables: supports_multiclass <lgl>, stochastic <lgl>,
-    ## #   description <chr>, available <lgl>, status <chr>
+    ##          imputer implementation    package supports_numeric supports_binary
+    ##           <char>         <char>     <char>           <lgcl>          <lgcl>
+    ##  1:         mean          mimar   internal             TRUE            TRUE
+    ##  2:       median          mimar   internal             TRUE            TRUE
+    ##  3:         mode          mimar   internal             TRUE            TRUE
+    ##  4:        naive          mimar   internal             TRUE            TRUE
+    ##  5:         norm          mimar   internal             TRUE            TRUE
+    ##  6:          pmm          mimar   internal             TRUE            TRUE
+    ##  7:         spmm          mimar   internal             TRUE            TRUE
+    ##  8:       logreg          mimar   internal             TRUE            TRUE
+    ##  9:      polyreg          mimar   internal             TRUE            TRUE
+    ## 10:           rf        wrapped     ranger             TRUE            TRUE
+    ## 11:       ranger        wrapped     ranger             TRUE            TRUE
+    ## 12:        rpart        wrapped      rpart             TRUE            TRUE
+    ## 13:       nbayes        wrapped naivebayes             TRUE            TRUE
+    ## 14:          svm        wrapped      e1071             TRUE            TRUE
+    ## 15:         bart        wrapped       BART             TRUE            TRUE
+    ## 16:       glmnet        wrapped     glmnet             TRUE            TRUE
+    ## 17:          gbm        wrapped        gbm             TRUE            TRUE
+    ## 18:      xgboost        wrapped    xgboost             TRUE            TRUE
+    ## 19:          knn          mimar   internal             TRUE            TRUE
+    ## 20:      hotdeck          mimar   internal             TRUE            TRUE
+    ## 21:         famd        wrapped    missMDA             TRUE            TRUE
+    ## 22: superlearner          mimar   internal             TRUE            TRUE
+    ## 23:           sl          mimar   internal             TRUE            TRUE
+    ## 24:     densemlp        wrapped   densemlp             TRUE            TRUE
+    ## 25:      missknn        wrapped    missknn             TRUE            TRUE
+    ##          imputer implementation    package supports_numeric supports_binary
+    ##           <char>         <char>     <char>           <lgcl>          <lgcl>
+    ##     supports_multiclass stochastic
+    ##                  <lgcl>     <lgcl>
+    ##  1:                TRUE      FALSE
+    ##  2:                TRUE      FALSE
+    ##  3:                TRUE      FALSE
+    ##  4:                TRUE      FALSE
+    ##  5:                TRUE       TRUE
+    ##  6:                TRUE       TRUE
+    ##  7:                TRUE       TRUE
+    ##  8:                TRUE       TRUE
+    ##  9:                TRUE       TRUE
+    ## 10:                TRUE       TRUE
+    ## 11:                TRUE       TRUE
+    ## 12:                TRUE       TRUE
+    ## 13:                TRUE       TRUE
+    ## 14:                TRUE       TRUE
+    ## 15:                TRUE       TRUE
+    ## 16:                TRUE       TRUE
+    ## 17:                TRUE       TRUE
+    ## 18:                TRUE       TRUE
+    ## 19:                TRUE       TRUE
+    ## 20:                TRUE       TRUE
+    ## 21:                TRUE       TRUE
+    ## 22:                TRUE       TRUE
+    ## 23:                TRUE       TRUE
+    ## 24:                TRUE       TRUE
+    ## 25:                TRUE       TRUE
+    ##     supports_multiclass stochastic
+    ##                  <lgcl>     <lgcl>
+    ##                                                                              description
+    ##                                                                                   <char>
+    ##  1:                                                  Mean imputation for numeric targets
+    ##  2:                                                Median imputation for numeric targets
+    ##  3:                                              Mode imputation for categorical targets
+    ##  4:                                                         Median/mode chained baseline
+    ##  5:                                         Bayesian normal-style linear regression draw
+    ##  6:                                                             Predictive mean matching
+    ##  7:                                                 Single-step predictive mean matching
+    ##  8:                                                      Binary logistic regression draw
+    ##  9:                                     One-vs-rest multinomial logistic regression draw
+    ## 10:                                               MissForest-style random forest imputer
+    ## 11:                                                 Random forest imputer through ranger
+    ## 12:                                                           Tree imputer through rpart
+    ## 13:                                                                  Naive Bayes imputer
+    ## 14:                                                       Support vector machine imputer
+    ## 15:                                                                         BART imputer
+    ## 16:                                          Penalized regression imputer through glmnet
+    ## 17:                                                Gradient boosting imputer through gbm
+    ## 18:                                        Gradient boosted tree imputer through xgboost
+    ## 19:                                                       Nearest-neighbor donor imputer
+    ## 20:                                                               Hot-deck donor imputer
+    ## 21:                                                          FAMD-assisted donor imputer
+    ## 22:                                 Cross-validated Super Learner-style ensemble imputer
+    ## 23:                                                         Short alias for superlearner
+    ## 24:                                 Dense multilayer perceptron imputer through densemlp
+    ## 25: Whole-table masked k-nearest-neighbor imputer through missknn (single-shot strategy)
+    ##                                                                              description
+    ##                                                                                   <char>
+    ##     available    status
+    ##        <lgcl>    <char>
+    ##  1:      TRUE available
+    ##  2:      TRUE available
+    ##  3:      TRUE available
+    ##  4:      TRUE available
+    ##  5:      TRUE available
+    ##  6:      TRUE available
+    ##  7:      TRUE available
+    ##  8:      TRUE available
+    ##  9:      TRUE available
+    ## 10:      TRUE available
+    ## 11:      TRUE available
+    ## 12:      TRUE available
+    ## 13:      TRUE available
+    ## 14:      TRUE available
+    ## 15:      TRUE available
+    ## 16:      TRUE available
+    ## 17:      TRUE available
+    ## 18:      TRUE available
+    ## 19:      TRUE available
+    ## 20:      TRUE available
+    ## 21:      TRUE available
+    ## 22:      TRUE available
+    ## 23:      TRUE available
+    ## 24:      TRUE available
+    ## 25:      TRUE available
+    ##     available    status
+    ##        <lgcl>    <char>
 
 Core native imputers:
 
@@ -437,13 +639,18 @@ pool(results)
 ```
 
     ## mimar pooled results
-    ## # A tibble: 2 × 14
-    ##   term  estimate std.error statistic    df  p.value conf.low conf.high     m
-    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>    <dbl>    <dbl>     <dbl> <int>
-    ## 1 age      0.1      0.0451      2.22  465. 0.0271     0.0114     0.189     3
-    ## 2 bmi      0.303    0.0853      3.56 1094. 0.000393   0.136      0.471     3
-    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
-    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+    ##      term  estimate  std.error statistic       df     p.value   conf.low
+    ##    <char>     <num>      <num>     <num>    <num>       <num>      <num>
+    ## 1:    age 0.1000000 0.04509250  2.217664  465.125 0.027060256 0.01138975
+    ## 2:    bmi 0.3033333 0.08530989  3.555664 1094.452 0.000393134 0.13594390
+    ##    conf.high     m within_variance between_variance total_variance
+    ##        <num> <int>           <num>            <num>          <num>
+    ## 1: 0.1886102     3     0.001900000     0.0001000000    0.002033333
+    ## 2: 0.4707228     3     0.006966667     0.0002333333    0.007277778
+    ##    relative_increase_variance   rule
+    ##                         <num> <char>
+    ## 1:                 0.07017544  rubin
+    ## 2:                 0.04465710  rubin
 
 Direct quantity inputs are preferred when available:
 
@@ -452,12 +659,15 @@ pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
 ```
 
     ## mimar pooled results
-    ## # A tibble: 1 × 14
-    ##   term  estimate std.error statistic    df p.value conf.low conf.high     m
-    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>   <dbl>    <dbl>     <dbl> <int>
-    ## 1 age        0.1    0.0451      2.22  465.  0.0271   0.0114     0.189     3
-    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
-    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+    ##      term estimate std.error statistic      df    p.value   conf.low conf.high
+    ##    <char>    <num>     <num>     <num>   <num>      <num>      <num>     <num>
+    ## 1:    age      0.1 0.0450925  2.217664 465.125 0.02706026 0.01138975 0.1886102
+    ##        m within_variance between_variance total_variance
+    ##    <int>           <num>            <num>          <num>
+    ## 1:     3          0.0019            1e-04    0.002033333
+    ##    relative_increase_variance   rule
+    ##                         <num> <char>
+    ## 1:                 0.07017544  rubin
 
 ``` r
 betas <- list(
@@ -474,13 +684,18 @@ pool(betas, covariance = covariances)
 ```
 
     ## mimar pooled results
-    ## # A tibble: 2 × 14
-    ##   term  estimate std.error statistic    df  p.value conf.low conf.high     m
-    ##   <chr>    <dbl>     <dbl>     <dbl> <dbl>    <dbl>    <dbl>     <dbl> <int>
-    ## 1 age      0.1      0.0451      2.22  465. 0.0271     0.0114     0.189     3
-    ## 2 bmi      0.303    0.0853      3.56 1094. 0.000393   0.136      0.471     3
-    ## # ℹ 5 more variables: within_variance <dbl>, between_variance <dbl>,
-    ## #   total_variance <dbl>, relative_increase_variance <dbl>, rule <chr>
+    ##      term  estimate  std.error statistic       df     p.value   conf.low
+    ##    <char>     <num>      <num>     <num>    <num>       <num>      <num>
+    ## 1:    age 0.1000000 0.04509250  2.217664  465.125 0.027060256 0.01138975
+    ## 2:    bmi 0.3033333 0.08530989  3.555664 1094.452 0.000393134 0.13594390
+    ##    conf.high     m within_variance between_variance total_variance
+    ##        <num> <int>           <num>            <num>          <num>
+    ## 1: 0.1886102     3     0.001900000     0.0001000000    0.002033333
+    ## 2: 0.4707228     3     0.006966667     0.0002333333    0.007277778
+    ##    relative_increase_variance   rule
+    ##                         <num> <char>
+    ## 1:                 0.07017544  rubin
+    ## 2:                 0.04465710  rubin
 
 When no reliable complete-data variance is supplied, as is common for
 some performance metrics, `pool()` reports robust summaries by default:
