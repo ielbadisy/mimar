@@ -18,7 +18,7 @@ print.mimar_amputation <- function(x, ...) {
 
 #' @export
 summary.mimar_amputation <- function(object, ...) {
-  .as_tibble(data.frame(variable = names(object$data), original = colSums(object$mask_original),
+  .as_dt(data.frame(variable = names(object$data), original = colSums(object$mask_original),
                         added = colSums(object$mask_added), total = colSums(object$mask_total), row.names = NULL))
 }
 
@@ -89,6 +89,6 @@ summary.mimar_pool <- function(object, ...) object$pooled
 #' @export
 print.mimar_imputers <- function(x, ...) {
   cat("mimar available imputers\n")
-  print(.as_tibble(x))
+  print(.as_dt(x))
   invisible(x)
 }
