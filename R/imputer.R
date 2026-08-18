@@ -3,18 +3,19 @@
     imputer = c("mean", "median", "mode", "naive", "norm", "pmm", "spmm",
                 "logreg", "polyreg", "rf", "ranger", "rpart", "nbayes",
                 "svm", "bart", "glmnet", "gbm", "xgboost", "knn", "hotdeck",
-                "famd", "superlearner", "sl"),
+                "famd", "superlearner", "sl", "densemlp", "missknn"),
     implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped",
-                       "mimar", "mimar"),
+                       "mimar", "mimar", "wrapped", "wrapped"),
     package = c(rep(NA_character_, 9), "ranger", "ranger", "rpart", "naivebayes",
                 "e1071", "BART", "glmnet", "gbm", "xgboost", NA, NA, "missMDA",
-                NA, NA),
-    supports_numeric = rep(TRUE, 23),
-    supports_binary = rep(TRUE, 23),
-    supports_multiclass = rep(TRUE, 23),
+                NA, NA, "densemlp", "missknn"),
+    supports_numeric = rep(TRUE, 25),
+    supports_binary = rep(TRUE, 25),
+    supports_multiclass = rep(TRUE, 25),
     stochastic = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE,
                    TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
-                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+                   TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
+                   TRUE, TRUE),
     description = c(
       "Mean imputation for numeric targets",
       "Median imputation for numeric targets",
@@ -38,7 +39,9 @@
       "Hot-deck donor imputer",
       "FAMD-assisted donor imputer",
       "Cross-validated Super Learner-style ensemble imputer",
-      "Short alias for superlearner"
+      "Short alias for superlearner",
+      "Dense multilayer perceptron imputer through densemlp",
+      "Whole-table masked k-nearest-neighbor imputer through missknn (single-shot strategy)"
     ),
     stringsAsFactors = FALSE
   )
@@ -49,9 +52,9 @@
 #' `imputer_registry()` returns the imputer names accepted by `impute()` and
 #' metadata describing target-type support and backend packages. Native
 #' `mimar` methods display `package = "internal"`. The result is returned as a
-#' tibble.
+#' data.table.
 #'
-#' @return A tibble.
+#' @return A data.table.
 #' @export
 imputer_registry <- function() {
   out <- .imputer_catalog()
@@ -60,7 +63,7 @@ imputer_registry <- function() {
   }, logical(1))
   out$status <- ifelse(out$available, "available", paste0("requires ", out$package))
   out$package[is.na(out$package)] <- "internal"
-  .as_tibble(out)
+  .as_dt(out)
 }
 
 #' @describeIn imputer Construct a `mimar_imputer`.
@@ -138,7 +141,8 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     fit_args <- utils::modifyList(fit_args, extra_args)
   }
   tunable_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart",
-                       "glmnet", "gbm", "xgboost", "famd", "superlearner", "sl")
+                       "glmnet", "gbm", "xgboost", "famd", "superlearner", "sl",
+                       "densemlp")
   if (length(fit_args) && !(object$method %in% tunable_methods)) {
     .mimar_stop("Imputer '", object$method, "' does not accept additional hyperparameters via `...`. ",
                 "Use `donors` for donor-based imputers or choose a learner-backed imputer.")
@@ -167,7 +171,8 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     hotdeck = .fit_donor_imputer(object, x, y, target, variable, donors, method = "hotdeck"),
     famd = do.call(.fit_famd_imputer, c(list(object, x, y, target, variable, donors), fit_args)),
     superlearner = do.call(.fit_superlearner_imputer, c(list(object, x, y, target, variable, donors), fit_args)),
-    sl = do.call(.fit_superlearner_imputer, c(list(object, x, y, target, variable, donors), fit_args))
+    sl = do.call(.fit_superlearner_imputer, c(list(object, x, y, target, variable, donors), fit_args)),
+    densemlp = do.call(.fit_densemlp_imputer, c(list(object, x, y, target, variable), fit_args))
   )
   fitted
 }
@@ -199,7 +204,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     hotdeck = .predict_donor_imputer(object, newdata),
     famd = .predict_donor_imputer(object, newdata),
     superlearner = .predict_superlearner_imputer(object, newdata),
-    sl = .predict_superlearner_imputer(object, newdata)
+    sl = .predict_superlearner_imputer(object, newdata),
+    densemlp = .predict_densemlp_imputer(object, newdata)
   )
 }
 
@@ -452,6 +458,33 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
             class = c("mimar_imputer_fit", "list"))
 }
 
+.fit_densemlp_imputer <- function(object, x, y, target, variable, epochs = 50,
+                                  hidden_units = c(32, 16), verbose = FALSE, ...) {
+  .require_backend("densemlp", object$method)
+  task <- .target_task(target)
+  y_fit <- if (task == "numeric") .target_to_numeric(y) else factor(y)
+  fitted <- try(densemlp::densemlp(x = .model_predictors(x), y = y_fit,
+                                   task = if (task == "numeric") "regression" else "classification",
+                                   epochs = epochs, hidden_units = hidden_units,
+                                   verbose = verbose, ...), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  structure(list(imputer = object, fit = fitted, target = target, task = task),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.predict_densemlp_imputer <- function(object, newdata) {
+  xnew <- .model_predictors(newdata)
+  if (object$task == "numeric") {
+    pred <- try(stats::predict(object$fit, xnew, type = "response"), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    return(as.numeric(pred))
+  }
+  prob <- try(stats::predict(object$fit, xnew, type = "prob"), silent = TRUE)
+  if (inherits(prob, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  lev <- colnames(prob)
+  apply(prob, 1, function(p) lev[sample(seq_along(lev), 1, prob = p)])
+}
+
 .fit_donor_imputer <- function(object, x, y, target, variable, donors, method = "knn") {
   structure(list(imputer = object, x_df = .model_predictors(x), y = y, target = target,
                  task = .target_task(target), donors = donors, method = method,
@@ -474,7 +507,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
                                       ...) {
   metalearner <- match.arg(metalearner)
   candidate_library <- unique(as.character(library))
-  candidate_library <- setdiff(candidate_library, c("superlearner", "sl"))
+  candidate_library <- setdiff(candidate_library, c("superlearner", "sl", "missknn"))
   if (!length(candidate_library)) {
     .mimar_stop("`library` must contain at least one non-superlearner imputer.")
   }
