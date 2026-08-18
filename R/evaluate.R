@@ -30,8 +30,8 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
     }, numeric(1))
     data.frame(variable = nm, between_imputation_sd = stats::sd(vals), row.names = NULL)
   }))
-  recovery <- .as_tibble(data.frame())
-  recovery_by_imputation <- .as_tibble(data.frame())
+  recovery <- .as_dt(data.frame())
+  recovery_by_imputation <- .as_dt(data.frame())
   if (!is.null(truth) && !is.null(mask)) {
     recovery_by_imputation <- .rbind_or_empty(lapply(seq_along(x$imputations), function(mi) {
       completed <- x$imputations[[mi]]
@@ -60,15 +60,16 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
       }))
     }))
     if (nrow(recovery_by_imputation)) {
+      rbi_df <- as.data.frame(recovery_by_imputation)
       recovery <- stats::aggregate(
-        recovery_by_imputation[c("rmse", "mae", "bias", "correlation", "accuracy", "balanced_accuracy")],
-        recovery_by_imputation[c("variable", "type")],
+        rbi_df[c("rmse", "mae", "bias", "correlation", "accuracy", "balanced_accuracy")],
+        rbi_df[c("variable", "type")],
         function(z) mean(z, na.rm = TRUE)
       )
-      recovery <- .as_tibble(recovery)
+      recovery <- .as_dt(recovery)
     }
   }
-  summary <- .as_tibble(data.frame(n_imputations = x$m, imputer = x$imputer,
+  summary <- .as_dt(data.frame(n_imputations = x$m, imputer = x$imputer,
                                    total_missing = sum(is.na(original)),
                                    evaluated_cells = if (is.null(mask)) 0 else sum(as.matrix(mask)), row.names = NULL))
   out <- list(call = match.call(), summary = summary, distribution = distribution,
