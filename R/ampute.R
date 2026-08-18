@@ -15,6 +15,7 @@ ampute.data.frame <- function(x, prop = 0.1, mechanism = c("MCAR", "MAR", "MNAR"
                               target = NULL, by = NULL,
                               direction = c("both", "left", "right"), seed = NULL, ...) {
   .check_data_frame(x)
+  x <- as.data.frame(x)
   mechanism <- match.arg(mechanism)
   direction <- match.arg(direction)
   if (!is.null(seed)) set.seed(seed)
@@ -56,9 +57,9 @@ ampute.data.frame <- function(x, prop = 0.1, mechanism = c("MCAR", "MAR", "MNAR"
     x_amp[[nm]][add] <- NA
     mask_added[[nm]] <- add
   }
-  out <- list(call = match.call(), data_original = .as_tibble(x), data = .as_tibble(x_amp),
-              mask_original = .as_tibble(mask_original), mask_added = .as_tibble(mask_added),
-              mask_total = .as_tibble(is.na(x_amp)), prop = prop, mechanism = mechanism,
+  out <- list(call = match.call(), data_original = .as_dt(x), data = .as_dt(x_amp),
+              mask_original = .as_dt(mask_original), mask_added = .as_dt(mask_added),
+              mask_total = .as_dt(is.na(x_amp)), prop = prop, mechanism = mechanism,
               target = target, by = by, direction = direction, seed = seed)
   class(out) <- c("mimar_amputation", "list")
   out
