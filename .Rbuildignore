@@ -1,4 +1,6 @@
 ^doc$
+^docs$
+^experiments$
 ^Meta$
 ^final-rendered-plots$
 ^analysis$
