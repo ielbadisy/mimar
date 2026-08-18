@@ -11,10 +11,16 @@
 #'   passed to `functionals::fmap()` as `ncores`.
 #' @param verbose Logical; if `TRUE`, print an informative progress log for the
 #'   chained-imputation workflow. The default, `FALSE`, runs silently.
+#' @param progress Logical; if `TRUE`, display a progress bar (elapsed/ETA)
+#'   over completed datasets via `functionals::fmap()`. The default runs
+#'   silently unless the session is interactive and `verbose = FALSE`. Has no
+#'   effect when `imputer = "missknn"`.
 #' @export
 impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
-                              donors = 5, ncore = 1, verbose = FALSE, ...) {
+                              donors = 5, ncore = 1, verbose = FALSE,
+                              progress = interactive() && !verbose, ...) {
   .check_data_frame(x)
+  x <- as.data.frame(x)
   if (!is.numeric(m) || length(m) != 1 || m < 1) .mimar_stop("`m` must be a positive integer.")
   m <- as.integer(m)
   imputer_fun <- get("imputer", mode = "function")
@@ -32,11 +38,11 @@ impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
                          method = imputer_spec$method,
                          imputer_spec = imputer_spec,
                          donors = donors, ncore = ncore,
-                         verbose = verbose)
-  imputations <- lapply(res$imputations, .as_tibble)
+                         verbose = verbose, progress = progress)
+  imputations <- lapply(res$imputations, .as_dt)
   first <- imputations[[1]]
   out <- list(imputations = imputations, data = first,
-              call = match.call(), data_original = .as_tibble(x),
+              call = match.call(), data_original = .as_dt(x),
               m = m, imputer = imputer_spec$method, imputer_spec = imputer_spec,
               maxit = maxit, seed = seed,
               donors = as.integer(donors),
@@ -53,10 +59,11 @@ impute.data.frame <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
 #' @param donors Number of donor candidates used by donor-based imputers.
 #' @export
 impute.mimar_amputation <- function(x, m = 5, imputer = "pmm", maxit = 5, seed = NULL,
-                                    donors = 5, ncore = 1, verbose = FALSE, ...) {
+                                    donors = 5, ncore = 1, verbose = FALSE,
+                                    progress = interactive() && !verbose, ...) {
   out <- impute.data.frame(x$data, m = m, imputer = imputer, maxit = maxit,
                            seed = seed, donors = donors, ncore = ncore,
-                           verbose = verbose, ...)
+                           verbose = verbose, progress = progress, ...)
   out$truth <- x$data_original
   out$amputation <- x
   out$mask_added <- x$mask_added
