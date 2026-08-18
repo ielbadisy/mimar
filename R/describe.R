@@ -1,7 +1,7 @@
 #' @export
 describe.data.frame <- function(x, ...) {
   .check_data_frame(x)
-  variable_summary <- .as_tibble(data.frame(
+  variable_summary <- .as_dt(data.frame(
     variable = names(x),
     type = vapply(x, .variable_type, character(1)),
     n_missing = colSums(is.na(x)),
@@ -18,7 +18,7 @@ describe.data.frame <- function(x, ...) {
     row_summary = .row_summary(x),
     complete_cases = complete_cases,
     complete_case_prop = complete_cases / max(nrow(x), 1),
-    data = .as_tibble(x)
+    data = .as_dt(x)
   )
   class(out) <- c("mimar_missing", "list")
   out
