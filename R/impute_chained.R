@@ -1,6 +1,6 @@
 .impute_chained <- function(x, m = 5, maxit = 5, seed = NULL, method = NULL,
                             imputer_spec = NULL, donors = 5, ncore = 1,
-                            verbose = FALSE) {
+                            verbose = FALSE, progress = FALSE) {
   method <- method %||% "pmm"
   if (!is.numeric(maxit) || length(maxit) != 1 || maxit < 0) {
     .mimar_stop("`maxit` must be a non-negative integer.")
@@ -8,6 +8,9 @@
   maxit <- as.integer(maxit)
   if (!is.logical(verbose) || length(verbose) != 1 || is.na(verbose)) {
     .mimar_stop("`verbose` must be `TRUE` or `FALSE`.")
+  }
+  if (!is.logical(progress) || length(progress) != 1 || is.na(progress)) {
+    .mimar_stop("`progress` must be `TRUE` or `FALSE`.")
   }
   if (!is.numeric(ncore) || length(ncore) != 1 || is.na(ncore) || ncore < 1) {
     .mimar_stop("`ncore` must be a positive integer.")
@@ -17,6 +20,11 @@
     .mimar_stop("`donors` must be a positive integer.")
   }
   donors <- as.integer(donors)
+  if (identical(method, "missknn")) {
+    if (is.null(imputer_spec)) imputer_spec <- do.call(imputer, list(method))
+    return(.impute_missknn(x, m = m, seed = seed, donors = donors,
+                           imputer_spec = imputer_spec, verbose = verbose))
+  }
   init <- .impute_meanmode(x, m = 1, seed = seed)$imputations[[1]]
   missing_vars <- names(x)[colSums(is.na(x)) > 0]
   variable_methods <- stats::setNames(rep("none", ncol(x)), names(x))
@@ -57,6 +65,7 @@
     seq_len(m),
     .impute_chained_one,
     ncores = if (ncore > 1) ncore else NULL,
+    pb = progress,
     x = x,
     init = init,
     missing_vars = missing_vars,
@@ -85,6 +94,35 @@
                           donor_count = donors,
                           ncore = ncore,
                           trace = trace),
+       stochastic = TRUE)
+}
+
+.impute_missknn <- function(x, m, seed, donors, imputer_spec, verbose = FALSE) {
+  .require_backend("missknn", "missknn")
+  args <- imputer_spec$args %||% list()
+  k <- args$k %||% donors
+  args$k <- NULL
+  if (verbose) {
+    .mimar_progress("Starting missknn imputation (whole-table masked KNN, single-shot strategy).")
+    .mimar_progress(sprintf(
+      "Data: %s rows x %s columns; k = %s, m = %s completed dataset%s.",
+      nrow(x), ncol(x), k, m, .plural_s(m)
+    ))
+  }
+  fitted <- do.call(missknn::missknn, c(list(data = x, k = k, m = m, seed = seed), args))
+  imputations <- if (m == 1L) list(fitted$completed) else fitted$imputations
+  imputations <- lapply(imputations, as.data.frame)
+  if (verbose) {
+    .mimar_progress(sprintf(
+      "Finished missknn imputation; generated %s completed dataset%s.",
+      length(imputations), .plural_s(length(imputations))
+    ))
+  }
+  list(imputations = imputations,
+       variable_methods = stats::setNames(rep("missknn", ncol(x)), names(x)),
+       diagnostics = list(strategy = "missknn", imputer = "missknn",
+                          engine = "missknn::missknn", donor_count = k,
+                          ncore = 1L, trace = .rbind_or_empty(list())),
        stochastic = TRUE)
 }
 
@@ -189,7 +227,7 @@
   task <- .target_task(x)
   if (method %in% c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet",
                     "gbm", "xgboost", "knn", "hotdeck", "famd", "naive",
-                    "superlearner", "sl")) {
+                    "superlearner", "sl", "densemlp")) {
     return(method)
   }
   if (method %in% c("mean", "median", "norm", "pmm", "spmm")) {
