@@ -25,14 +25,14 @@
   paste0(details, ".")
 }
 
-.as_tibble <- function(x) {
-  if (requireNamespace("tibble", quietly = TRUE)) tibble::as_tibble(x) else x
+.as_dt <- function(x) {
+  data.table::as.data.table(x)
 }
 
 .rbind_or_empty <- function(x) {
   x <- x[!vapply(x, is.null, logical(1))]
-  if (!length(x)) return(.as_tibble(data.frame()))
-  .as_tibble(do.call(rbind, x))
+  if (!length(x)) return(.as_dt(data.frame()))
+  .as_dt(data.table::rbindlist(x, fill = TRUE))
 }
 
 .check_data_frame <- function(x) {
@@ -78,16 +78,16 @@
 
 .missing_pattern <- function(x) {
   if (!nrow(x)) {
-    return(.as_tibble(data.frame(pattern = character(), n = integer(), proportion = numeric())))
+    return(.as_dt(data.frame(pattern = character(), n = integer(), proportion = numeric())))
   }
   pat <- apply(is.na(x), 1, function(z) paste(ifelse(z, "1", "0"), collapse = ""))
   tab <- sort(table(pat), decreasing = TRUE)
-  .as_tibble(data.frame(pattern = names(tab), n = as.integer(tab), proportion = as.numeric(tab) / nrow(x), row.names = NULL))
+  .as_dt(data.frame(pattern = names(tab), n = as.integer(tab), proportion = as.numeric(tab) / nrow(x), row.names = NULL))
 }
 
 .row_summary <- function(x) {
   n_missing <- rowSums(is.na(x))
-  .as_tibble(data.frame(row = seq_len(nrow(x)), n_missing = n_missing, prop_missing = n_missing / max(ncol(x), 1)))
+  .as_dt(data.frame(row = seq_len(nrow(x)), n_missing = n_missing, prop_missing = n_missing / max(ncol(x), 1)))
 }
 
 .variable_type <- function(x) class(x)[1]
@@ -125,16 +125,16 @@
 }
 
 .imputed_cells_summary <- function(original, completed) {
-  .as_tibble(do.call(rbind, lapply(names(original), function(nm) {
+  .rbind_or_empty(lapply(names(original), function(nm) {
     data.frame(variable = nm, n_imputed = sum(is.na(original[[nm]]) & !is.na(completed[[nm]])), row.names = NULL)
-  })))
+  }))
 }
 
 .imputation_variable_summary <- function(object) {
   original <- object$data_original
   first <- object$imputations[[1]]
   methods <- object$variable_methods %||% stats::setNames(rep(NA_character_, length(original)), names(original))
-  .as_tibble(do.call(rbind, lapply(names(original), function(nm) {
+  .rbind_or_empty(lapply(names(original), function(nm) {
     miss_before <- is.na(original[[nm]])
     remaining <- is.na(first[[nm]])
     vals <- vapply(object$imputations, function(d) {
@@ -156,7 +156,7 @@
       between_imputation_sd = if (length(vals) > 1) stats::sd(vals, na.rm = TRUE) else NA_real_,
       row.names = NULL
     )
-  })))
+  }))
 }
 
 .imputation_overview <- function(object) {
@@ -164,7 +164,7 @@
   first <- object$imputations[[1]]
   total_missing <- sum(is.na(original))
   total_imputed <- sum(is.na(original) & !is.na(first))
-  .as_tibble(data.frame(
+  .as_dt(data.frame(
     rows = nrow(original),
     columns = ncol(original),
     n_imputations = object$m,
