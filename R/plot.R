@@ -118,7 +118,7 @@ plot.mimar_evaluation <- function(x, ...) {
 .plot_missing_map_ggplot <- function(x) {
   original <- x$data_original
   first <- x$imputations[[1]]
-  d <- do.call(rbind, lapply(names(original), function(nm) {
+  d <- .rbind_or_empty(lapply(names(original), function(nm) {
     before <- is.na(original[[nm]])
     after <- is.na(first[[nm]])
     status <- ifelse(before & !after, "imputed", ifelse(before & after, "still missing", "observed"))
@@ -323,7 +323,7 @@ plot.mimar_evaluation <- function(x, ...) {
   vars <- names(original)[colSums(is.na(original)) > 0]
   vars <- vars[!vapply(original[vars], function(v) is.numeric(v) || is.integer(v) || inherits(v, "Date"), logical(1))]
   if (!is.null(variable)) vars <- intersect(vars, variable)
-  if (!length(vars)) return(.as_tibble(data.frame()))
+  if (!length(vars)) return(.as_dt(data.frame()))
   if (length(strata) && !all(strata %in% names(original))) {
     .mimar_stop("All stratifying variables in `formula` must be present in the imputed data.")
   }
@@ -351,15 +351,16 @@ plot.mimar_evaluation <- function(x, ...) {
     .rbind_or_empty(list(obs, imp))
   }))
   if (!nrow(raw)) return(raw)
-  counts <- stats::aggregate(list(n = rep(1L, nrow(raw))),
-                             raw[c("variable", "panel", "imputation", "value")],
+  raw_df <- as.data.frame(raw)
+  counts <- stats::aggregate(list(n = rep(1L, nrow(raw_df))),
+                             raw_df[c("variable", "panel", "imputation", "value")],
                              sum)
   totals <- stats::aggregate(list(total = counts$n),
                              counts[c("variable", "panel", "imputation")],
                              sum)
   out <- merge(counts, totals, by = c("variable", "panel", "imputation"), all.x = TRUE)
   out$proportion <- out$n / out$total
-  .as_tibble(out)
+  .as_dt(out)
 }
 
 .strata_label <- function(data, idx, strata, variable) {
