@@ -117,7 +117,7 @@
   vmat <- if (!is.null(variance)) do.call(rbind, lapply(variance, as.numeric)) else NULL
   semat <- if (!is.null(std.error)) do.call(rbind, lapply(std.error, as.numeric)) else NULL
   names <- .quantity_names(first)
-  pooled <- .as_tibble(do.call(rbind, lapply(seq_len(ncol(qmat)), function(j) {
+  pooled <- .rbind_or_empty(lapply(seq_len(ncol(qmat)), function(j) {
     .pool_scalar(
       qmat[, j],
       variance = if (!is.null(vmat)) vmat[, j] else NULL,
@@ -128,7 +128,7 @@
       inverse = inverse,
       conf.level = conf.level
     )
-  })))
+  }))
   estimate <- pooled$estimate
   dim(estimate) <- dim(first)
   dimnames(estimate) <- dimnames(first)
@@ -154,10 +154,10 @@
   b <- if (m > 1) stats::cov(qmat, use = "pairwise.complete.obs") else matrix(0, p, p)
   total <- ubar + (1 + 1 / m) * b
   names <- names(x[[1]]) %||% paste0("q", seq_len(p))
-  diag_pooled <- .as_tibble(do.call(rbind, lapply(seq_len(p), function(j) {
+  diag_pooled <- .rbind_or_empty(lapply(seq_len(p), function(j) {
     .pool_scalar(qmat[, j], variance = vapply(covariance, function(u) u[j, j], numeric(1)),
                  name = names[[j]], conf.level = conf.level)
-  })))
+  }))
 list(pooled = diag_pooled, estimate = qbar, variance = total,
        within_variance = ubar, between_variance = b)
 }
@@ -280,7 +280,7 @@ pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
   bt <- .surv_backtransform_pooled(res$pooled, res$estimate, rule = .pool_rule(rule, !is.null(variance) || !is.null(std.error)))
   out <- list(
     call = match.call(),
-    pooled = .as_tibble(bt$pooled),
+    pooled = .as_dt(bt$pooled),
     estimate = bt$estimate,
     type = "survival_matrix",
     data = x
@@ -315,7 +315,7 @@ pool.numeric <- function(x, variance = NULL, std.error = NULL, covariance = NULL
                          conf.level = 0.95, name = "quantity", ...) {
   out <- list(
     call = match.call(),
-    pooled = .as_tibble(.pool_scalar(x, variance = variance, std.error = std.error,
+    pooled = .as_dt(.pool_scalar(x, variance = variance, std.error = std.error,
                                      name = name, rule = rule, transform = transform,
                                      inverse = inverse, conf.level = conf.level)),
     estimate = NULL,
@@ -340,7 +340,7 @@ pool.list <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
   if (!length(x)) .mimar_stop("`x` must be a non-empty list of quantities.")
   if (all(vapply(x, is.data.frame, logical(1)))) {
     for (i in seq_along(x)) if (!"imputation" %in% names(x[[i]])) x[[i]]$imputation <- i
-    return(pool.data.frame(do.call(rbind, x), rule = rule, conf.level = conf.level, ...))
+    return(pool.data.frame(.rbind_or_empty(x), rule = rule, conf.level = conf.level, ...))
   }
   if (!is.null(covariance)) {
     res <- .pool_vector_covariance(x, covariance = covariance, conf.level = conf.level)
@@ -383,25 +383,26 @@ pool.matrix <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
 pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                             rule = NULL, transform = NULL, inverse = NULL,
                             conf.level = 0.95, ...) {
+  x <- as.data.frame(x)
   if (all(c("term", "estimate", "std.error", "imputation") %in% names(x))) {
     spl <- split(x, x$term)
-    pooled <- .as_tibble(do.call(rbind, lapply(names(spl), function(term) {
+    pooled <- .rbind_or_empty(lapply(names(spl), function(term) {
       d <- spl[[term]]
       .pool_scalar(d$estimate, std.error = d$std.error, name = term, rule = rule,
                    transform = transform, inverse = inverse, conf.level = conf.level)
-    })))
+    }))
     out <- list(call = match.call(), pooled = pooled, estimate = pooled$estimate,
-                type = "tidy_scalar", data = .as_tibble(x))
+                type = "tidy_scalar", data = .as_dt(x))
   } else if (all(c("metric", "value", "imputation") %in% names(x))) {
     spl <- split(x, x$metric)
-    pooled <- .as_tibble(do.call(rbind, lapply(names(spl), function(metric) {
+    pooled <- .rbind_or_empty(lapply(names(spl), function(metric) {
       d <- spl[[metric]]
       out <- .pool_scalar(d$value, name = metric, rule = rule, conf.level = conf.level)
       names(out)[names(out) == "term"] <- "metric"
       out
-    })))
+    }))
     out <- list(call = match.call(), pooled = pooled, estimate = pooled$estimate,
-                type = "tidy_metric", data = .as_tibble(x))
+                type = "tidy_metric", data = .as_dt(x))
   } else {
     .mimar_stop("Tabular pooling requires scalar quantity rows with `term`, `estimate`, `std.error`, `imputation`, or metric rows with `metric`, `value`, `imputation`. To pool vectors, matrices, arrays, or scalar values directly, pass them as a list or numeric vector.")
   }
