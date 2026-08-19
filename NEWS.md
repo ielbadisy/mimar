@@ -1,3 +1,17 @@
+# mimar 0.10.0
+
+* Added `pool_coxph()`, `pool_glm()`, `pool_lm()`, `pool_survreg()`, and
+  `pool_clogit()`, convenience helpers that pool a list of fitted models
+  (one per completed data set) using Rubin's rules and print a coefficient
+  table formatted like the corresponding base-R `summary()` output
+  (`summary.coxph()`, `summary.glm()`, `summary.lm()`, `summary.survreg()`;
+  `pool_clogit()` matches `pool_coxph()` since `clogit()` fits a stratified
+  Cox model internally). Degrees of freedom use the Barnard and Rubin (1999)
+  correction rather than the classic Rubin (1987) formula, which can diverge
+  to implausibly large values when between-imputation variance is small
+  relative to within-imputation variance; all five were cross-validated
+  against `mice::pool()` to numerical precision on matched examples.
+
 # mimar 0.9.0
 
 * Added `densemlp` imputer, wrapping the `densemlp` package's dense

@@ -322,6 +322,123 @@ test_that("pool estimates and metrics", {
   expect_error(pool(data.frame(x = 1)), "Tabular pooling requires")
 })
 
+test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
+  set.seed(1)
+  d <- mtcars
+  d$mpg[sample(32, 5)] <- NA
+  fits <- lapply(1:5, function(i) {
+    dd <- d
+    dd$mpg[is.na(dd$mpg)] <- mean(dd$mpg, na.rm = TRUE) + stats::rnorm(sum(is.na(dd$mpg)), 0, 0.3)
+    stats::glm(vs ~ mpg + wt, data = dd, family = stats::binomial())
+  })
+
+  res <- pool_glm(fits)
+  expect_s3_class(res, "mimar_pool_glm")
+
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["mpg"]], numeric(1)))
+  expect_equal(res$coefficients$Estimate[res$coefficients$term == "mpg"], qbar)
+  expect_true(all(res$coefficients$df > 0))
+  expect_true(all(res$coefficients$df <= stats::df.residual(fits[[1]])))
+  expect_true(all(c("Estimate", "Std. Error", "df", "z value", "Pr(>|z|)") %in% names(res$coefficients)))
+  expect_output(print(res), "Pooled generalized linear model")
+
+  expect_error(pool_glm(list(fits[[1]])), "at least two")
+  bad <- fits
+  bad[[1]] <- stats::glm(vs ~ mpg, data = d[!is.na(d$mpg), ], family = stats::binomial())
+  expect_error(pool_glm(bad), "same coefficient names")
+})
+
+test_that("pool_coxph reproduces classic Rubin-rules estimates with events-based df", {
+  skip_if_not_installed("survival")
+  set.seed(2)
+  d <- survival::lung[, c("time", "status", "age", "sex", "ph.ecog")]
+  d <- stats::na.omit(d)
+  age_obs <- d$age
+  na_idx <- sample(nrow(d), 15)
+  d$age[na_idx] <- NA
+
+  fits <- lapply(1:5, function(i) {
+    dd <- d
+    dd$age[is.na(dd$age)] <- mean(age_obs) + stats::rnorm(15, 0, 3)
+    survival::coxph(survival::Surv(time, status) ~ age + sex + ph.ecog, data = dd)
+  })
+
+  res <- pool_coxph(fits)
+  expect_s3_class(res, "mimar_pool_coxph")
+
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["sex"]], numeric(1)))
+  expect_equal(res$coefficients$coef[res$coefficients$term == "sex"], qbar)
+  expect_equal(res$coefficients$`exp(coef)`, exp(res$coefficients$coef))
+  expect_equal(res$conf_int$`exp(coef)`, exp(res$coefficients$coef))
+  expect_true(all(res$coefficients$df <= fits[[1]]$nevent - 3))
+  expect_output(print(res), "Pooled Cox proportional hazards model")
+})
+
+test_that("pool_lm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
+  set.seed(3)
+  d <- mtcars
+  d$hp[sample(32, 4)] <- NA
+  fits <- lapply(1:5, function(i) {
+    dd <- d
+    dd$hp[is.na(dd$hp)] <- mean(dd$hp, na.rm = TRUE) + stats::rnorm(sum(is.na(dd$hp)), 0, 20)
+    stats::lm(mpg ~ wt + hp, data = dd)
+  })
+
+  res <- pool_lm(fits)
+  expect_s3_class(res, "mimar_pool_lm")
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["wt"]], numeric(1)))
+  expect_equal(res$coefficients$Estimate[res$coefficients$term == "wt"], qbar)
+  expect_true(all(res$coefficients$df <= stats::df.residual(fits[[1]])))
+  expect_output(print(res), "Pooled linear model")
+})
+
+test_that("pool_survreg reproduces classic Rubin-rules estimates and excludes the scale parameter", {
+  skip_if_not_installed("survival")
+  set.seed(3)
+  dl <- stats::na.omit(survival::lung[, c("time", "status", "age", "sex")])
+  age_obs <- dl$age
+  idx <- sample(nrow(dl), 15)
+  dl$age[idx] <- NA
+  fits <- lapply(1:5, function(i) {
+    dd <- dl
+    dd$age[is.na(dd$age)] <- mean(age_obs) + stats::rnorm(15, 0, 3)
+    survival::survreg(survival::Surv(time, status) ~ age + sex, data = dd, dist = "weibull")
+  })
+
+  res <- pool_survreg(fits)
+  expect_s3_class(res, "mimar_pool_survreg")
+  expect_equal(sort(res$coefficients$term), c("(Intercept)", "age", "sex"))
+  expect_false("Log(scale)" %in% res$coefficients$term)
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["sex"]], numeric(1)))
+  expect_equal(res$coefficients$Value[res$coefficients$term == "sex"], qbar)
+  expect_output(print(res), "Pooled parametric survival regression model")
+})
+
+test_that("pool_clogit matches pool_coxph formatting on a clogit fit", {
+  skip_if_not_installed("survival")
+  # clogit() builds and evaluates a coxph() call in the caller's environment
+  # rather than its own namespace, so `coxph` must be on the search path.
+  requireNamespace("survival", quietly = TRUE)
+  library(survival)
+  set.seed(4)
+  dc <- data.frame(status = rep(c(1, 0), 50), age = rnorm(100), id = rep(1:50, each = 2))
+  dc$age[sample(100, 10)] <- NA
+  fits <- lapply(1:5, function(i) {
+    dd <- dc
+    dd$age[is.na(dd$age)] <- mean(dd$age, na.rm = TRUE) + stats::rnorm(sum(is.na(dd$age)), 0, 1)
+    clogit(status ~ age + strata(id), data = dd)
+  })
+
+  res <- pool_clogit(fits)
+  expect_s3_class(res, "mimar_pool_clogit")
+  expect_s3_class(res, "mimar_pool_coxlike")
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["age"]], numeric(1)))
+  expect_equal(res$coefficients$coef[res$coefficients$term == "age"], qbar)
+  expect_output(print(res), "Pooled conditional logistic regression model")
+
+  expect_error(pool_clogit(list(fits[[1]])), "at least two")
+})
+
 test_that("plot methods run", {
   dat <- data.frame(
     a = c(1, NA, 3, 4, NA, 6, 7, 8, 9, 10),
