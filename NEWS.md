@@ -1,4 +1,4 @@
-# mimar 0.10.0
+# mimar 1.0.0
 
 * Added `pool_coxph()`, `pool_glm()`, `pool_lm()`, `pool_survreg()`, and
   `pool_clogit()`, convenience helpers that pool a list of fitted models
