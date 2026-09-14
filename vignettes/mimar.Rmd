@@ -433,9 +433,9 @@ donor matching in that space.
 
 ### Learner-Backed Imputers
 
-`rf`, `ranger`, `rpart`, `nbayes`, `svm`, `bart`, `glmnet`, `gbm`, and
-`xgboost` treat the imputation of each variable as a supervised learning
-problem. The learner is fitted on observed rows and predicts (or draws from)
+`rf`, `ranger`, `rpart`, `nbayes`, `svm`, `bart`, `glmnet`, `fastgbm`,
+`densemlp`, and `xgboost` treat the imputation of each variable as a supervised
+learning problem. The learner is fitted on observed rows and predicts (or draws from)
 the conditional distribution at missing rows:
 
 $$
@@ -453,9 +453,10 @@ a variable-level supervised update inside `mimar`'s chained loop; it is not
 a whole-dataframe imputation engine. This is conceptually related to the
 missForest strategy [@stekhoven2012missforest], but the outer
 iteration, multiple-imputation replication, and type handling are controlled
-by `mimar`. The `ranger`, `glmnet`, `gbm`, and `xgboost` backends follow
-@wright2017ranger, @friedman2010glmnet, @friedman2001gbm, and
-@chen2016xgboost, respectively.
+by `mimar`. The `ranger`, `glmnet`, and `xgboost` backends follow
+@wright2017ranger, @friedman2010glmnet, and @chen2016xgboost, respectively;
+`fastgbm` is a native gradient-boosting implementation in the sense of
+@friedman2001gbm.
 
 ## Running the Imputation
 

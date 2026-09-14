@@ -1,4 +1,4 @@
-# mimar 1.0.1
+# mimar 1.2.0
 
 * Migrated the internal `.as_dt()`/`.rbind_or_empty()` helpers (the shared
   row-binding/coercion choke point behind every public return object) from
@@ -13,6 +13,54 @@
   `"basetable"`) returned the object unchanged instead of a clean table,
   causing `print()` to recurse into itself. `.as_dt()` now always strips to
   a plain `data.frame` first.
+
+* The `gbm` imputer is now `fastgbm`: `imputer = "gbm"` is replaced by
+  `imputer = "fastgbm"`, backed by the `fastgbm` package (compiled
+  gradient boosting, native regression/binary/multiclass objective
+  inference) instead of `gbm`. `gbm` dropped from `Imports` in favor of
+  `fastgbm`. Hyperparameters passed through `imputer()`/`...` change
+  accordingly (`ntrees`, `learning_rate`, `max_depth` in place of
+  `n.trees`, `shrinkage`, `interaction.depth`).
+
+* Added `nelsonaalen()` and `ipcw()`, preprocessing helpers for imputation
+  with time-to-event data. `nelsonaalen()` returns the Nelson-Aalen
+  cumulative hazard at each subject's time, the predictor to use in place of
+  the raw survival time when imputing other covariates (White and Royston,
+  2009); it matches `mice::nelsonaalen()` with no auxiliary variables and,
+  when `aux` is supplied, estimates the cumulative hazard within strata
+  (categorical `aux`) or from a Cox model (`method = "breslow"`).
+  `ipcw()` returns subject-level inverse-probability-of-censoring weights
+  `Delta_i / G(T_i-)` from a Kaplan-Meier censoring model, with `aux` support
+  for covariate-dependent censoring (stratified Kaplan-Meier or `method =
+  "cox"`), plus `type = "all"`, `stabilized`, and `truncate` options. Both
+  accept the time and status columns either as strings or as unquoted
+  symbols. The Cox paths use `survival` (already in `Suggests`).
+
+# mimar 1.1.0
+
+* The `densemlp` imputer now runs on `densemlp`'s native
+  C++/RcppArmadillo dense MLP (no `torch`/`libtorch` dependency, faster to
+  fit). `imputer = "densemlp"` fits/predicts through the standard chained
+  loop as before, but `task` detection is finer-grained: `"regression"`,
+  `"binary"`, and `"multiclass"` are distinguished natively, matching
+  mimar's own per-variable task detection exactly, instead of the previous
+  single `"classification"`.
+
+# mimar 1.0.1
+
+* Added `pool_panglm()`, pooling a list of `panglm` panel-data model fits
+  (one per completed data set) across imputations using Rubin's rules,
+  following the design of the existing `pool_glm()`/`pool_lm()` (printed
+  coefficient table mirroring `summary.glm()`, `t value`/`z value` labelled
+  by family, Barnard-Rubin corrected degrees of freedom from
+  `df.residual()` when the `panglm` estimator provides one - `model =
+  "pooling"`/`"within"` do; `model = "random"` does not compute a full
+  likelihood and falls back to a normal reference distribution). Warns
+  (does not error) if the fits being pooled disagree on `panglm`'s
+  `model`/`effect`/`family` settings. `panglm` added to `Suggests` for the
+  example/tests. `devtools::test()`: all pass, including a new
+  `test-pool-panglm` case. `R CMD check --as-cran`: Status OK, 0 errors/0
+  warnings.
 
 # mimar 1.0.0
 

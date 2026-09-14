@@ -1,0 +1,10 @@
+citHeader("To cite mimar in publications, use:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "mimar: Compact Multiple Imputation, Assessment, and Reporting",
+  author  = person("Imad", "El Badisy"),
+  year    = "2026",
+  note    = sprintf("R package version %s", meta$Version),
+  url     = "https://CRAN.R-project.org/package=mimar"
+)

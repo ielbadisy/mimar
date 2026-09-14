@@ -1,6 +1,6 @@
 Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
-Version: 1.0.1
+Version: 1.2.0
 Authors@R: c(person(given = "Imad", family = "El Badisy", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Author: Imad El Badisy [aut, cre]
 Maintainer: Imad El Badisy <elbadisyimad@gmail.com>
@@ -19,8 +19,8 @@ Imports:
     basetable,
     densemlp,
     e1071,
+    fastgbm,
     functionals,
-    gbm,
     ggplot2,
     glmnet,
     missknn,
@@ -35,6 +35,7 @@ Suggests:
     knitr,
     rmarkdown,
     pkgload,
-    survival
+    survival,
+    panglm
 Config/testthat/edition: 3
 VignetteBuilder: knitr

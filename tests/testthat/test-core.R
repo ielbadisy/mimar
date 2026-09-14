@@ -238,13 +238,13 @@ test_that("all registered imputers run on numeric, categorical, and mixed data f
     args <- list(x = dat, m = 1, imputer = method, maxit = 1, seed = 1)
     if (identical(method, "bart")) args <- c(args, list(ntree = 5, ndpost = 5, nskip = 5))
     if (identical(method, "xgboost")) args <- c(args, list(nrounds = 5))
-    if (identical(method, "gbm")) args <- c(args, list(n.trees = 10))
+    if (identical(method, "fastgbm")) args <- c(args, list(ntrees = 10))
     do.call(impute, args)
   }
 
   available <- imputer_registry()
   methods <- available$imputer[available$available]
-  learner_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet", "gbm", "xgboost", "famd")
+  learner_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet", "fastgbm", "xgboost", "famd")
   for (method in methods) {
     for (dat in list(numeric_dat, categorical_dat, mixed_dat)) {
       imp <- run_imputer(method, dat)
@@ -372,6 +372,38 @@ test_that("pool_coxph reproduces classic Rubin-rules estimates with events-based
   expect_equal(res$conf_int$`exp(coef)`, exp(res$coefficients$coef))
   expect_true(all(res$coefficients$df <= fits[[1]]$nevent - 3))
   expect_output(print(res), "Pooled Cox proportional hazards model")
+})
+
+test_that("pool_panglm reproduces classic Rubin-rules estimates on panglm pooled-OLS fits", {
+  skip_if_not_installed("panglm")
+  set.seed(3)
+  d <- panglm::copd
+  crp_obs <- d$crp
+  na_idx <- sample(nrow(d), 20)
+  d$crp[na_idx] <- NA
+
+  fits <- lapply(1:5, function(i) {
+    dd <- d
+    dd$crp[is.na(dd$crp)] <- mean(crp_obs, na.rm = TRUE) + stats::rnorm(length(na_idx), 0, 0.5)
+    panglm::panglm(fev1 ~ treatment + age + crp, data = dd,
+                    index = c("id", "visit"), model = "pooling", family = "gaussian")
+  })
+
+  res <- pool_panglm(fits)
+  expect_s3_class(res, "mimar_pool_panglm")
+
+  qbar <- mean(vapply(fits, function(f) stats::coef(f)[["age"]], numeric(1)))
+  expect_equal(res$coefficients$Estimate[res$coefficients$term == "age"], qbar)
+  expect_true(all(res$coefficients$df > 0))
+  expect_true(all(res$coefficients$df <= stats::df.residual(fits[[1]])))
+  expect_true(all(c("Estimate", "Std. Error", "df", "t value", "Pr(>|t|)") %in% names(res$coefficients)))
+  expect_output(print(res), "Pooled panel model \\(panglm")
+
+  expect_error(pool_panglm(list(fits[[1]])), "at least two")
+  bad <- fits
+  bad[[1]] <- panglm::panglm(fev1 ~ treatment + age, data = d[!is.na(d$crp), ],
+                              index = c("id", "visit"), model = "pooling", family = "gaussian")
+  expect_error(pool_panglm(bad), "same coefficient names")
 })
 
 test_that("pool_lm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {

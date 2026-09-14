@@ -33,9 +33,10 @@ imputation engine. All imputers expose the same standard lifecycle:
 Native learners implemented in \code{mimar} include \code{"mean"}, \code{"median"},
 \code{"mode"}, \code{"naive"}, \code{"norm"}, \code{"pmm"}, \code{"spmm"}, \code{"logreg"}, \code{"polyreg"},
 \code{"knn"}, and \code{"hotdeck"}. Learner-backed imputers such as \code{"rf"},
-\code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"nbayes"}, \code{"rpart"}, \code{"glmnet"},
-\code{"gbm"}, and \code{"famd"} are called directly through their original packages
-installed with \code{mimar}. Additional arguments supplied to \code{imputer()} are
+\code{"ranger"}, \code{"xgboost"}, \code{"svm"}, \code{"bart"}, \code{"nbayes"}, \code{"rpart"},
+\code{"glmnet"}, \code{"fastgbm"}, \code{"densemlp"}, \code{"famd"}, and \code{"missknn"} are called
+directly through their original packages installed with \code{mimar}.
+Additional arguments supplied to \code{imputer()} are
 retained as hyperparameters and used by \code{impute()} and \code{fit()}.
 The \code{"superlearner"} imputer, also available as \code{"sl"}, cross-validates a
 candidate imputer library on observed cells and combines candidates using

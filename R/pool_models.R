@@ -328,6 +328,109 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
   invisible(x)
 }
 
+#' Pool panel (panglm) models across imputations
+#'
+#' `pool_panglm()` combines a list of `panglm` panel-data model fits (see the
+#' `panglm` package), one fitted on each completed data set (see
+#' `complete(x, "all")`), using Rubin's rules. The printed output mirrors
+#' [pool_glm()]'s coefficient table (`Estimate`, `Std. Error`, test
+#' statistic, p-value), with an added `df` column for the pooled
+#' (Barnard-Rubin) degrees of freedom, using `df.residual()` of a single fit
+#' as the complete-data df. As with [pool_glm()], the reference distribution
+#' is Student's \eqn{t} throughout; the printed statistic is labelled
+#' `t value` for the gaussian family and `z value` otherwise. All fits must
+#' share the same `panglm` estimator settings (`model`, `effect`, `family`)
+#' as well as the same formula, since these determine what the pooled
+#' coefficients represent; `pool_panglm()` warns if the fits disagree on
+#' `model`/`effect`/`family` but does not block pooling; it does not
+#' aggregate across imputations. Random-effects (`model = "random"`) fits
+#' typically do not return a `df.residual()` value (no full likelihood is
+#' computed for that estimator), in which case the pooled df falls back to
+#' `NA` and inference uses a normal reference distribution; pooling
+#' `model = "pooling"` or `model = "within"` fits, which do return a
+#' complete-data df, is recommended when the Barnard-Rubin correction is
+#' wanted.
+#'
+#' @inherit pool_coxph details
+#' @param fits A list of `panglm` model fits, one per completed data set,
+#'   fitted with the same formula and the same `model`/`effect`/`family`
+#'   settings (identical coefficient names and order).
+#' @param conf.level Confidence level; currently only used for internal
+#'   pooled-quantity computation, not printed by default.
+#' @param ... Currently unused.
+#' @return A `mimar_pool_panglm` object with a pooled `coefficients` table.
+#' @seealso [pool_glm()], [pool_lm()], [pool_coxph()], [pool()]
+#' @examples
+#' \donttest{
+#' if (requireNamespace("panglm", quietly = TRUE)) {
+#'   dat <- panglm::copd
+#'   dat$crp[sample(nrow(dat), 20)] <- NA
+#'   imp <- impute(dat, m = 3, imputer = "pmm", seed = 1)
+#'   fits <- lapply(complete(imp, "all"), function(d) {
+#'     panglm::panglm(fev1 ~ treatment + age + crp, data = d,
+#'                     index = c("id", "visit"), model = "pooling",
+#'                     family = "gaussian")
+#'   })
+#'   pool_panglm(fits)
+#' }
+#' }
+#' @export
+pool_panglm <- function(fits, conf.level = 0.95, ...) {
+  .pool_model_check_fits(fits, "panglm")
+  ex <- .pool_model_extract(fits)
+  pooled <- .pool_model_terms(ex$coefs, ex$vars, ex$term_names, conf.level)
+
+  settings <- lapply(fits, function(f) f[c("model", "effect", "family")])
+  same_settings <- vapply(settings[-1], identical, logical(1), y = settings[[1]])
+  if (length(same_settings) && !all(same_settings)) {
+    warning("Fitted `panglm` models do not all share the same model/effect/family settings; ",
+            "pooled coefficients may not be comparable across imputations.", call. = FALSE)
+  }
+
+  dfcom <- tryCatch(stats::df.residual(fits[[1]]), error = function(e) NA_real_)
+  pooled <- .pool_model_apply_dfcom(pooled, dfcom, ex$m, conf.level)
+
+  fam <- tryCatch(fits[[1]]$family$family, error = function(e) "gaussian")
+  use_t <- identical(fam, "gaussian")
+  stat_label <- if (use_t) "t value" else "z value"
+  p_label <- if (use_t) "Pr(>|t|)" else "Pr(>|z|)"
+
+  coefficients <- data.frame(
+    term = pooled$term,
+    Estimate = pooled$estimate,
+    `Std. Error` = pooled$std.error,
+    df = pooled$df,
+    statistic = pooled$statistic,
+    p.value = pooled$p.value,
+    check.names = FALSE,
+    row.names = NULL
+  )
+  names(coefficients)[names(coefficients) == "statistic"] <- stat_label
+  names(coefficients)[names(coefficients) == "p.value"] <- p_label
+
+  out <- list(
+    call = match.call(),
+    coefficients = coefficients,
+    pooled = pooled,
+    m = ex$m,
+    model = tryCatch(fits[[1]]$model, error = function(e) NA_character_),
+    effect = tryCatch(fits[[1]]$effect, error = function(e) NA_character_),
+    family = fam,
+    conf.level = conf.level
+  )
+  class(out) <- c("mimar_pool_panglm", "list")
+  out
+}
+
+#' @export
+print.mimar_pool_panglm <- function(x, digits = max(3, getOption("digits") - 3), ...) {
+  cat("Pooled panel model (panglm; model: ", x$model, ", effect: ", x$effect,
+      ", family: ", x$family, ")\n", sep = "")
+  cat("Pooled across m =", x$m, "imputations (Rubin's rules)\n\n")
+  .print_pool_coef_table(x, digits)
+  invisible(x)
+}
+
 #' Pool linear models across imputations
 #'
 #' `pool_lm()` combines a list of `lm` models, one fitted on each completed

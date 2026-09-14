@@ -140,8 +140,9 @@ Learner-backed imputers:
 - `svm`: support vector machine through `e1071`
 - `bart`: Bayesian additive regression trees through `BART`
 - `glmnet`: penalized regression through `glmnet`
-- `gbm`: gradient boosting through `gbm`
+- `fastgbm`: gradient boosting through `fastgbm`
 - `xgboost`: gradient boosted trees through `xgboost`
+- `densemlp`: dense multilayer perceptron through `densemlp`
 - `famd`: FAMD-assisted donor imputation through `missMDA`
 - `superlearner`, `sl`: cross-validated Super Learner-style ensemble imputer
 
@@ -279,6 +280,54 @@ truth and scores only artificially removed cells. Numeric recovery reports
 RMSE, MAE, bias, and correlation. Categorical recovery reports accuracy and
 balanced accuracy.
 
+## Imputation with time-to-event data
+
+When a data set carries a follow-up time and an event indicator, the raw
+survival time must not be used as a predictor for imputing other, partially
+observed variables: it biases the imputation model. Following White and Royston
+(2009), represent the outcome with the Nelson-Aalen cumulative hazard plus the
+event indicator instead.
+
+`nelsonaalen()` builds that predictor. With no auxiliary variables it matches
+`mice::nelsonaalen()`; `aux` makes the estimate conditional, using strata for
+categorical variables or a Cox model otherwise.
+
+```{r}
+set.seed(1)
+n <- 200
+surv <- data.frame(
+  x = rnorm(n),
+  sex = factor(sample(c("F", "M"), n, TRUE))
+)
+lp <- 0.4 * surv$x + 0.3 * (surv$sex == "M")
+event_time <- rexp(n, rate = exp(lp) / 8)
+cens_time <- rexp(n, rate = 1 / 12)
+surv$time <- pmin(event_time, cens_time)
+surv$status <- as.integer(event_time <= cens_time)
+
+surv$H0 <- nelsonaalen(surv, "time", "status")
+surv$H0_bysex <- nelsonaalen(surv, time, status, aux = "sex")
+
+surv$x[sample(n, 40)] <- NA
+impute(surv[c("x", "sex", "status", "H0")], m = 5, imputer = "pmm", seed = 1)
+```
+
+`ipcw()` returns subject-level inverse-probability-of-censoring weights
+`Delta_i / G(T_i-)`, where `G` is the Kaplan-Meier estimate of the censoring
+survivor function. Use them in weighted post-imputation analyses. `aux` allows
+covariate-dependent censoring (stratified Kaplan-Meier, or `method = "cox"`);
+`type = "all"` keeps a positive weight for censored subjects, and `stabilized`
+and `truncate` control the weight range.
+
+```{r}
+w_event <- ipcw(surv, "time", "status")
+w_all <- ipcw(surv, time, status, aux = "sex", type = "all", truncate = 0.95)
+summary(w_event[w_event > 0])
+summary(w_all)
+```
+
+The Cox-based paths use the `survival` package.
+
 ## Pooling
 
 `pool()` combines post-fit quantities estimated separately in each completed
@@ -338,5 +387,11 @@ interquartile range, and range across imputations.
 
 Learner backends are hard dependencies. Installing `mimar` installs the
 packages needed by the registered learner-backed imputers, including `ranger`,
-`rpart`, `naivebayes`, `e1071`, `BART`, `glmnet`, `gbm`, `xgboost`, and
-`missMDA`.
+`rpart`, `naivebayes`, `e1071`, `BART`, `glmnet`, `fastgbm`, `xgboost`,
+`densemlp`, and `missMDA`.
+
+## Citation
+
+```{r citation}
+citation("mimar")
+```

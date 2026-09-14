@@ -115,9 +115,10 @@ complete <- function(x, ...) UseMethod("complete")
 #' Native learners implemented in `mimar` include `"mean"`, `"median"`,
 #' `"mode"`, `"naive"`, `"norm"`, `"pmm"`, `"spmm"`, `"logreg"`, `"polyreg"`,
 #' `"knn"`, and `"hotdeck"`. Learner-backed imputers such as `"rf"`,
-#' `"xgboost"`, `"svm"`, `"bart"`, `"nbayes"`, `"rpart"`, `"glmnet"`,
-#' `"gbm"`, and `"famd"` are called directly through their original packages
-#' installed with `mimar`. Additional arguments supplied to `imputer()` are
+#' `"ranger"`, `"xgboost"`, `"svm"`, `"bart"`, `"nbayes"`, `"rpart"`,
+#' `"glmnet"`, `"fastgbm"`, `"densemlp"`, `"famd"`, and `"missknn"` are called
+#' directly through their original packages installed with `mimar`.
+#' Additional arguments supplied to `imputer()` are
 #' retained as hyperparameters and used by `impute()` and `fit()`.
 #' The `"superlearner"` imputer, also available as `"sl"`, cross-validates a
 #' candidate imputer library on observed cells and combines candidates using

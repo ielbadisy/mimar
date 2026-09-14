@@ -2,12 +2,12 @@
   data.frame(
     imputer = c("mean", "median", "mode", "naive", "norm", "pmm", "spmm",
                 "logreg", "polyreg", "rf", "ranger", "rpart", "nbayes",
-                "svm", "bart", "glmnet", "gbm", "xgboost", "knn", "hotdeck",
+                "svm", "bart", "glmnet", "fastgbm", "xgboost", "knn", "hotdeck",
                 "famd", "superlearner", "sl", "densemlp", "missknn"),
     implementation = c(rep("mimar", 9), rep("wrapped", 9), "mimar", "mimar", "wrapped",
                        "mimar", "mimar", "wrapped", "wrapped"),
     package = c(rep(NA_character_, 9), "ranger", "ranger", "rpart", "naivebayes",
-                "e1071", "BART", "glmnet", "gbm", "xgboost", NA, NA, "missMDA",
+                "e1071", "BART", "glmnet", "fastgbm", "xgboost", NA, NA, "missMDA",
                 NA, NA, "densemlp", "missknn"),
     supports_numeric = rep(TRUE, 25),
     supports_binary = rep(TRUE, 25),
@@ -33,7 +33,7 @@
       "Support vector machine imputer",
       "BART imputer",
       "Penalized regression imputer through glmnet",
-      "Gradient boosting imputer through gbm",
+      "Gradient boosting imputer through fastgbm",
       "Gradient boosted tree imputer through xgboost",
       "Nearest-neighbor donor imputer",
       "Hot-deck donor imputer",
@@ -141,7 +141,7 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     fit_args <- utils::modifyList(fit_args, extra_args)
   }
   tunable_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart",
-                       "glmnet", "gbm", "xgboost", "famd", "superlearner", "sl",
+                       "glmnet", "fastgbm", "xgboost", "famd", "superlearner", "sl",
                        "densemlp")
   if (length(fit_args) && !(object$method %in% tunable_methods)) {
     .mimar_stop("Imputer '", object$method, "' does not accept additional hyperparameters via `...`. ",
@@ -165,7 +165,7 @@ fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
     svm = do.call(.fit_svm_imputer, c(list(object, x, y, target, variable), fit_args)),
     bart = do.call(.fit_bart_imputer, c(list(object, x, y, target, variable), fit_args)),
     glmnet = do.call(.fit_glmnet_imputer, c(list(object, x, y, target, variable), fit_args)),
-    gbm = do.call(.fit_gbm_imputer, c(list(object, x, y, target, variable), fit_args)),
+    fastgbm = do.call(.fit_fastgbm_imputer, c(list(object, x, y, target, variable), fit_args)),
     xgboost = do.call(.fit_xgboost_imputer, c(list(object, x, y, target, variable), fit_args)),
     knn = .fit_donor_imputer(object, x, y, target, variable, donors, method = "knn"),
     hotdeck = .fit_donor_imputer(object, x, y, target, variable, donors, method = "hotdeck"),
@@ -198,7 +198,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     svm = .predict_generic_model_imputer(object, newdata),
     bart = .predict_bart_imputer(object, newdata),
     glmnet = .predict_glmnet_imputer(object, newdata),
-    gbm = .predict_gbm_imputer(object, newdata),
+    fastgbm = .predict_fastgbm_imputer(object, newdata),
     xgboost = .predict_xgboost_imputer(object, newdata),
     knn = .predict_donor_imputer(object, newdata),
     hotdeck = .predict_donor_imputer(object, newdata),
@@ -417,21 +417,18 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
             class = c("mimar_imputer_fit", "list"))
 }
 
-.fit_gbm_imputer <- function(object, x, y, target, variable, n.trees = 100, interaction.depth = 2,
-                             n.minobsinnode = 1, shrinkage = 0.05, bag.fraction = 1, ...) {
-  .require_backend("gbm", object$method)
+.fit_fastgbm_imputer <- function(object, x, y, target, variable, ntrees = 200,
+                                 learning_rate = 0.1, max_depth = 5, verbose = FALSE, ...) {
+  .require_backend("fastgbm", object$method)
   task <- .target_task(target)
-  dat <- data.frame(y = if (task == "numeric") as.numeric(y) else factor(y), .model_predictors(x), check.names = FALSE)
-  dist <- if (task == "numeric") "gaussian" else if (task == "binary") "bernoulli" else "multinomial"
-  if (task == "binary") dat$y <- as.integer(dat$y == levels(dat$y)[2])
-  fitted <- try(suppressWarnings(gbm::gbm(y ~ ., data = dat, distribution = dist, n.trees = n.trees,
-                                          interaction.depth = interaction.depth,
-                                          n.minobsinnode = n.minobsinnode,
-                                          shrinkage = shrinkage, bag.fraction = bag.fraction,
-                                          verbose = FALSE, ...)), silent = TRUE)
+  y_fit <- if (task == "numeric") .target_to_numeric(y) else factor(y)
+  fitted <- try(suppressWarnings(fastgbm::fastgbm(x = .model_predictors(x), y = y_fit,
+                                                  ntrees = ntrees, learning_rate = learning_rate,
+                                                  max_depth = max_depth, verbose = verbose, ...)),
+                silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
   structure(list(imputer = object, fit = fitted, target = target, task = task,
-                 levels = if (task == "numeric") NULL else levels(factor(y)), n.trees = n.trees),
+                 levels = if (task == "numeric") NULL else levels(factor(y))),
             class = c("mimar_imputer_fit", "list"))
 }
 
@@ -464,7 +461,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   task <- .target_task(target)
   y_fit <- if (task == "numeric") .target_to_numeric(y) else factor(y)
   fitted <- try(densemlp::densemlp(x = .model_predictors(x), y = y_fit,
-                                   task = if (task == "numeric") "regression" else "classification",
+                                   task = switch(task, numeric = "regression",
+                                                binary = "binary", multiclass = "multiclass"),
                                    epochs = epochs, hidden_units = hidden_units,
                                    verbose = verbose, ...), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
@@ -674,12 +672,23 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   as.character(cl)
 }
 
-.predict_gbm_imputer <- function(object, newdata) {
-  pred <- stats::predict(object$fit, newdata = .model_predictors(newdata), n.trees = object$n.trees, type = "response")
-  if (object$task == "numeric") return(as.numeric(pred))
-  if (object$task == "binary") return(object$levels[1 + stats::rbinom(length(pred), 1, pmin(pmax(pred, 0), 1))])
-  if (length(dim(pred)) == 3) pred <- pred[, , 1, drop = FALSE][, , 1]
-  apply(pred, 1, function(p) object$levels[sample(seq_along(object$levels), 1, prob = p / sum(p))])
+.predict_fastgbm_imputer <- function(object, newdata) {
+  xnew <- .model_predictors(newdata)
+  if (object$task == "numeric") {
+    pred <- try(stats::predict(object$fit, xnew), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    return(as.numeric(pred))
+  }
+  if (object$task == "binary") {
+    pred <- try(stats::predict(object$fit, xnew, type = "response"), silent = TRUE)
+    if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+    pred <- pmin(pmax(as.numeric(pred), 0), 1)
+    return(object$levels[1 + stats::rbinom(length(pred), 1, pred)])
+  }
+  prob <- try(stats::predict(object$fit, xnew, type = "prob"), silent = TRUE)
+  if (inherits(prob, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
+  lev <- colnames(prob)
+  apply(prob, 1, function(p) lev[sample(seq_along(lev), 1, prob = p / sum(p))])
 }
 
 .predict_xgboost_imputer <- function(object, newdata) {
