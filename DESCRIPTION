@@ -16,7 +16,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     BART,
-    basetable,
+    basetable (>= 1.4.0),
     densemlp,
     e1071,
     fastgbm,
