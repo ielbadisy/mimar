@@ -1,3 +1,19 @@
+# mimar 1.0.1
+
+* Migrated the internal `.as_dt()`/`.rbind_or_empty()` helpers (the shared
+  row-binding/coercion choke point behind every public return object) from
+  `data.table` to `basetable`. Public return objects (`describe()`,
+  `impute()`, `complete()`, `evaluate()`, `pool()`, `imputer_registry()`)
+  are now `basetable`s instead of `data.table`s. `typeconflict = "coerce"`
+  is used at the one row-bind site that legitimately mixes column types
+  across inputs (plot-data assembly). Also fixed a latent infinite-recursion
+  bug this surfaced in `print.mimar_imputers()`: `basetable::as_basetable()`
+  is a no-op on anything already carrying class `"basetable"`, so calling
+  it on a `describe("imputers")` result (tagged `"mimar_imputers"` on top of
+  `"basetable"`) returned the object unchanged instead of a clean table,
+  causing `print()` to recurse into itself. `.as_dt()` now always strips to
+  a plain `data.frame` first.
+
 # mimar 1.0.0
 
 * Added `pool_coxph()`, `pool_glm()`, `pool_lm()`, `pool_survreg()`, and

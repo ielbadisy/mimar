@@ -52,9 +52,9 @@
 #' `imputer_registry()` returns the imputer names accepted by `impute()` and
 #' metadata describing target-type support and backend packages. Native
 #' `mimar` methods display `package = "internal"`. The result is returned as a
-#' data.table.
+#' basetable.
 #'
-#' @return A data.table.
+#' @return A basetable.
 #' @export
 imputer_registry <- function() {
   out <- .imputer_catalog()

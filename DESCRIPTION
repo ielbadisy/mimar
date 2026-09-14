@@ -1,6 +1,6 @@
 Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(person(given = "Imad", family = "El Badisy", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Author: Imad El Badisy [aut, cre]
 Maintainer: Imad El Badisy <elbadisyimad@gmail.com>
@@ -16,7 +16,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     BART,
-    data.table,
+    basetable,
     densemlp,
     e1071,
     functionals,

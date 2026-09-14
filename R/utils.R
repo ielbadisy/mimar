@@ -26,13 +26,22 @@
 }
 
 .as_dt <- function(x) {
-  data.table::as.data.table(x)
+  # basetable::as_basetable() is a no-op on anything already carrying class
+  # "basetable" (e.g. a describe.character("imputers") result additionally
+  # tagged "mimar_imputers") -- strip to a plain data.frame first so callers
+  # relying on `.as_dt()` to always produce a clean basetable (dropping any
+  # prior custom class) get one, instead of `x` unchanged.
+  if (is.data.frame(x)) class(x) <- "data.frame"
+  basetable::as_basetable(x)
 }
 
 .rbind_or_empty <- function(x) {
   x <- x[!vapply(x, is.null, logical(1))]
   if (!length(x)) return(.as_dt(data.frame()))
-  .as_dt(data.table::rbindlist(x, fill = TRUE))
+  # typeconflict = "coerce": rows here can legitimately mix numeric/character
+  # `value` columns (e.g. plot-data assembly across variable types), which
+  # data.table::rbindlist() silently coerced; basetable errors by default.
+  basetable::rbindfill(x, fill = TRUE, typeconflict = "coerce")
 }
 
 .check_data_frame <- function(x) {
