@@ -37,5 +37,7 @@ Suggests:
     pkgload,
     survival,
     panglm
+Remotes:
+    ielbadisy/panglm
 Config/testthat/edition: 3
 VignetteBuilder: knitr
