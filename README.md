@@ -1,6 +1,8 @@
 
 # mimar
 
+[![CRAN status](https://www.r-pkg.org/badges/version/mimar)](https://CRAN.R-project.org/package=mimar)
+
 `mimar` implements a compact chained-imputation workflow in R for
 missing-data analysis, artificial amputation, native and learner-backed
 single and multiple imputation, diagnostic evaluation, and
