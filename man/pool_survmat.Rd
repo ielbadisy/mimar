@@ -11,6 +11,7 @@ pool_survmat(
   rule = NULL,
   conf.level = 0.95,
   clip = 1e-12,
+  dfcom = NULL,
   ...
 )
 }
@@ -32,6 +33,8 @@ variance is supplied and to the robust median/IQR/range summary otherwise.}
 
 \item{clip}{Small positive value used to keep probabilities away from 0 and 1
 before applying the cloglog transform.}
+
+\item{dfcom}{Optional complete-data degrees of freedom. See \code{\link[=pool]{pool()}}.}
 
 \item{...}{Passed to lower-level pooling helpers.}
 }
@@ -64,7 +67,8 @@ Confidence intervals are obtained on the transformed scale and then
 back-transformed:
 \deqn{[\;g^{-1}(\bar Z_{ik} + t_{\nu,1-\alpha/2}\sqrt{T_{ik}}),\;
 g^{-1}(\bar Z_{ik} - t_{\nu,1-\alpha/2}\sqrt{T_{ik}})\;],}
-where \eqn{\nu} is the Rubin degrees of freedom. Because \eqn{g^{-1}} is
+where \eqn{\nu} is the Rubin (1987) degrees of freedom, or the
+Barnard-Rubin (1999) degrees of freedom when \code{dfcom} is supplied. Because \eqn{g^{-1}} is
 decreasing, the lower survival bound comes from the upper transformed bound.
 
 Probabilities are clipped to \code{[clip, 1 - clip]} before transformation to

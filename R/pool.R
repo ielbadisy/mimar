@@ -5,9 +5,17 @@
   if (has_variance) "rubin" else "robust"
 }
 
+.check_dfcom <- function(dfcom) {
+  if (is.null(dfcom)) return(NULL)
+  if (!is.numeric(dfcom) || length(dfcom) != 1L || is.na(dfcom) || dfcom <= 0) {
+    .mimar_stop("`dfcom` must be a single positive number (use `Inf` for a large-sample analysis).")
+  }
+  dfcom
+}
+
 .pool_scalar <- function(q, variance = NULL, std.error = NULL, name = "quantity",
                          rule = NULL, transform = NULL, inverse = NULL,
-                         conf.level = 0.95) {
+                         conf.level = 0.95, dfcom = NULL) {
   q <- as.numeric(q)
   if (!length(q)) .mimar_stop("Cannot pool an empty quantity.")
   if (!is.null(std.error)) variance <- as.numeric(std.error)^2
@@ -30,6 +38,7 @@
     se <- sqrt(total)
     r <- if (isTRUE(all.equal(ubar, 0))) Inf else ((1 + 1 / m) * b) / ubar
     df <- if (is.finite(r) && r > 0) (m - 1) * (1 + 1 / r)^2 else Inf
+    if (!is.null(dfcom) && is.finite(dfcom)) df <- .barnard_rubin_df(dfcom, b, total, m)
     alpha <- 1 - conf.level
     crit <- stats::qt(1 - alpha / 2, df = df)
     statistic <- qbar / se
@@ -111,7 +120,7 @@
 
 .pool_elementwise <- function(x, variance = NULL, std.error = NULL, rule = NULL,
                               transform = NULL, inverse = NULL,
-                              conf.level = 0.95) {
+                              conf.level = 0.95, dfcom = NULL) {
   if (!length(x) || !.same_dims(x)) .mimar_stop("Quantity lists must be non-empty and have consistent dimensions.")
   first <- x[[1]]
   qmat <- do.call(rbind, lapply(x, as.numeric))
@@ -127,7 +136,8 @@
       rule = rule,
       transform = transform,
       inverse = inverse,
-      conf.level = conf.level
+      conf.level = conf.level,
+      dfcom = dfcom
     )
   }))
   estimate <- pooled$estimate
@@ -136,7 +146,7 @@
   list(pooled = pooled, estimate = estimate)
 }
 
-.pool_vector_covariance <- function(x, covariance, conf.level = 0.95) {
+.pool_vector_covariance <- function(x, covariance, conf.level = 0.95, dfcom = NULL) {
   if (!length(x) || !all(vapply(x, is.numeric, logical(1))) || !.same_dims(x)) {
     .mimar_stop("Vector pooling requires a non-empty list of numeric vectors with consistent lengths.")
   }
@@ -157,7 +167,7 @@
   names <- names(x[[1]]) %||% paste0("q", seq_len(p))
   diag_pooled <- .rbind_or_empty(lapply(seq_len(p), function(j) {
     .pool_scalar(qmat[, j], variance = vapply(covariance, function(u) u[j, j], numeric(1)),
-                 name = names[[j]], conf.level = conf.level)
+                 name = names[[j]], conf.level = conf.level, dfcom = dfcom)
   }))
 list(pooled = diag_pooled, estimate = qbar, variance = total,
        within_variance = ubar, between_variance = b)
@@ -230,7 +240,8 @@ list(pooled = diag_pooled, estimate = qbar, variance = total,
 #' back-transformed:
 #' \deqn{[\;g^{-1}(\bar Z_{ik} + t_{\nu,1-\alpha/2}\sqrt{T_{ik}}),\;
 #' g^{-1}(\bar Z_{ik} - t_{\nu,1-\alpha/2}\sqrt{T_{ik}})\;],}
-#' where \eqn{\nu} is the Rubin degrees of freedom. Because \eqn{g^{-1}} is
+#' where \eqn{\nu} is the Rubin (1987) degrees of freedom, or the
+#' Barnard-Rubin (1999) degrees of freedom when `dfcom` is supplied. Because \eqn{g^{-1}} is
 #' decreasing, the lower survival bound comes from the upper transformed bound.
 #'
 #' Probabilities are clipped to \code{[clip, 1 - clip]} before transformation to
@@ -248,6 +259,7 @@ list(pooled = diag_pooled, estimate = qbar, variance = total,
 #' @param conf.level Confidence level for interval estimates.
 #' @param clip Small positive value used to keep probabilities away from 0 and 1
 #'   before applying the cloglog transform.
+#' @param dfcom Optional complete-data degrees of freedom. See [pool()].
 #' @param ... Passed to lower-level pooling helpers.
 #' @return A `mimar_pool` object with pooled survival probabilities.
 #' @examples
@@ -259,7 +271,8 @@ list(pooled = diag_pooled, estimate = qbar, variance = total,
 #' pool_survmat(surv)
 #' @export
 pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
-                         conf.level = 0.95, clip = 1e-12, ...) {
+                         conf.level = 0.95, clip = 1e-12, dfcom = NULL, ...) {
+  dfcom <- .check_dfcom(dfcom)
   if (!is.list(x) || !length(x)) .mimar_stop("`x` must be a non-empty list of survival-probability matrices or arrays.")
   if (!all(vapply(x, function(u) is.numeric(u) && !is.null(dim(u)), logical(1)))) {
     .mimar_stop("`x` must contain only numeric matrices or arrays.")
@@ -276,7 +289,8 @@ pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
     rule = rule,
     transform = NULL,
     inverse = NULL,
-    conf.level = conf.level
+    conf.level = conf.level,
+    dfcom = dfcom
   )
   bt <- .surv_backtransform_pooled(res$pooled, res$estimate, rule = .pool_rule(rule, !is.null(variance) || !is.null(std.error)))
   out <- list(
@@ -313,15 +327,25 @@ pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
 #'   and intervals.
 #' @param conf.level Confidence level for interval estimates.
 #' @param name Name of a scalar quantity.
+#' @param dfcom Optional complete-data degrees of freedom, i.e. the degrees of
+#'   freedom the analysis would have had without missing data (for example
+#'   `n - p` for a regression coefficient, or `n - 1` for a mean). When
+#'   supplied, Rubin pooling uses the Barnard and Rubin (1999) small-sample
+#'   degrees of freedom, which never exceed `dfcom`. When `NULL` (the
+#'   default), the classic Rubin (1987) degrees of freedom are used; they
+#'   assume a normal complete-data reference distribution and can be far too
+#'   large in small samples.
 #' @export
 pool.numeric <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                          rule = NULL, transform = NULL, inverse = NULL,
-                         conf.level = 0.95, name = "quantity", ...) {
+                         conf.level = 0.95, name = "quantity", dfcom = NULL, ...) {
+  dfcom <- .check_dfcom(dfcom)
   out <- list(
     call = match.call(),
     pooled = .as_dt(.pool_scalar(x, variance = variance, std.error = std.error,
                                      name = name, rule = rule, transform = transform,
-                                     inverse = inverse, conf.level = conf.level)),
+                                     inverse = inverse, conf.level = conf.level,
+                                     dfcom = dfcom)),
     estimate = NULL,
     type = "scalar",
     data = x
@@ -340,19 +364,22 @@ pool.numeric <- function(x, variance = NULL, std.error = NULL, covariance = NULL
 #' @export
 pool.list <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                       rule = NULL, transform = NULL, inverse = NULL,
-                      conf.level = 0.95, ...) {
+                      conf.level = 0.95, dfcom = NULL, ...) {
   if (!length(x)) .mimar_stop("`x` must be a non-empty list of quantities.")
+  dfcom <- .check_dfcom(dfcom)
   if (all(vapply(x, is.data.frame, logical(1)))) {
     for (i in seq_along(x)) if (!"imputation" %in% names(x[[i]])) x[[i]]$imputation <- i
-    return(pool.data.frame(.rbind_or_empty(x), rule = rule, conf.level = conf.level, ...))
+    return(pool.data.frame(.rbind_or_empty(x), rule = rule, conf.level = conf.level,
+                           dfcom = dfcom, ...))
   }
   if (!is.null(covariance)) {
-    res <- .pool_vector_covariance(x, covariance = covariance, conf.level = conf.level)
+    res <- .pool_vector_covariance(x, covariance = covariance, conf.level = conf.level,
+                                   dfcom = dfcom)
     out <- c(list(call = match.call(), type = "vector", data = x), res)
   } else {
     res <- .pool_elementwise(x, variance = variance, std.error = std.error, rule = rule,
                              transform = transform, inverse = inverse,
-                             conf.level = conf.level)
+                             conf.level = conf.level, dfcom = dfcom)
     out <- c(list(call = match.call(), type = if (is.null(dim(x[[1]]))) "vector_elementwise" else "array_elementwise",
                   data = x), res)
   }
@@ -365,7 +392,7 @@ pool.list <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
 #' @export
 pool.matrix <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                         rule = NULL, transform = NULL, inverse = NULL,
-                        conf.level = 0.95, ...) {
+                        conf.level = 0.95, dfcom = NULL, ...) {
   quantities <- lapply(seq_len(nrow(x)), function(i) x[i, ])
   if (!is.null(variance) && is.matrix(variance) && identical(dim(variance), dim(x))) {
     variance <- lapply(seq_len(nrow(variance)), function(i) variance[i, ])
@@ -375,7 +402,7 @@ pool.matrix <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
   }
   pool.list(quantities, variance = variance, std.error = std.error, covariance = covariance,
             rule = rule, transform = transform, inverse = inverse,
-            conf.level = conf.level, ...)
+            conf.level = conf.level, dfcom = dfcom, ...)
 }
 
 #' @describeIn pool Tabular adapter for tidy scalar estimates or metrics.
@@ -386,14 +413,16 @@ pool.matrix <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
 #' @export
 pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                             rule = NULL, transform = NULL, inverse = NULL,
-                            conf.level = 0.95, ...) {
+                            conf.level = 0.95, dfcom = NULL, ...) {
   x <- as.data.frame(x)
+  dfcom <- .check_dfcom(dfcom)
   if (all(c("term", "estimate", "std.error", "imputation") %in% names(x))) {
     spl <- split(x, x$term)
     pooled <- .rbind_or_empty(lapply(names(spl), function(term) {
       d <- spl[[term]]
       .pool_scalar(d$estimate, std.error = d$std.error, name = term, rule = rule,
-                   transform = transform, inverse = inverse, conf.level = conf.level)
+                   transform = transform, inverse = inverse, conf.level = conf.level,
+                   dfcom = dfcom)
     }))
     out <- list(call = match.call(), pooled = pooled, estimate = pooled$estimate,
                 type = "tidy_scalar", data = .as_dt(x))

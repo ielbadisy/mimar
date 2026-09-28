@@ -1,5 +1,13 @@
 # mimar (development version)
 
+* `pool()` and `pool_survmat()` gain a `dfcom` argument (complete-data
+  degrees of freedom). When supplied, Rubin pooling uses the Barnard and
+  Rubin (1999) small-sample degrees of freedom, as the model poolers
+  (`pool_lm()`, `pool_glm()`, ...) already did. Without it, the classic Rubin
+  (1987) degrees of freedom are kept; they assume a normal complete-data
+  reference and can be far too large in small samples. Results match
+  `mice::pool()` with the same `dfcom`.
+
 * `pool(rule = "mean")` now honours `conf.level`; it previously always
   returned a 95% interval. Its documentation now states that it uses only the
   between-imputation variance.

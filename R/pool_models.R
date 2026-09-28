@@ -70,9 +70,8 @@
 }
 
 # Overwrite `.pool_scalar()`'s classic-Rubin df/statistic/p-value/CI with
-# the Barnard-Rubin corrected versions once a complete-data df is known
-# (only possible here, not in the generic `pool()` engine, because a
-# fitted model provides `dfcom`; a bare scalar/vector quantity does not).
+# the Barnard-Rubin corrected versions once the fitted models supply a
+# complete-data df. The generic `pool()` engine takes `dfcom` from the user.
 .pool_model_apply_dfcom <- function(pooled, dfcom, m, conf.level) {
   if (!is.finite(dfcom) || dfcom <= 0) return(pooled)
   alpha <- 1 - conf.level

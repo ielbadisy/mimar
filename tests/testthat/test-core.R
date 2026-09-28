@@ -332,6 +332,37 @@ test_that("pool rule = 'mean' honours conf.level", {
   expect_lt(p90$conf.high - p90$conf.low, p95$conf.high - p95$conf.low)
 })
 
+test_that("pool dfcom applies the Barnard-Rubin small-sample df", {
+  q <- c(3.1, 2.4, 3.9, 2.8, 3.5)
+  se <- c(1.9, 2.1, 2.0, 1.8, 2.2)
+  m <- 5
+  ubar <- mean(se^2)
+  b <- stats::var(q)
+  t <- ubar + (1 + 1 / m) * b
+  lambda <- (1 + 1 / m) * b / t
+  df_old <- (m - 1) / lambda^2
+  df_obs <- (24 / 26) * 23 * (1 - lambda)
+  expected <- df_old * df_obs / (df_old + df_obs)
+
+  classic <- pool(q, std.error = se)$pooled
+  small <- pool(q, std.error = se, dfcom = 23)$pooled
+  expect_equal(classic$df, df_old)
+  expect_equal(small$df, expected)
+  expect_lt(small$df, 23)
+  expect_equal(small$estimate, classic$estimate)
+  expect_equal(small$std.error, classic$std.error)
+  expect_gt(small$conf.high - small$conf.low, classic$conf.high - classic$conf.low)
+  expect_equal(pool(q, std.error = se, dfcom = Inf)$pooled$df, classic$df)
+
+  lst <- pool(list(c(a = 1, b = 2), c(a = 1.2, b = 2.3), c(a = 0.9, b = 2.1)),
+              std.error = list(c(.3, .4), c(.3, .4), c(.3, .4)), dfcom = 10)
+  expect_true(all(lst$pooled$df < 10))
+  tidy <- data.frame(term = "x", estimate = q, std.error = se, imputation = 1:5)
+  expect_equal(pool(tidy, dfcom = 23)$pooled$df, expected)
+  expect_error(pool(q, std.error = se, dfcom = -1), "dfcom")
+  expect_error(pool(q, std.error = se, dfcom = c(1, 2)), "dfcom")
+})
+
 test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
   set.seed(1)
   d <- mtcars

@@ -20,6 +20,7 @@ pool(x, ...)
   inverse = NULL,
   conf.level = 0.95,
   name = "quantity",
+  dfcom = NULL,
   ...
 )
 
@@ -32,6 +33,7 @@ pool(x, ...)
   transform = NULL,
   inverse = NULL,
   conf.level = 0.95,
+  dfcom = NULL,
   ...
 )
 
@@ -44,6 +46,7 @@ pool(x, ...)
   transform = NULL,
   inverse = NULL,
   conf.level = 0.95,
+  dfcom = NULL,
   ...
 )
 
@@ -56,6 +59,7 @@ pool(x, ...)
   transform = NULL,
   inverse = NULL,
   conf.level = 0.95,
+  dfcom = NULL,
   ...
 )
 }
@@ -96,6 +100,15 @@ and intervals.}
 \item{conf.level}{Confidence level for interval estimates.}
 
 \item{name}{Name of a scalar quantity.}
+
+\item{dfcom}{Optional complete-data degrees of freedom, i.e. the degrees of
+freedom the analysis would have had without missing data (for example
+\code{n - p} for a regression coefficient, or \code{n - 1} for a mean). When
+supplied, Rubin pooling uses the Barnard and Rubin (1999) small-sample
+degrees of freedom, which never exceed \code{dfcom}. When \code{NULL} (the
+default), the classic Rubin (1987) degrees of freedom are used; they
+assume a normal complete-data reference distribution and can be far too
+large in small samples.}
 }
 \value{
 A \code{mimar_pool} object.
