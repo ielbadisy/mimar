@@ -80,9 +80,12 @@ form and returns the pooled covariance matrix.}
 
 \item{rule}{Pooling rule. \code{"rubin"} applies Rubin's rules and requires
 \code{variance}, \code{std.error}, or \code{covariance}. \code{"robust"} reports median, IQR,
-and range across imputations. \code{"mean"} reports the mean and
-between-imputation standard error. Defaults to \code{"rubin"} when variance is
-available and \code{"robust"} otherwise.}
+and range across imputations. \code{"mean"} reports the mean and the
+between-imputation standard error \eqn{\sqrt{B/m}}, with a normal-theory
+interval at \code{conf.level}. It ignores within-imputation variance, so it
+describes Monte Carlo spread across imputations rather than total
+uncertainty; use \code{"rubin"} whenever complete-data variances are available.
+Defaults to \code{"rubin"} when variance is available and \code{"robust"} otherwise.}
 
 \item{transform}{Optional function applied before pooling, for example
 \code{log}, \code{qlogis}, or \code{function(p) log(-log(p))}.}

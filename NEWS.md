@@ -1,3 +1,9 @@
+# mimar (development version)
+
+* `pool(rule = "mean")` now honours `conf.level`; it previously always
+  returned a 95% interval. Its documentation now states that it uses only the
+  between-imputation variance.
+
 # mimar 1.2.0
 
 * Migrated the internal `.as_dt()`/`.rbind_or_empty()` helpers (the shared

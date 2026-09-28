@@ -322,6 +322,16 @@ test_that("pool estimates and metrics", {
   expect_error(pool(data.frame(x = 1)), "Tabular pooling requires")
 })
 
+test_that("pool rule = 'mean' honours conf.level", {
+  q <- c(1.0, 1.2, 0.9, 1.1, 1.3)
+  se <- sqrt(stats::var(q) / 5)
+  p90 <- pool(q, rule = "mean", conf.level = 0.90)$pooled
+  expect_equal(p90$conf.low, mean(q) - stats::qnorm(0.95) * se)
+  expect_equal(p90$conf.high, mean(q) + stats::qnorm(0.95) * se)
+  p95 <- pool(q, rule = "mean")$pooled
+  expect_lt(p90$conf.high - p90$conf.low, p95$conf.high - p95$conf.low)
+})
+
 test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
   set.seed(1)
   d <- mtcars
