@@ -1,6 +1,6 @@
 Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
-Version: 1.2.0
+Version: 1.3.0
 Authors@R: c(person(given = "Imad", family = "El Badisy", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Author: Imad El Badisy [aut, cre]
 Maintainer: Imad El Badisy <elbadisyimad@gmail.com>
