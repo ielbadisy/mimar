@@ -58,12 +58,13 @@
     b <- stats::var(z, na.rm = TRUE)
     if (!is.finite(b)) b <- 0
     se <- sqrt(b / m)
+    crit <- stats::qnorm(1 - (1 - conf.level) / 2)
     return(data.frame(
       term = name,
       estimate = inverse(est),
       std.error = se,
-      conf.low = inverse(est - stats::qnorm(0.975) * se),
-      conf.high = inverse(est + stats::qnorm(0.975) * se),
+      conf.low = inverse(est - crit * se),
+      conf.high = inverse(est + crit * se),
       m = m,
       between_variance = b,
       rule = "mean",
@@ -300,9 +301,12 @@ pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
 #'   form and returns the pooled covariance matrix.
 #' @param rule Pooling rule. `"rubin"` applies Rubin's rules and requires
 #'   `variance`, `std.error`, or `covariance`. `"robust"` reports median, IQR,
-#'   and range across imputations. `"mean"` reports the mean and
-#'   between-imputation standard error. Defaults to `"rubin"` when variance is
-#'   available and `"robust"` otherwise.
+#'   and range across imputations. `"mean"` reports the mean and the
+#'   between-imputation standard error \eqn{\sqrt{B/m}}, with a normal-theory
+#'   interval at `conf.level`. It ignores within-imputation variance, so it
+#'   describes Monte Carlo spread across imputations rather than total
+#'   uncertainty; use `"rubin"` whenever complete-data variances are available.
+#'   Defaults to `"rubin"` when variance is available and `"robust"` otherwise.
 #' @param transform Optional function applied before pooling, for example
 #'   `log`, `qlogis`, or `function(p) log(-log(p))`.
 #' @param inverse Optional inverse transformation applied to pooled estimates
