@@ -198,6 +198,10 @@ evaluate <- function(x, ...) UseMethod("evaluate")
 #'              diag(c(0.04, 0.08)^2))
 #' pool(betas, covariance = covs)
 #'
+#' # C-index with standard errors: pool on the logit scale
+#' pool(c(0.71, 0.74, 0.69), std.error = c(0.020, 0.021, 0.019),
+#'      transform = "logit", name = "cindex")
+#'
 #' @references Marshall A, Altman DG, Holder RL, Royston P. Combining estimates
 #'   of interest in prognostic modelling studies after multiple imputation:
 #'   current practice and guidelines. BMC Medical Research Methodology. 2009;9:57.

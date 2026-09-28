@@ -363,6 +363,53 @@ test_that("pool dfcom applies the Barnard-Rubin small-sample df", {
   expect_error(pool(q, std.error = se, dfcom = c(1, 2)), "dfcom")
 })
 
+test_that("pool named scales pool on the transformed scale", {
+  cidx <- c(0.71, 0.74, 0.69, 0.72)
+  se <- c(0.020, 0.021, 0.019, 0.020)
+  res <- pool(cidx, std.error = se, transform = "logit")$pooled
+  z <- stats::qlogis(cidx)
+  uz <- (se / (cidx * (1 - cidx)))^2
+  tz <- mean(uz) + (1 + 1 / 4) * stats::var(z)
+  expect_equal(res$estimate, stats::plogis(mean(z)))
+  expect_equal(res$total_variance, tz)
+  crit <- stats::qt(0.975, res$df)
+  expect_equal(res$conf.low, stats::plogis(mean(z) - crit * sqrt(tz)))
+  expect_equal(res$std.error, sqrt(tz) * res$estimate * (1 - res$estimate))
+  expect_true(res$conf.low > 0 && res$conf.high < 1)
+
+  # the logit interval stays in (0, 1) where the identity one does not
+  near1 <- c(0.97, 0.99, 0.98)
+  expect_gt(pool(near1, std.error = c(.02, .02, .02))$pooled$conf.high, 1)
+  expect_lt(pool(near1, std.error = c(.02, .02, .02), transform = "logit")$pooled$conf.high, 1)
+
+  # hazard ratios on the log scale match pooling log(HR) directly
+  hr <- c(1.4, 1.6, 1.5)
+  se_log <- c(0.10, 0.11, 0.10)
+  a <- pool(hr, std.error = se_log * hr, transform = "log")$pooled
+  b <- pool(log(hr), std.error = se_log)$pooled
+  expect_equal(a$estimate, exp(b$estimate))
+  expect_equal(a$conf.low, exp(b$conf.low))
+  expect_equal(a$p.value, b$p.value)
+
+  # decreasing inverse keeps conf.low <= conf.high
+  s <- pool(c(0.80, 0.82, 0.78), std.error = c(.02, .02, .02), transform = "cloglog")$pooled
+  expect_lt(s$conf.low, s$conf.high)
+  sfun <- pool(c(0.80, 0.82, 0.78), transform = function(p) log(-log(p)),
+               inverse = function(z) exp(-exp(z)))$pooled
+  expect_lte(sfun$conf.low, sfun$conf.high)
+  expect_lte(sfun$q25, sfun$q75)
+
+  expect_equal(pool(c(0.3, 0.5), std.error = c(.1, .1), transform = "fisherz")$pooled$estimate,
+               tanh(mean(atanh(c(0.3, 0.5)))))
+  expect_error(pool(cidx, transform = "probit"), "named scale|one of")
+  expect_error(pool(cidx, transform = "logit", inverse = plogis), "set automatically")
+
+  met <- data.frame(metric = "cindex", value = cidx, std.error = se, imputation = 1:4)
+  pm <- pool(met, transform = "logit")$pooled
+  expect_equal(pm$rule, "rubin")
+  expect_equal(pm$estimate, res$estimate)
+})
+
 test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
   set.seed(1)
   d <- mtcars

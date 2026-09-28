@@ -1,5 +1,16 @@
 # mimar (development version)
 
+* `pool()` accepts a named pooling scale, `transform = "log"`, `"logit"`,
+  `"cloglog"`, or `"fisherz"`, so that bounded or skewed quantities (ratios,
+  probabilities, AUC, C-index, correlations) are pooled where the normal
+  approximation behind Rubin's rules holds (Marshall et al., 2009). Variances
+  are given on the original scale and carried over with the delta method;
+  estimates, standard errors, and intervals are reported on the original
+  scale. Tidy metric rows (`metric`, `value`, `imputation`) that also carry a
+  `std.error` column are now pooled with Rubin's rules instead of the robust
+  summary, and honour `transform`. Intervals are now ordered correctly when
+  a function `transform` has a decreasing inverse.
+
 * `pool()` and `pool_survmat()` gain a `dfcom` argument (complete-data
   degrees of freedom). When supplied, Rubin pooling uses the Barnard and
   Rubin (1999) small-sample degrees of freedom, as the model poolers

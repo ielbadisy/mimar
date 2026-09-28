@@ -91,11 +91,14 @@ describes Monte Carlo spread across imputations rather than total
 uncertainty; use \code{"rubin"} whenever complete-data variances are available.
 Defaults to \code{"rubin"} when variance is available and \code{"robust"} otherwise.}
 
-\item{transform}{Optional function applied before pooling, for example
-\code{log}, \code{qlogis}, or \code{function(p) log(-log(p))}.}
+\item{transform}{Scale on which to pool. Either a named scale, one of
+\code{"identity"}, \code{"log"} (positive quantities: hazard ratios, odds ratios,
+standard deviations, times), \code{"logit"} (probabilities, AUC, C-index),
+\code{"cloglog"} (survival probabilities), or \code{"fisherz"} (correlations); or a
+function applied to each estimate before pooling. See Details.}
 
-\item{inverse}{Optional inverse transformation applied to pooled estimates
-and intervals.}
+\item{inverse}{Inverse of a function \code{transform}, applied to pooled
+estimates and interval limits. Set automatically for a named scale.}
 
 \item{conf.level}{Confidence level for interval estimates.}
 
@@ -149,6 +152,22 @@ reports robust summaries by default when no variance is supplied: median,
 interquartile range, and range across imputations. Use \code{rule = "mean"} to
 request a mean and between-imputation standard error for such metrics.
 
+Rubin's rules assume that each complete-data estimate is
+approximately normal with the supplied variance, and inference refers
+the pooled estimate to a \eqn{t} distribution. For bounded or skewed
+quantities (probabilities, AUC, C-index, correlations, ratios) that
+assumption holds far better on a transformed scale, so pool there and
+back-transform (Marshall et al., 2009). With a named \code{transform},
+\code{variance}/\code{std.error} are given on the original scale and carried to
+the pooling scale with the delta method; the reported \code{estimate},
+\code{std.error}, and interval are back on the original scale, while
+\code{statistic}, \code{p.value}, and the variance components refer to the pooling
+scale (for \code{"log"} the test is of a ratio equal to 1, for \code{"logit"} of a
+probability equal to 0.5). With a function \code{transform}, variances must
+already be on the transformed scale and \code{std.error} is reported there.
+Interval limits are ordered correctly for decreasing inverses such as
+the complementary log-log.
+
 A list is the preferred input for post-fit quantities. Use a list of
 length \code{m}, one element per imputation. Each element can be a scalar,
 vector, matrix, or array. When \code{covariance} is supplied for a list of
@@ -159,6 +178,9 @@ Data frames are accepted as a convenience adapter, but the pooled
 object is not the data frame itself. Rows must encode post-fit scalar
 quantities: \code{term}, \code{estimate}, \code{std.error}, and \code{imputation} for Rubin
 pooling, or \code{metric}, \code{value}, and \code{imputation} for metric summaries.
+Metric rows that also carry a \code{std.error} column are pooled with Rubin's
+rules (for example \code{transform = "logit"} for a C-index or AUC); without
+it they get the robust summary.
 }
 \section{Methods (by class)}{
 \itemize{
@@ -182,6 +204,10 @@ covs <- list(diag(c(0.04, 0.08)^2),
              diag(c(0.05, 0.09)^2),
              diag(c(0.04, 0.08)^2))
 pool(betas, covariance = covs)
+
+# C-index with standard errors: pool on the logit scale
+pool(c(0.71, 0.74, 0.69), std.error = c(0.020, 0.021, 0.019),
+     transform = "logit", name = "cindex")
 
 }
 \references{
