@@ -1,5 +1,14 @@
 # mimar (development version)
 
+* New `pool_test()` for pooled multi-parameter tests after multiple
+  imputation, e.g. all levels of a factor or a model against a nested one:
+  D1 (multivariate Wald, Li, Raghunathan and Rubin, 1991, with the Reiter
+  2007 small-sample df when `dfcom` is given), D2 (combined Wald or
+  likelihood-ratio chi-square statistics, Li, Meng, Raghunathan and Rubin,
+  1991), and D3 (Meng and Rubin, 1992, likelihood ratio for `lm` and
+  gaussian/binomial/poisson `glm`), each with an F reference distribution.
+  Results match `mitml::testModels()`.
+
 * `pool()` accepts a named pooling scale, `transform = "log"`, `"logit"`,
   `"cloglog"`, or `"fisherz"`, so that bounded or skewed quantities (ratios,
   probabilities, AUC, C-index, correlations) are pooled where the normal
