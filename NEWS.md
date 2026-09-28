@@ -1,4 +1,4 @@
-# mimar (development version)
+# mimar 1.3.0
 
 * New `pool_test()` for pooled multi-parameter tests after multiple
   imputation, e.g. all levels of a factor or a model against a nested one:
