@@ -13,6 +13,40 @@
   dfcom
 }
 
+.pool_links <- c("identity", "log", "logit", "cloglog", "fisherz")
+
+# Named pooling scales: forward map, inverse, and derivative dz/dq used to
+# carry original-scale variances onto the pooling scale (delta method).
+.pool_link <- function(transform = NULL, inverse = NULL) {
+  if (!is.character(transform)) {
+    return(list(name = NULL, fun = transform %||% .identity,
+                inverse = inverse %||% .identity, deriv = NULL))
+  }
+  if (length(transform) != 1L || !transform %in% .pool_links) {
+    .mimar_stop(sprintf("`transform` must be a function or one of %s.",
+                        paste0('"', .pool_links, '"', collapse = ", ")))
+  }
+  if (!is.null(inverse)) .mimar_stop("`inverse` is set automatically when `transform` is a named scale.")
+  eps <- 1e-12
+  unit <- function(p) pmin(pmax(p, eps), 1 - eps)
+  switch(transform,
+    identity = list(name = "identity", fun = .identity, inverse = .identity,
+                    deriv = function(q) rep(1, length(q))),
+    log = list(name = "log", fun = function(q) log(pmax(q, eps)), inverse = exp,
+               deriv = function(q) 1 / pmax(q, eps)),
+    logit = list(name = "logit", fun = function(q) stats::qlogis(unit(q)),
+                 inverse = stats::plogis,
+                 deriv = function(q) 1 / (unit(q) * (1 - unit(q)))),
+    cloglog = list(name = "cloglog", fun = function(q) log(-log(unit(q))),
+                   inverse = function(z) exp(-exp(z)),
+                   deriv = function(q) 1 / (unit(q) * log(unit(q)))),
+    fisherz = list(name = "fisherz",
+                   fun = function(q) atanh(pmin(pmax(q, -1 + eps), 1 - eps)),
+                   inverse = tanh,
+                   deriv = function(q) 1 / (1 - pmin(q^2, 1 - eps)))
+  )
+}
+
 .pool_scalar <- function(q, variance = NULL, std.error = NULL, name = "quantity",
                          rule = NULL, transform = NULL, inverse = NULL,
                          conf.level = 0.95, dfcom = NULL) {
@@ -21,15 +55,22 @@
   if (!is.null(std.error)) variance <- as.numeric(std.error)^2
   has_variance <- !is.null(variance)
   rule <- .pool_rule(rule, has_variance)
-  transform <- transform %||% .identity
-  inverse <- inverse %||% .identity
-  z <- transform(q)
+  link <- .pool_link(transform, inverse)
+  inverse <- link$inverse
+  z <- link$fun(q)
   m <- length(z)
+  # Back-transform an interval; a decreasing inverse (e.g. cloglog) swaps ends.
+  interval <- function(lo, hi) {
+    a <- inverse(lo)
+    b <- inverse(hi)
+    list(low = pmin(a, b), high = pmax(a, b))
+  }
 
   if (identical(rule, "rubin")) {
     if (!has_variance) .mimar_stop("Rubin pooling requires complete-data variances or standard errors.")
     u <- as.numeric(variance)
     if (length(u) != m) .mimar_stop("`variance` or `std.error` must have one value per imputation.")
+    if (!is.null(link$deriv)) u <- u * link$deriv(q)^2
     qbar <- mean(z, na.rm = TRUE)
     ubar <- mean(u, na.rm = TRUE)
     b <- stats::var(z, na.rm = TRUE)
@@ -43,15 +84,19 @@
     crit <- stats::qt(1 - alpha / 2, df = df)
     statistic <- qbar / se
     p.value <- 2 * stats::pt(abs(statistic), df = df, lower.tail = FALSE)
+    ci <- interval(qbar - crit * se, qbar + crit * se)
+    est <- inverse(qbar)
+    # Named scales report the standard error on the original scale.
+    if (!is.null(link$deriv)) se <- se / abs(link$deriv(est))
     return(data.frame(
       term = name,
-      estimate = inverse(qbar),
+      estimate = est,
       std.error = se,
       statistic = statistic,
       df = df,
       p.value = p.value,
-      conf.low = inverse(qbar - crit * se),
-      conf.high = inverse(qbar + crit * se),
+      conf.low = ci$low,
+      conf.high = ci$high,
       m = m,
       within_variance = ubar,
       between_variance = b,
@@ -68,12 +113,14 @@
     if (!is.finite(b)) b <- 0
     se <- sqrt(b / m)
     crit <- stats::qnorm(1 - (1 - conf.level) / 2)
+    ci <- interval(est - crit * se, est + crit * se)
+    if (!is.null(link$deriv)) se <- se / abs(link$deriv(inverse(est)))
     return(data.frame(
       term = name,
       estimate = inverse(est),
       std.error = se,
-      conf.low = inverse(est - crit * se),
-      conf.high = inverse(est + crit * se),
+      conf.low = ci$low,
+      conf.high = ci$high,
       m = m,
       between_variance = b,
       rule = "mean",
@@ -82,20 +129,22 @@
   }
 
   qs <- stats::quantile(z, probs = c(0.25, 0.5, 0.75), na.rm = TRUE, names = FALSE)
+  range <- interval(min(z, na.rm = TRUE), max(z, na.rm = TRUE))
+  quart <- interval(qs[[1]], qs[[3]])
   data.frame(
     term = name,
     estimate = inverse(qs[[2]]),
     std.error = NA_real_,
-    conf.low = inverse(min(z, na.rm = TRUE)),
-    conf.high = inverse(max(z, na.rm = TRUE)),
+    conf.low = range$low,
+    conf.high = range$high,
     m = m,
     mean = inverse(mean(z, na.rm = TRUE)),
     median = inverse(qs[[2]]),
-    q25 = inverse(qs[[1]]),
-    q75 = inverse(qs[[3]]),
+    q25 = quart$low,
+    q75 = quart$high,
     iqr = qs[[3]] - qs[[1]],
-    min = inverse(min(z, na.rm = TRUE)),
-    max = inverse(max(z, na.rm = TRUE)),
+    min = range$low,
+    max = range$high,
     rule = "robust",
     row.names = NULL
   )
@@ -321,10 +370,13 @@ pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
 #'   describes Monte Carlo spread across imputations rather than total
 #'   uncertainty; use `"rubin"` whenever complete-data variances are available.
 #'   Defaults to `"rubin"` when variance is available and `"robust"` otherwise.
-#' @param transform Optional function applied before pooling, for example
-#'   `log`, `qlogis`, or `function(p) log(-log(p))`.
-#' @param inverse Optional inverse transformation applied to pooled estimates
-#'   and intervals.
+#' @param transform Scale on which to pool. Either a named scale, one of
+#'   `"identity"`, `"log"` (positive quantities: hazard ratios, odds ratios,
+#'   standard deviations, times), `"logit"` (probabilities, AUC, C-index),
+#'   `"cloglog"` (survival probabilities), or `"fisherz"` (correlations); or a
+#'   function applied to each estimate before pooling. See Details.
+#' @param inverse Inverse of a function `transform`, applied to pooled
+#'   estimates and interval limits. Set automatically for a named scale.
 #' @param conf.level Confidence level for interval estimates.
 #' @param name Name of a scalar quantity.
 #' @param dfcom Optional complete-data degrees of freedom, i.e. the degrees of
@@ -355,6 +407,21 @@ pool.numeric <- function(x, variance = NULL, std.error = NULL, covariance = NULL
   out
 }
 
+#' @details Rubin's rules assume that each complete-data estimate is
+#'   approximately normal with the supplied variance, and inference refers
+#'   the pooled estimate to a \eqn{t} distribution. For bounded or skewed
+#'   quantities (probabilities, AUC, C-index, correlations, ratios) that
+#'   assumption holds far better on a transformed scale, so pool there and
+#'   back-transform (Marshall et al., 2009). With a named `transform`,
+#'   `variance`/`std.error` are given on the original scale and carried to
+#'   the pooling scale with the delta method; the reported `estimate`,
+#'   `std.error`, and interval are back on the original scale, while
+#'   `statistic`, `p.value`, and the variance components refer to the pooling
+#'   scale (for `"log"` the test is of a ratio equal to 1, for `"logit"` of a
+#'   probability equal to 0.5). With a function `transform`, variances must
+#'   already be on the transformed scale and `std.error` is reported there.
+#'   Interval limits are ordered correctly for decreasing inverses such as
+#'   the complementary log-log.
 #' @describeIn pool Pool a list of scalar, vector, matrix, or array quantities.
 #' @details A list is the preferred input for post-fit quantities. Use a list of
 #'   length `m`, one element per imputation. Each element can be a scalar,
@@ -410,6 +477,9 @@ pool.matrix <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
 #'   object is not the data frame itself. Rows must encode post-fit scalar
 #'   quantities: `term`, `estimate`, `std.error`, and `imputation` for Rubin
 #'   pooling, or `metric`, `value`, and `imputation` for metric summaries.
+#'   Metric rows that also carry a `std.error` column are pooled with Rubin's
+#'   rules (for example `transform = "logit"` for a C-index or AUC); without
+#'   it they get the robust summary.
 #' @export
 pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = NULL,
                             rule = NULL, transform = NULL, inverse = NULL,
@@ -430,7 +500,9 @@ pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = N
     spl <- split(x, x$metric)
     pooled <- .rbind_or_empty(lapply(names(spl), function(metric) {
       d <- spl[[metric]]
-      out <- .pool_scalar(d$value, name = metric, rule = rule, conf.level = conf.level)
+      out <- .pool_scalar(d$value, std.error = d$std.error, name = metric, rule = rule,
+                          transform = transform, inverse = inverse,
+                          conf.level = conf.level, dfcom = dfcom)
       names(out)[names(out) == "term"] <- "metric"
       out
     }))
