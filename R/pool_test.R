@@ -168,6 +168,8 @@
 #' @param use For D2, whether to combine Wald (`"wald"`) or
 #'   likelihood-ratio (`"likelihood"`) statistics.
 #' @param dfcom Optional complete-data degrees of freedom, used by D1 only.
+#'   For `panglm` fits, `NULL` uses the same default as [pool_panglm()]:
+#'   \eqn{G - 1} for a cluster-robust covariance, `df.residual()` otherwise.
 #' @return A `mimar_pool_test` object: a one-row table with the method,
 #'   `statistic` (the F value), `df1`, `df2`, `p.value`, relative increase in
 #'   variance `riv`, and `m`, plus the tested `terms`.
@@ -225,6 +227,11 @@ pool_test <- function(fits, fits0 = NULL, terms = NULL,
   if (needs_null && is.null(fits0)) .mimar_stop(sprintf("Method %s%s needs nested models in `fits0`.", method,
                                                         if (method == "D2") " with use = \"likelihood\"" else ""))
   if (is.null(terms)) .mimar_stop("Supply `terms` to test, or nested models in `fits0`.")
+
+  if (is.null(dfcom) && method == "D1" && inherits(fits[[1]], "panglm")) {
+    dfcom <- .panglm_dfcom(fits[[1]])
+    if (!is.finite(dfcom)) dfcom <- NULL
+  }
 
   res <- switch(method,
     D1 = {

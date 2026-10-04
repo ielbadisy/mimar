@@ -28,7 +28,9 @@ Used by D1 and Wald-based D2 when \code{fits0} is \code{NULL}.}
 \item{use}{For D2, whether to combine Wald (\code{"wald"}) or
 likelihood-ratio (\code{"likelihood"}) statistics.}
 
-\item{dfcom}{Optional complete-data degrees of freedom, used by D1 only.}
+\item{dfcom}{Optional complete-data degrees of freedom, used by D1 only.
+For \code{panglm} fits, \code{NULL} uses the same default as \code{\link[=pool_panglm]{pool_panglm()}}:
+\eqn{G - 1} for a cluster-robust covariance, \code{df.residual()} otherwise.}
 }
 \value{
 A \code{mimar_pool_test} object: a one-row table with the method,
