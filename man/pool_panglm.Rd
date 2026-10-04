@@ -4,15 +4,18 @@
 \alias{pool_panglm}
 \title{Pool panel (panglm) models across imputations}
 \usage{
-pool_panglm(fits, conf.level = 0.95, ...)
+pool_panglm(fits, conf.level = 0.95, dfcom = NULL, ...)
 }
 \arguments{
 \item{fits}{A list of \code{panglm} model fits, one per completed data set,
-fitted with the same formula and the same \code{model}/\code{effect}/\code{family}
-settings (identical coefficient names and order).}
+fitted with the same formula and the same \code{model}/\code{effect}/\code{family}/
+\code{vcov} settings (identical coefficient names and order).}
 
 \item{conf.level}{Confidence level; currently only used for internal
 pooled-quantity computation, not printed by default.}
+
+\item{dfcom}{Optional complete-data degrees of freedom. \code{NULL} (default)
+uses \eqn{G - 1} for cluster-robust fits and \code{df.residual()} otherwise.}
 
 \item{...}{Currently unused.}
 }
@@ -25,33 +28,33 @@ A \code{mimar_pool_panglm} object with a pooled \code{coefficients} table.
 \code{complete(x, "all")}), using Rubin's rules. The printed output mirrors
 \code{\link[=pool_glm]{pool_glm()}}'s coefficient table (\code{Estimate}, \verb{Std. Error}, test
 statistic, p-value), with an added \code{df} column for the pooled
-(Barnard-Rubin) degrees of freedom, using \code{df.residual()} of a single fit
-as the complete-data df. As with \code{\link[=pool_glm]{pool_glm()}}, the reference distribution
-is Student's \eqn{t} throughout; the printed statistic is labelled
-\verb{t value} for the gaussian family and \verb{z value} otherwise. All fits must
-share the same \code{panglm} estimator settings (\code{model}, \code{effect}, \code{family})
-as well as the same formula, since these determine what the pooled
-coefficients represent; \code{pool_panglm()} warns if the fits disagree on
-\code{model}/\code{effect}/\code{family} but does not block pooling; it does not
-aggregate across imputations. Random-effects (\code{model = "random"}) fits
-typically do not return a \code{df.residual()} value (no full likelihood is
-computed for that estimator), in which case the pooled df falls back to
-\code{NA} and inference uses a normal reference distribution; pooling
-\code{model = "pooling"} or \code{model = "within"} fits, which do return a
-complete-data df, is recommended when the Barnard-Rubin correction is
-wanted.
+(Barnard-Rubin) degrees of freedom. As with \code{\link[=pool_glm]{pool_glm()}}, the reference
+distribution is Student's \eqn{t} throughout; the printed statistic is
+labelled \verb{t value} for the gaussian family and \verb{z value} otherwise.
 }
 \details{
-For term \eqn{j}, let \eqn{\hat\beta_{jk}} and \eqn{U_{jk} = \widehat{\mathrm{Var}}(\hat\beta_{jk})}
-be the coefficient and its model-based variance from the fit on completed
-data set \eqn{k = 1,\ldots,m}. Rubin's rules give the pooled coefficient
-\eqn{\bar\beta_j = m^{-1}\sum_k \hat\beta_{jk}}, within-imputation variance
-\eqn{\bar U_j = m^{-1}\sum_k U_{jk}}, between-imputation variance
-\eqn{B_j = (m-1)^{-1}\sum_k (\hat\beta_{jk} - \bar\beta_j)^2}, and total
-variance \eqn{T_j = \bar U_j + (1+m^{-1})B_j}. Inference uses a \eqn{t}
-reference distribution with Barnard-Rubin degrees of freedom. Hazard
-ratios are obtained by exponentiating the pooled coefficient and its
-confidence limits.
+The within-imputation variance is the covariance each fit carries
+(\code{vcov(fit)}, set by the \code{vcov} argument of \code{panglm::panglm()}). The
+complete-data df must match that covariance. By default it is
+\eqn{G - 1} (\eqn{G} panel individuals) for a cluster-robust covariance,
+the usual reference for cluster-robust inference, and \code{df.residual()} of
+the first fit otherwise (for a within fit, \eqn{NT - N - K}). Supply
+\code{dfcom} to override it. When no complete-data df is available (random
+effects fits have no \code{df.residual()}), Rubin's (1987) large-sample df is
+used.
+
+All fits must share the same formula and the same \code{panglm} settings
+(\code{model}, \code{effect}, \code{family}, \code{vcov_type}), since these determine what the
+pooled coefficients represent; \code{pool_panglm()} warns if they differ.
+
+Rubin's rules are valid only if the imputation model is at least as rich
+as the analysis model. For \code{model = "within"} or \code{"random"} analyses,
+imputing a time-varying variable with a single-level ("flat") imputation
+model that ignores the panel structure biases the within coefficient
+toward the between association and makes the fixed- versus
+random-effects contrast spurious; impute with a model that includes the
+panel structure (for example individual indicators or a random
+intercept).
 }
 \examples{
 \donttest{

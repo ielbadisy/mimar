@@ -327,6 +327,13 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
   invisible(x)
 }
 
+# Complete-data df matching the covariance a panglm fit carries: G - 1 for a
+# cluster-robust covariance (G panel individuals), df.residual() otherwise.
+.panglm_dfcom <- function(fit) {
+  if (identical(fit$vcov_type, "cluster") && is.numeric(fit$n_groups)) return(fit$n_groups - 1)
+  tryCatch(stats::df.residual(fit), error = function(e) NA_real_) %||% NA_real_
+}
+
 #' Pool panel (panglm) models across imputations
 #'
 #' `pool_panglm()` combines a list of `panglm` panel-data model fits (see the
@@ -334,28 +341,41 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' `complete(x, "all")`), using Rubin's rules. The printed output mirrors
 #' [pool_glm()]'s coefficient table (`Estimate`, `Std. Error`, test
 #' statistic, p-value), with an added `df` column for the pooled
-#' (Barnard-Rubin) degrees of freedom, using `df.residual()` of a single fit
-#' as the complete-data df. As with [pool_glm()], the reference distribution
-#' is Student's \eqn{t} throughout; the printed statistic is labelled
-#' `t value` for the gaussian family and `z value` otherwise. All fits must
-#' share the same `panglm` estimator settings (`model`, `effect`, `family`)
-#' as well as the same formula, since these determine what the pooled
-#' coefficients represent; `pool_panglm()` warns if the fits disagree on
-#' `model`/`effect`/`family` but does not block pooling; it does not
-#' aggregate across imputations. Random-effects (`model = "random"`) fits
-#' typically do not return a `df.residual()` value (no full likelihood is
-#' computed for that estimator), in which case the pooled df falls back to
-#' `NA` and inference uses a normal reference distribution; pooling
-#' `model = "pooling"` or `model = "within"` fits, which do return a
-#' complete-data df, is recommended when the Barnard-Rubin correction is
-#' wanted.
+#' (Barnard-Rubin) degrees of freedom. As with [pool_glm()], the reference
+#' distribution is Student's \eqn{t} throughout; the printed statistic is
+#' labelled `t value` for the gaussian family and `z value` otherwise.
+#'
+#' The within-imputation variance is the covariance each fit carries
+#' (`vcov(fit)`, set by the `vcov` argument of `panglm::panglm()`). The
+#' complete-data df must match that covariance. By default it is
+#' \eqn{G - 1} (\eqn{G} panel individuals) for a cluster-robust covariance,
+#' the usual reference for cluster-robust inference, and `df.residual()` of
+#' the first fit otherwise (for a within fit, \eqn{NT - N - K}). Supply
+#' `dfcom` to override it. When no complete-data df is available (random
+#' effects fits have no `df.residual()`), Rubin's (1987) large-sample df is
+#' used.
+#'
+#' All fits must share the same formula and the same `panglm` settings
+#' (`model`, `effect`, `family`, `vcov_type`), since these determine what the
+#' pooled coefficients represent; `pool_panglm()` warns if they differ.
+#'
+#' Rubin's rules are valid only if the imputation model is at least as rich
+#' as the analysis model. For `model = "within"` or `"random"` analyses,
+#' imputing a time-varying variable with a single-level ("flat") imputation
+#' model that ignores the panel structure biases the within coefficient
+#' toward the between association and makes the fixed- versus
+#' random-effects contrast spurious; impute with a model that includes the
+#' panel structure (for example individual indicators or a random
+#' intercept).
 #'
 #' @inherit pool_coxph details
 #' @param fits A list of `panglm` model fits, one per completed data set,
-#'   fitted with the same formula and the same `model`/`effect`/`family`
-#'   settings (identical coefficient names and order).
+#'   fitted with the same formula and the same `model`/`effect`/`family`/
+#'   `vcov` settings (identical coefficient names and order).
 #' @param conf.level Confidence level; currently only used for internal
 #'   pooled-quantity computation, not printed by default.
+#' @param dfcom Optional complete-data degrees of freedom. `NULL` (default)
+#'   uses \eqn{G - 1} for cluster-robust fits and `df.residual()` otherwise.
 #' @param ... Currently unused.
 #' @return A `mimar_pool_panglm` object with a pooled `coefficients` table.
 #' @seealso [pool_glm()], [pool_lm()], [pool_coxph()], [pool()]
@@ -374,19 +394,20 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' }
 #' }
 #' @export
-pool_panglm <- function(fits, conf.level = 0.95, ...) {
+pool_panglm <- function(fits, conf.level = 0.95, dfcom = NULL, ...) {
   .pool_model_check_fits(fits, "panglm")
+  dfcom <- .check_dfcom(dfcom)
   ex <- .pool_model_extract(fits)
   pooled <- .pool_model_terms(ex$coefs, ex$vars, ex$term_names, conf.level)
 
-  settings <- lapply(fits, function(f) f[c("model", "effect", "family")])
+  settings <- lapply(fits, function(f) f[c("model", "effect", "family", "vcov_type")])
   same_settings <- vapply(settings[-1], identical, logical(1), y = settings[[1]])
   if (length(same_settings) && !all(same_settings)) {
-    warning("Fitted `panglm` models do not all share the same model/effect/family settings; ",
+    warning("Fitted `panglm` models do not all share the same model/effect/family/vcov settings; ",
             "pooled coefficients may not be comparable across imputations.", call. = FALSE)
   }
 
-  dfcom <- tryCatch(stats::df.residual(fits[[1]]), error = function(e) NA_real_)
+  if (is.null(dfcom)) dfcom <- .panglm_dfcom(fits[[1]])
   pooled <- .pool_model_apply_dfcom(pooled, dfcom, ex$m, conf.level)
 
   fam <- tryCatch(fits[[1]]$family$family, error = function(e) "gaussian")
@@ -415,7 +436,7 @@ pool_panglm <- function(fits, conf.level = 0.95, ...) {
     model = tryCatch(fits[[1]]$model, error = function(e) NA_character_),
     effect = tryCatch(fits[[1]]$effect, error = function(e) NA_character_),
     family = fam,
-    conf.level = conf.level
+    conf.level = conf.level, dfcom = dfcom
   )
   class(out) <- c("mimar_pool_panglm", "list")
   out
