@@ -1,3 +1,22 @@
+# mimar 1.4.0
+
+* Bug fix: `pool_panglm()` used `df.residual()` as the complete-data df
+  whatever covariance the fits carried. For cluster-robust fits
+  (`panglm(..., vcov = "cluster")`) that is the classical \eqn{NT - N - K},
+  which overstates the Barnard-Rubin df and narrows intervals when the
+  number of panel individuals \eqn{G} is small. The default is now
+  \eqn{G - 1} for cluster-robust fits and `df.residual()` otherwise, and the
+  new `dfcom` argument overrides it. The value used is returned as `dfcom`.
+* `pool_test()` with `method = "D1"` on `panglm` fits uses the same default
+  complete-data df when `dfcom` is `NULL`.
+* `pool_panglm()` also warns when the fits differ in covariance type, and
+  its documentation states that a single-level imputation model is not
+  valid for within or random-effects analyses.
+* Bug fix: a predictor named `y` collided with the internal response name of
+  the regression-based imputers (`norm`, `pmm`, `logreg`, `polyreg`,
+  `ranger`, `rpart`, `naive_bayes`, `svm`) and was silently dropped from the
+  imputation model. The internal response is now `.mimar_y`.
+
 # mimar 1.3.0
 
 * New `pool_test()` for pooled multi-parameter tests after multiple
