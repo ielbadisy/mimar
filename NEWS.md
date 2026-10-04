@@ -2,10 +2,10 @@
 
 * Bug fix: `pool_panglm()` used `df.residual()` as the complete-data df
   whatever covariance the fits carried. For cluster-robust fits
-  (`panglm(..., vcov = "cluster")`) that is the classical \eqn{NT - N - K},
+  (`panglm(..., vcov = "cluster")`) that is the classical NT - N - K,
   which overstates the Barnard-Rubin df and narrows intervals when the
-  number of panel individuals \eqn{G} is small. The default is now
-  \eqn{G - 1} for cluster-robust fits and `df.residual()` otherwise, and the
+  number of panel individuals G is small. The default is now
+  G - 1 for cluster-robust fits and `df.residual()` otherwise, and the
   new `dfcom` argument overrides it. The value used is returned as `dfcom`.
 * `pool_test()` with `method = "D1"` on `panglm` fits uses the same default
   complete-data df when `dfcom` is `NULL`.
