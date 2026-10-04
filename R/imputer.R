@@ -235,8 +235,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .fit_linear_imputer <- function(object, x, y, target, variable, donors) {
-  dat <- data.frame(y = .target_to_numeric(y), .model_predictors(x), check.names = FALSE)
-  fitted <- try(suppressWarnings(stats::lm(y ~ ., data = dat)), silent = TRUE)
+  dat <- data.frame(.mimar_y = .target_to_numeric(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(suppressWarnings(stats::lm(.mimar_y ~ ., data = dat)), silent = TRUE)
   if (inherits(fitted, "try-error")) .mimar_stop("Could not fit imputer '", object$method, "' for variable '", variable, "'.")
   resid_sd <- stats::sd(stats::residuals(fitted), na.rm = TRUE)
   if (!is.finite(resid_sd)) resid_sd <- 0
@@ -249,8 +249,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   y_fac <- factor(y)
   if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
   if (nlevels(y_fac) != 2) .mimar_stop("Imputer 'logreg' requires binary target variable '", variable, "'.")
-  dat <- data.frame(y = y_fac, .model_predictors(x), check.names = FALSE)
-  fitted <- try(suppressWarnings(stats::glm(y ~ ., data = dat, family = stats::binomial())), silent = TRUE)
+  dat <- data.frame(.mimar_y = y_fac, .model_predictors(x), check.names = FALSE)
+  fitted <- try(suppressWarnings(stats::glm(.mimar_y ~ ., data = dat, family = stats::binomial())), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
   structure(list(imputer = object, fit = fitted, levels = levels(y_fac), y = y, target = target),
             class = c("mimar_imputer_fit", "list"))
@@ -260,11 +260,11 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   y_fac <- factor(y)
   if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
   if (nlevels(factor(target)) < 3) .mimar_stop("Imputer 'polyreg' requires a multiclass target variable '", variable, "'.")
-  dat <- data.frame(y = y_fac, .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = y_fac, .model_predictors(x), check.names = FALSE)
   fits <- lapply(levels(y_fac), function(lvl) {
     dat_lvl <- dat
-    dat_lvl$y <- as.integer(y_fac == lvl)
-    try(suppressWarnings(stats::glm(y ~ ., data = dat_lvl, family = stats::binomial())), silent = TRUE)
+    dat_lvl$.mimar_y <- as.integer(y_fac == lvl)
+    try(suppressWarnings(stats::glm(.mimar_y ~ ., data = dat_lvl, family = stats::binomial())), silent = TRUE)
   })
   if (any(vapply(fits, inherits, logical(1), "try-error"))) {
     return(.fit_constant_imputer(object, .mode_value(target), target))
@@ -311,9 +311,9 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .fit_ranger_imputer <- function(object, x, y, target, variable, num.trees = 100, ...) {
   .require_backend("ranger", object$method)
-  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = .model_target(y), .model_predictors(x), check.names = FALSE)
   task <- .target_task(target)
-  fitted <- try(suppressWarnings(ranger::ranger(y ~ ., data = dat, num.trees = num.trees,
+  fitted <- try(suppressWarnings(ranger::ranger(.mimar_y ~ ., data = dat, num.trees = num.trees,
                                                 probability = task != "numeric", ...)),
                 silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
@@ -332,9 +332,9 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .fit_rpart_imputer <- function(object, x, y, target, variable, ...) {
   .require_backend("rpart", object$method)
-  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = .model_target(y), .model_predictors(x), check.names = FALSE)
   method <- if (.target_task(target) == "numeric") "anova" else "class"
-  fitted <- try(rpart::rpart(y ~ ., data = dat, method = method, ...), silent = TRUE)
+  fitted <- try(rpart::rpart(.mimar_y ~ ., data = dat, method = method, ...), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
   structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
             class = c("mimar_imputer_fit", "list"))
@@ -348,15 +348,15 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
                                      na.rm = TRUE, names = FALSE))
     if (length(breaks) < 3) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
     y_bin <- cut(as.numeric(y), breaks = breaks, include.lowest = TRUE, ordered_result = TRUE)
-    dat <- data.frame(y = y_bin, .model_predictors(x), check.names = FALSE)
-    fitted <- try(suppressWarnings(naivebayes::naive_bayes(y ~ ., data = dat, ...)), silent = TRUE)
+    dat <- data.frame(.mimar_y = y_bin, .model_predictors(x), check.names = FALSE)
+    fitted <- try(suppressWarnings(naivebayes::naive_bayes(.mimar_y ~ ., data = dat, ...)), silent = TRUE)
     if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
     return(structure(list(imputer = object, fit = fitted, target = target, task = task,
                           y = y, y_bin = y_bin, levels = levels(y_bin)),
                      class = c("mimar_imputer_fit", "list")))
   }
-  dat <- data.frame(y = factor(y), .model_predictors(x), check.names = FALSE)
-  fitted <- try(suppressWarnings(naivebayes::naive_bayes(y ~ ., data = dat, ...)), silent = TRUE)
+  dat <- data.frame(.mimar_y = factor(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(suppressWarnings(naivebayes::naive_bayes(.mimar_y ~ ., data = dat, ...)), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
   structure(list(imputer = object, fit = fitted, target = target, task = task),
             class = c("mimar_imputer_fit", "list"))
@@ -364,8 +364,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .fit_svm_imputer <- function(object, x, y, target, variable, ...) {
   .require_backend("e1071", object$method)
-  dat <- data.frame(y = .model_target(y), .model_predictors(x), check.names = FALSE)
-  fitted <- try(e1071::svm(y ~ ., data = dat, probability = .target_task(target) != "numeric", ...), silent = TRUE)
+  dat <- data.frame(.mimar_y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(e1071::svm(.mimar_y ~ ., data = dat, probability = .target_task(target) != "numeric", ...), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
   structure(list(imputer = object, fit = fitted, target = target, task = .target_task(target)),
             class = c("mimar_imputer_fit", "list"))
