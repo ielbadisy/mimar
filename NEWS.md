@@ -1,3 +1,9 @@
+# mimar 1.4.2
+
+* `impute(imputer = "missknn")` works with missknn 1.2.0, which returns the
+  completed data directly instead of a `missknn` object; earlier missknn
+  versions keep working.
+
 # mimar 1.4.1
 
 * Bug fix: `impute(imputer = "polyreg")` failed with "'x' must be an array
