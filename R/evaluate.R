@@ -60,11 +60,11 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
       }))
     }))
     if (nrow(recovery_by_imputation)) {
-      rbi_df <- as.data.frame(recovery_by_imputation)
-      recovery <- stats::aggregate(
-        rbi_df[c("rmse", "mae", "bias", "correlation", "accuracy", "balanced_accuracy")],
-        rbi_df[c("variable", "type")],
-        function(z) mean(z, na.rm = TRUE)
+      recovery <- basetable::aggregate(
+        recovery_by_imputation,
+        by = c("variable", "type"),
+        value = c("rmse", "mae", "bias", "correlation", "accuracy", "balanced_accuracy"),
+        fun = function(z) mean(z, na.rm = TRUE)
       )
       recovery <- .as_dt(recovery)
     }
