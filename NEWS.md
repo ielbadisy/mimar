@@ -3,6 +3,12 @@
 * `impute(imputer = "missknn")` works with missknn 1.2.0, which returns the
   completed data directly instead of a `missknn` object; earlier missknn
   versions keep working.
+* Grouped summaries and joins now use `basetable` (>= 1.4.2): the
+  `evaluate()` recovery table (`basetable::aggregate()`), the proportion plot
+  data (`basetable::count()` and `basetable::merge()`), and tabular
+  `pool()` (`basetable::split()`). Pooled terms and metrics now keep their
+  input order instead of being sorted alphabetically, and the recovery table
+  is ordered by variable.
 
 # mimar 1.4.1
 
