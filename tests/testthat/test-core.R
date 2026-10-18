@@ -258,6 +258,17 @@ test_that("all registered imputers run on numeric, categorical, and mixed data f
   }
 })
 
+test_that("polyreg imputes a multiclass factor with a single missing value", {
+  set.seed(1)
+  d <- data.frame(a = rnorm(60), b = rnorm(60),
+                  f = factor(sample(c("x", "y", "z"), 60, TRUE)))
+  d$f[5] <- NA
+  out <- impute(d, m = 1, imputer = "polyreg", seed = 1)
+  done <- complete(out, 1)
+  expect_false(anyNA(done$f))
+  expect_true(as.character(done$f[5]) %in% levels(d$f))
+})
+
 test_that("evaluate uses amputation truth", {
   dat <- data.frame(a = rnorm(50), b = factor(sample(c("x", "y"), 50, TRUE)))
   a <- ampute(dat, prop = .2, mechanism = "MCAR", seed = 1)

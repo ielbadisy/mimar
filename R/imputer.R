@@ -302,6 +302,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   probs <- vapply(object$fits, function(mod) {
     suppressWarnings(stats::predict(mod, newdata = xnew, type = "response"))
   }, numeric(nrow(xnew)))
+  # vapply drops to a vector when there is a single row to impute
+  probs <- matrix(probs, nrow = nrow(xnew))
   probs[!is.finite(probs)] <- 0
   zero_rows <- rowSums(probs) <= .Machine$double.eps
   if (any(zero_rows)) probs[zero_rows, ] <- 1 / length(object$levels)

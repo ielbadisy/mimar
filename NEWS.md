@@ -1,3 +1,9 @@
+# mimar 1.4.1
+
+* Bug fix: `impute(imputer = "polyreg")` failed with "'x' must be an array
+  of at least two dimensions" when a multiclass factor had exactly one
+  missing value.
+
 # mimar 1.4.0
 
 * Bug fix: `pool_panglm()` used `df.residual()` as the complete-data df
