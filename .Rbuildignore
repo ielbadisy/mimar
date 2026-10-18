@@ -13,3 +13,4 @@
 ^\.git$
 ^\.gitignore$
 ^R/\.Rhistory$
+^\.github$
