@@ -351,14 +351,10 @@ plot.mimar_evaluation <- function(x, ...) {
     .rbind_or_empty(list(obs, imp))
   }))
   if (!nrow(raw)) return(raw)
-  raw_df <- as.data.frame(raw)
-  counts <- stats::aggregate(list(n = rep(1L, nrow(raw_df))),
-                             raw_df[c("variable", "panel", "imputation", "value")],
-                             sum)
-  totals <- stats::aggregate(list(total = counts$n),
-                             counts[c("variable", "panel", "imputation")],
-                             sum)
-  out <- merge(counts, totals, by = c("variable", "panel", "imputation"), all.x = TRUE)
+  keys <- c("variable", "panel", "imputation")
+  counts <- basetable::count(raw, by = c(keys, "value"), name = "n")
+  totals <- basetable::count(raw, by = keys, name = "total")
+  out <- basetable::merge(counts, totals, by = keys, all.x = TRUE)
   out$proportion <- out$n / out$total
   .as_dt(out)
 }
