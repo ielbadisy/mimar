@@ -110,7 +110,15 @@
     ))
   }
   fitted <- do.call(missknn::missknn, c(list(data = x, k = k, m = m, seed = seed), args))
-  imputations <- if (m == 1L) list(fitted$completed) else fitted$imputations
+  # missknn >= 1.2.0 returns the completed data (a data.frame, or a list of
+  # them when m > 1); earlier versions return a `missknn` object.
+  imputations <- if (inherits(fitted, "missknn")) {
+    if (m == 1L) list(fitted$completed) else fitted$imputations
+  } else if (is.data.frame(fitted)) {
+    list(fitted)
+  } else {
+    unclass(fitted)
+  }
   imputations <- lapply(imputations, as.data.frame)
   if (verbose) {
     .mimar_progress(sprintf(

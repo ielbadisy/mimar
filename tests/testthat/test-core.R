@@ -187,6 +187,21 @@ test_that("densemlp imputer fits/predicts through the standard chained loop", {
   expect_equal(imputer("densemlp")$package, "densemlp")
 })
 
+test_that("missknn imputer returns completed data for m = 1 and m > 1", {
+  skip_if_not_installed("missknn")
+  set.seed(4)
+  dat <- data.frame(a = rnorm(40), b = rnorm(40), g = factor(sample(c("u", "v"), 40, TRUE)))
+  dat$a[1:5] <- NA; dat$g[6:9] <- NA
+  for (m in c(1L, 3L)) {
+    imp <- impute(dat, m = m, imputer = "missknn", k = 3, seed = 1)
+    expect_length(imp$imputations, m)
+    for (d in imp$imputations) {
+      expect_s3_class(d, "data.frame")
+      expect_false(anyNA(d))
+    }
+  }
+})
+
 test_that("missknn imputer bypasses the chained loop as a whole-table strategy", {
   skip_if_not_installed("missknn")
   dat <- data.frame(
