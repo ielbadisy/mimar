@@ -36,8 +36,6 @@ Suggests:
     rmarkdown,
     pkgload,
     survival,
-    panglm
-Remotes:
-    ielbadisy/panglm
+    panglm (>= 1.1.4)
 Config/testthat/edition: 3
 VignetteBuilder: knitr
