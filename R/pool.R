@@ -487,7 +487,7 @@ pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = N
   x <- as.data.frame(x)
   dfcom <- .check_dfcom(dfcom)
   if (all(c("term", "estimate", "std.error", "imputation") %in% names(x))) {
-    spl <- split(x, x$term)
+    spl <- basetable::split(x, by = "term")
     pooled <- .rbind_or_empty(lapply(names(spl), function(term) {
       d <- spl[[term]]
       .pool_scalar(d$estimate, std.error = d$std.error, name = term, rule = rule,
@@ -497,7 +497,7 @@ pool.data.frame <- function(x, variance = NULL, std.error = NULL, covariance = N
     out <- list(call = match.call(), pooled = pooled, estimate = pooled$estimate,
                 type = "tidy_scalar", data = .as_dt(x))
   } else if (all(c("metric", "value", "imputation") %in% names(x))) {
-    spl <- split(x, x$metric)
+    spl <- basetable::split(x, by = "metric")
     pooled <- .rbind_or_empty(lapply(names(spl), function(metric) {
       d <- spl[[metric]]
       out <- .pool_scalar(d$value, std.error = d$std.error, name = metric, rule = rule,
