@@ -378,8 +378,13 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   task <- .target_task(target)
   x_mat <- .model_matrix(x)
   if (task == "numeric") {
-    fitted <- try(BART::wbart(x.train = x_mat, y.train = as.numeric(y), verbose = FALSE,
-                              rm.const = rm.const, ...), silent = TRUE)
+    fitted <- try({
+      utils::capture.output(
+        out <- BART::wbart(x.train = x_mat, y.train = as.numeric(y),
+                           printevery = 100000L, rm.const = rm.const, ...)
+      )
+      out
+    }, silent = TRUE)
     if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
     return(structure(list(imputer = object, fit = fitted, target = target, task = task,
                           x_cols = colnames(x_mat), x_levels = .predictor_levels(x)),
@@ -646,8 +651,9 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 .predict_bart_imputer <- function(object, newdata) {
   x_mat <- .model_matrix_align(newdata, object$x_cols)
   if (object$task == "numeric") {
-    pred <- stats::predict(object$fit, newdata = x_mat)$yhat.test.mean
-    return(as.numeric(pred))
+    # predict.wbart returns posterior draws (ndpost x n); impute the posterior mean.
+    utils::capture.output(pred <- stats::predict(object$fit, newdata = x_mat))
+    return(as.numeric(colMeans(pred)))
   }
   probs_pos <- sapply(object$fit, function(fit) {
     pred <- try(utils::capture.output(out <- stats::predict(fit, x_mat)), silent = TRUE)
