@@ -235,7 +235,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .fit_linear_imputer <- function(object, x, y, target, variable, donors) {
-  dat <- data.frame(.mimar_y = .target_to_numeric(y), .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = .target_to_numeric(y), .fit_predictors(x), check.names = FALSE)
   fitted <- try(suppressWarnings(stats::lm(.mimar_y ~ ., data = dat)), silent = TRUE)
   if (inherits(fitted, "try-error")) .mimar_stop("Could not fit imputer '", object$method, "' for variable '", variable, "'.")
   resid_sd <- stats::sd(stats::residuals(fitted), na.rm = TRUE)
@@ -249,7 +249,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   y_fac <- factor(y)
   if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
   if (nlevels(y_fac) != 2) .mimar_stop("Imputer 'logreg' requires binary target variable '", variable, "'.")
-  dat <- data.frame(.mimar_y = y_fac, .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = y_fac, .fit_predictors(x), check.names = FALSE)
   fitted <- try(suppressWarnings(stats::glm(.mimar_y ~ ., data = dat, family = stats::binomial())), silent = TRUE)
   if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .mode_value(target), target))
   structure(list(imputer = object, fit = fitted, levels = levels(y_fac), y = y, target = target),
@@ -260,7 +260,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   y_fac <- factor(y)
   if (nlevels(y_fac) < 2) return(.fit_constant_imputer(object, .mode_value(target), target))
   if (nlevels(factor(target)) < 3) .mimar_stop("Imputer 'polyreg' requires a multiclass target variable '", variable, "'.")
-  dat <- data.frame(.mimar_y = y_fac, .model_predictors(x), check.names = FALSE)
+  dat <- data.frame(.mimar_y = y_fac, .fit_predictors(x), check.names = FALSE)
   fits <- lapply(levels(y_fac), function(lvl) {
     dat_lvl <- dat
     dat_lvl$.mimar_y <- as.integer(y_fac == lvl)
@@ -732,6 +732,18 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     if (inherits(out[[nm]], "Date")) out[[nm]] <- as.numeric(out[[nm]])
   }
   out
+}
+
+# Predictors for a regression fit: factors with fewer than two levels and
+# constant columns among the fitting rows carry no information and would make
+# lm()/glm() fail, so they are dropped.
+.fit_predictors <- function(x) {
+  out <- .model_predictors(x)
+  keep <- vapply(out, function(v) {
+    if (is.factor(v)) return(nlevels(droplevels(v)) >= 2)
+    length(unique(v[!is.na(v)])) >= 2
+  }, logical(1))
+  out[keep]
 }
 
 # Factor levels absent from the rows used to fit a regression imputer are
