@@ -274,13 +274,13 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_linear_imputer <- function(object, newdata, stochastic) {
-  pred <- suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata)))
+  pred <- suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)))
   if (stochastic) pred <- pred + stats::rnorm(length(pred), sd = object$resid_sd)
   pred
 }
 
 .predict_pmm_imputer <- function(object, newdata) {
-  pred_mis <- suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata)))
+  pred_mis <- suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)))
   sapply(pred_mis, function(pm) {
     d <- abs(object$fitted - pm)
     take <- order(d)[seq_len(min(object$donors, length(d)))]
@@ -289,7 +289,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_logreg_imputer <- function(object, newdata) {
-  prob <- suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata), type = "response"))
+  prob <- suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata), type = "response"))
   fallback <- mean(as.character(object$y) == object$levels[2], na.rm = TRUE)
   if (!is.finite(fallback)) fallback <- 0.5
   prob[!is.finite(prob)] <- fallback
@@ -624,7 +624,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 
 .predict_generic_model_imputer <- function(object, newdata) {
   if (object$imputer$method == "nbayes" && object$task == "numeric") {
-    pred_bin <- try(stats::predict(object$fit, newdata = .model_predictors(newdata)), silent = TRUE)
+    pred_bin <- try(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)), silent = TRUE)
     if (inherits(pred_bin, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
     pred_bin <- as.character(pred_bin)
     return(vapply(pred_bin, function(bin) {
@@ -634,7 +634,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
       sample(donors, 1)
     }, numeric(1)))
   } else if (object$imputer$method == "nbayes") {
-    pred <- try(stats::predict(object$fit, newdata = .model_predictors(newdata)), silent = TRUE)
+    pred <- try(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)), silent = TRUE)
     if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
     return(as.character(pred))
   }
@@ -643,7 +643,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
     return(as.character(pred))
   }
-  pred <- try(suppressWarnings(stats::predict(object$fit, newdata = .model_predictors(newdata))), silent = TRUE)
+  pred <- try(suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata))), silent = TRUE)
   if (inherits(pred, "try-error")) return(rep(.simple_fill_value(object$target), nrow(newdata)))
   .as_prediction_vector(pred)
 }
@@ -732,6 +732,19 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     if (inherits(out[[nm]], "Date")) out[[nm]] <- as.numeric(out[[nm]])
   }
   out
+}
+
+# Factor levels absent from the rows used to fit a regression imputer are
+# mapped to the reference level so that prediction does not fail.
+.align_xlevels <- function(fit, newdata) {
+  nd <- .model_predictors(newdata)
+  xl <- fit$xlevels
+  for (v in intersect(names(xl), names(nd))) {
+    val <- as.character(nd[[v]])
+    val[!is.na(val) & !val %in% xl[[v]]] <- xl[[v]][1]
+    nd[[v]] <- factor(val, levels = xl[[v]])
+  }
+  nd
 }
 
 .model_matrix <- function(x) {
