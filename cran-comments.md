@@ -1,32 +1,24 @@
+## Update submission (1.0.0 -> 1.4.2)
+
+This update adds model poolers (`pool_lm()`, `pool_glm()`, `pool_coxph()`,
+`pool_survreg()`, `pool_clogit()`, `pool_panglm()`), pooled multi-parameter
+tests (`pool_test()`, D1/D2/D3), named pooling scales and a `dfcom` argument
+in `pool()`, the `nelsonaalen()` and `ipcw()` helpers, and replaces the `gbm`
+imputer with `fastgbm`. Tabular results now use `basetable`. See NEWS.md.
+
+The `missknn` imputer works with both the current CRAN missknn (1.1.2) and
+the upcoming missknn 1.2.0, which changes its return value. missknn 1.2.0
+will be submitted after this version is on CRAN, so that the CRAN version of
+mimar keeps working.
+
 ## Test environments
 
-* Local Ubuntu 24.04.3 LTS, R 4.5.1
-
-## Submission notes
-
-This is an update from the CRAN-published 1.0.0 to 1.2.0.
-
-* Replaced the `gbm` imputer with `fastgbm` (compiled GBM, native
-  regression/binary/multiclass objective inference); `gbm` dropped from
-  `Imports`.
-* Added `nelsonaalen()` and `ipcw()` (`R/survival_prep.R`) — predictors to
-  use in place of raw survival time/censoring when imputing covariates
-  (White & Royston 2009); verified against `mice::nelsonaalen()`.
-* Added `pool_panglm()`, in the style of the existing `pool_*()` family,
-  for pooling `panglm` panel-data model fits across imputations.
-* Migrated the internal `.as_dt()`/`.rbind_or_empty()` row-binding helpers
-  from `data.table` to `basetable::rbindfill()`; `data.table` dropped from
-  `Imports` entirely, `basetable (>= 1.4.0)` added (needs `as_basetable()`,
-  now on CRAN).
-* `densemlp` and `fastgbm`, both hard `Imports`, are now themselves on
-  CRAN (they were GitHub-only when 1.1.0/1.2.0 were developed, which is
-  why this resubmission is only happening now).
+* Local: Ubuntu 24.04, R 4.5.1
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
+0 errors | 0 warnings | 0 notes
 
-* "Suggests or Enhances not in mainstream repositories: panglm" —
-  `pool_panglm()` is the only function that uses `panglm` (GitHub-only),
-  guarded by `requireNamespace("panglm")`; it is `Suggests`, not
-  `Imports`, for exactly this reason.
+## Reverse dependencies
+
+missknn (Suggests). Its checks pass with this version.
