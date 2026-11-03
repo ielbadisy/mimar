@@ -4,6 +4,15 @@ output:
     html_preview: false
 ---
 
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
 # mimar
 
 [![CRAN status](https://www.r-pkg.org/badges/version/mimar)](https://CRAN.R-project.org/package=mimar)
@@ -62,6 +71,10 @@ contain `NA`, and the completed outputs returned by `complete()` do not.
 Set `verbose = TRUE` when you want a concise progress log for the chained
 imputation workflow.
 
+Tabular results (`describe()`, `complete()`, `evaluate()`, `pool()`,
+`imputer_registry()`) are returned as `basetable` objects, which behave like
+data frames.
+
 ```r
 i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1)
 complete(i, 1)
@@ -79,6 +92,9 @@ impute()
 complete()
 evaluate()
 pool()
+pool_lm(), pool_glm(), pool_coxph(), pool_survreg(), pool_clogit(), pool_panglm()
+pool_test()
+nelsonaalen(), ipcw()
 plot()
 ```
 
@@ -147,6 +163,8 @@ Learner-backed imputers:
 - `densemlp`: dense multilayer perceptron through `densemlp`
 - `famd`: FAMD-assisted donor imputation through `missMDA`
 - `superlearner`, `sl`: cross-validated Super Learner-style ensemble imputer
+- `missknn`: whole-table masked k-nearest-neighbor imputation through
+  `missknn`, run in a single pass instead of the chained loop
 
 Imputer names are strict: use the names shown by `imputer_registry()`.
 Learner-backed imputers are applied as requested to numeric, binary, and
@@ -385,12 +403,55 @@ When no reliable complete-data variance is supplied, as is common for some
 performance metrics, `pool()` reports robust summaries by default: median,
 interquartile range, and range across imputations.
 
+Bounded or skewed quantities (ratios, probabilities, AUC, C-index,
+correlations) are better pooled on a transformed scale. `transform` accepts
+`"log"`, `"logit"`, `"cloglog"`, or `"fisherz"`; results are reported on the
+original scale. `dfcom`, the complete-data degrees of freedom, switches Rubin
+pooling to the Barnard and Rubin (1999) small-sample degrees of freedom.
+
+```{r}
+auc <- c(0.78, 0.81, 0.79, 0.80, 0.77)
+auc_se <- c(0.030, 0.028, 0.031, 0.029, 0.032)
+pool(auc, std.error = auc_se, transform = "logit", name = "AUC", dfcom = 115)
+```
+
+## Pooling fitted models
+
+`pool_lm()`, `pool_glm()`, `pool_coxph()`, `pool_survreg()`, `pool_clogit()`,
+and `pool_panglm()` pool a list of fitted models, one per completed dataset,
+with Rubin's rules and Barnard-Rubin degrees of freedom. They print a
+coefficient table laid out like the matching `summary()` output.
+
+```{r}
+d <- mtcars
+d$cyl <- factor(d$cyl)
+set.seed(1)
+d$hp[sample(32, 6)] <- NA
+
+imp <- impute(d, m = 5, imputer = "pmm", seed = 1)
+comp <- complete(imp, "all")
+
+fits <- lapply(comp, function(x) lm(mpg ~ cyl + hp + wt, data = x))
+pool_lm(fits)
+```
+
+`pool_test()` gives pooled multi-parameter tests, for example all levels of a
+factor or a model against a nested one: D1 (multivariate Wald), D2 (combined
+Wald or likelihood-ratio statistics), and D3 (Meng and Rubin likelihood ratio
+for `lm` and `glm`), each with an F reference distribution.
+
+```{r}
+fits0 <- lapply(comp, function(x) lm(mpg ~ hp + wt, data = x))
+pool_test(fits, fits0, method = "D1")
+pool_test(fits, terms = c("cyl6", "cyl8"), method = "D2")
+```
+
 ## Installation notes
 
 Learner backends are hard dependencies. Installing `mimar` installs the
 packages needed by the registered learner-backed imputers, including `ranger`,
 `rpart`, `naivebayes`, `e1071`, `BART`, `glmnet`, `fastgbm`, `xgboost`,
-`densemlp`, and `missMDA`.
+`densemlp`, `missknn`, and `missMDA`.
 
 ## Citation
 
