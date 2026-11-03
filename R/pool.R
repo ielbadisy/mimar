@@ -416,8 +416,8 @@ pool.numeric <- function(x, variance = NULL, std.error = NULL, covariance = NULL
 #'   `variance`/`std.error` are given on the original scale and carried to
 #'   the pooling scale with the delta method; the reported `estimate`,
 #'   `std.error`, and interval are back on the original scale, while
-#'   `statistic`, `p.value`, and the variance components refer to the pooling
-#'   scale (for `"log"` the test is of a ratio equal to 1, for `"logit"` of a
+#'   `statistic`, `p.value`, and the variance components (`within_variance`,
+#'   `between_variance`, `total_variance`) refer to the pooling scale (for `"log"` the test is of a ratio equal to 1, for `"logit"` of a
 #'   probability equal to 0.5). With a function `transform`, variances must
 #'   already be on the transformed scale and `std.error` is reported there.
 #'   Interval limits are ordered correctly for decreasing inverses such as

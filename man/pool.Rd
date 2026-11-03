@@ -161,8 +161,8 @@ back-transform (Marshall et al., 2009). With a named \code{transform},
 \code{variance}/\code{std.error} are given on the original scale and carried to
 the pooling scale with the delta method; the reported \code{estimate},
 \code{std.error}, and interval are back on the original scale, while
-\code{statistic}, \code{p.value}, and the variance components refer to the pooling
-scale (for \code{"log"} the test is of a ratio equal to 1, for \code{"logit"} of a
+\code{statistic}, \code{p.value}, and the variance components (\code{within_variance},
+\code{between_variance}, \code{total_variance}) refer to the pooling scale (for \code{"log"} the test is of a ratio equal to 1, for \code{"logit"} of a
 probability equal to 0.5). With a function \code{transform}, variances must
 already be on the transformed scale and \code{std.error} is reported there.
 Interval limits are ordered correctly for decreasing inverses such as
