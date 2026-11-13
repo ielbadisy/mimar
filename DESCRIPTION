@@ -1,6 +1,6 @@
 Package: mimar
 Title: Compact Multiple Imputation, Assessment, and Reporting
-Version: 1.4.2
+Version: 1.4.3
 Authors@R: c(person(given = "Imad", family = "El Badisy", role = c("aut", "cre"), email = "elbadisyimad@gmail.com"))
 Author: Imad El Badisy [aut, cre]
 Maintainer: Imad El Badisy <elbadisyimad@gmail.com>
@@ -36,6 +36,7 @@ Suggests:
     rmarkdown,
     pkgload,
     survival,
-    panglm (>= 1.1.4)
+    panglm (>= 1.1.4),
+    mice
 Config/testthat/edition: 3
 VignetteBuilder: knitr

@@ -51,12 +51,17 @@ by \code{predict()}. Native imputers are implemented directly in \code{mimar}; w
 imputers call their original learner packages directly:
 
 \itemize{
-\item \code{"norm"} fits a linear model and draws
-\eqn{\tilde y = \hat y + \epsilon}, with
-\eqn{\epsilon \sim N(0, \hat\sigma^2)}.
-\item \code{"pmm"} fits the same linear model but imputes by predictive mean
-matching: among observed donors with fitted values closest to
-\eqn{\hat y_{mis}}, one donor value is sampled.
+\item \code{"norm"} fits a linear model, draws
+\eqn{\dot\sigma^2 = RSS / \chi^2_{n-p}} and
+\eqn{\dot\beta \sim N(\hat\beta, \dot\sigma^2 (X'X)^{-1})}
+(the posterior under a flat prior), then imputes
+\eqn{\tilde y = x\dot\beta + \epsilon}, with
+\eqn{\epsilon \sim N(0, \dot\sigma^2)}.
+\item \code{"pmm"} fits the same linear model and makes the same parameter
+draw, then imputes by predictive mean matching with type-1 matching:
+observed rows are scored with \eqn{\hat\beta}, missing rows with
+\eqn{\dot\beta}, and one donor is sampled at random from the
+\code{donors} closest observed rows.
 \item \code{"logreg"} fits a binomial GLM and draws classes from fitted
 Bernoulli probabilities.
 \item \code{"polyreg"} fits one-vs-rest binomial GLMs and samples classes from

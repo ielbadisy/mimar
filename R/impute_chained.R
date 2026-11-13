@@ -155,7 +155,14 @@
       method_nm <- variable_methods[[nm]]
       if (any(obs) && any(mis) && !(identical(method_nm, "spmm") && iter > 1)) {
         predictors <- setdiff(names(x), nm)
-        boot <- sample(which(obs), replace = TRUE)
+        # norm/pmm/spmm draw their parameters from the posterior inside fit();
+        # other learners get parameter uncertainty from a bootstrap of the
+        # observed rows.
+        boot <- if (method_nm %in% c("norm", "pmm", "spmm")) {
+          which(obs)
+        } else {
+          sample(which(obs), replace = TRUE)
+        }
         learner <- .clone_imputer_spec(imputer_spec, method_nm)
         fitted <- fit(
           learner,

@@ -1,3 +1,24 @@
+# mimar 1.4.3
+
+* Bug fix: `imputer = "norm"` was improper. It refit on a bootstrap sample and
+  plugged in the residual SD, so between-imputation variance was too small.
+  It now draws `sigma^2 = RSS / chi2(n - p)` and
+  `beta ~ N(beta_hat, sigma^2 (X'X)^-1)` (the flat-prior posterior, as in
+  `mice`) and imputes from those draws.
+* Bug fix: `imputer = "pmm"` (and `"spmm"`) used the same bootstrap coefficients
+  to score both observed and missing rows (type-0 matching) and drew donors
+  from the bootstrap sample, so between-imputation variance did not match
+  `mice` (up to 60% above it under MAR in our checks). It now uses type-1
+  matching: the posterior draw scores the missing rows, `beta_hat` scores the
+  observed rows, and a donor is sampled at random among the `donors` nearest,
+  with ties broken at random. Coverage and between-imputation variance now
+  match `mice` within Monte Carlo error.
+* Vignette: the response indicator now follows Rubin's convention
+  (`R = 1` observed) and the relation to the `ampute()` masks is stated; the
+  claim that complete-case analysis is unbiased only under MCAR is corrected
+  (for regression it is also unbiased when missingness depends on the
+  covariates only).
+
 # mimar 1.4.2
 
 * `impute(imputer = "missknn")` works with missknn 1.2.0, which returns the
