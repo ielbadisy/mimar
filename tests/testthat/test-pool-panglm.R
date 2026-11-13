@@ -18,10 +18,10 @@ panel_fits <- function(vcov) {
     panglm::panglm(out ~ x, data = cd, index = c("id", "time"), model = "within", vcov = vcov))
 }
 
-test_that("pool_panglm uses G - 1 complete-data df for cluster-robust fits", {
+test_that("poolpanglm uses G - 1 complete-data df for cluster-robust fits", {
   skip_if_not_installed("panglm", minimum_version = "1.2.0")
   fits <- panel_fits("cluster")
-  p <- pool_panglm(fits)
+  p <- poolpanglm(fits)
   expect_equal(p$dfcom, 29)
   r <- p$pooled[p$pooled$term == "x", ]
   q <- vapply(fits, function(f) coef(f)[["x"]], numeric(1))
@@ -30,26 +30,26 @@ test_that("pool_panglm uses G - 1 complete-data df for cluster-robust fits", {
   expect_equal(r$estimate, mean(q))
   expect_equal(r$std.error, sqrt(t))
   expect_equal(r$df, br_df_ref(29, b, t, 5))
-  expect_equal(pool_panglm(fits, dfcom = 50)$dfcom, 50)
+  expect_equal(poolpanglm(fits, dfcom = 50)$dfcom, 50)
 })
 
-test_that("pool_panglm uses df.residual() for classical fits", {
+test_that("poolpanglm uses df.residual() for classical fits", {
   skip_if_not_installed("panglm", minimum_version = "1.2.0")
   fits <- panel_fits("classical")
-  expect_equal(pool_panglm(fits)$dfcom, stats::df.residual(fits[[1]]))
+  expect_equal(poolpanglm(fits)$dfcom, stats::df.residual(fits[[1]]))
 })
 
-test_that("pool_panglm warns when fits mix covariance types", {
+test_that("poolpanglm warns when fits mix covariance types", {
   skip_if_not_installed("panglm", minimum_version = "1.2.0")
   fits <- c(panel_fits("cluster")[1:2], panel_fits("classical")[3:5])
-  expect_warning(pool_panglm(fits), "vcov")
+  expect_warning(poolpanglm(fits), "vcov")
 })
 
-test_that("pool_test D1 defaults to the panglm complete-data df", {
+test_that("pooltest D1 defaults to the panglm complete-data df", {
   skip_if_not_installed("panglm", minimum_version = "1.2.0")
   fits <- panel_fits("cluster")
-  expect_equal(pool_test(fits, terms = "x", method = "D1")$df2,
-               pool_test(fits, terms = "x", method = "D1", dfcom = 29)$df2)
+  expect_equal(pooltest(fits, terms = "x", method = "D1")$df2,
+               pooltest(fits, terms = "x", method = "D1", dfcom = 29)$df2)
 })
 
 test_that("a predictor named y is used by the imputation model", {

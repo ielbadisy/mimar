@@ -1,7 +1,7 @@
 #' @describeIn impute Impute a data frame.
 #' @param m Number of completed data sets to generate.
 #' @param imputer Imputer name or a `mimar_imputer` specification. Any name
-#'   returned by `imputer_registry()` can be supplied to use that imputer for
+#'   returned by `imputerregistry()` can be supplied to use that imputer for
 #'   all incomplete variables it supports.
 #' @param maxit Number of chained-equation iterations.
 #' @param seed Optional random seed.

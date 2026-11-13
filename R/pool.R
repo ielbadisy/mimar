@@ -265,7 +265,7 @@ list(pooled = diag_pooled, estimate = qbar, variance = total,
 
 #' Pool survival-probability matrices across imputations
 #'
-#' `pool_survmat()` pools a list of same-shaped survival-probability matrices
+#' `poolsurvmat()` pools a list of same-shaped survival-probability matrices
 #' or arrays by applying Rubin-style pooling on the complementary
 #' log-log scale and back-transforming the result. The helper is designed for
 #' predicted survival probabilities at a grid of times, subjects, or covariate
@@ -317,9 +317,9 @@ list(pooled = diag_pooled, estimate = qbar, variance = total,
 #'   matrix(c(0.91, 0.79, 0.72, 0.61), 2, 2),
 #'   matrix(c(0.89, 0.81, 0.71, 0.59), 2, 2)
 #' )
-#' pool_survmat(surv)
+#' poolsurvmat(surv)
 #' @export
-pool_survmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
+poolsurvmat <- function(x, variance = NULL, std.error = NULL, rule = NULL,
                          conf.level = 0.95, clip = 1e-12, dfcom = NULL, ...) {
   dfcom <- .check_dfcom(dfcom)
   if (!is.list(x) || !length(x)) .mimar_stop("`x` must be a non-empty list of survival-probability matrices or arrays.")

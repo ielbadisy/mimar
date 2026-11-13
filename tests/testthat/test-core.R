@@ -120,8 +120,8 @@ test_that("imputer learners expose a standard fit/predict contract", {
   expect_error(imputer("mixgb"), "Unknown imputer")
   expect_error(imputer("naive_bayes"), "Unknown imputer")
   expect_equal(imputer("nbayes")$package, "naivebayes")
-  expect_s3_class(imputer_registry(), "basetable")
-  expect_equal(imputer_registry()$package[imputer_registry()$imputer == "knn"], "internal")
+  expect_s3_class(imputerregistry(), "basetable")
+  expect_equal(imputerregistry()$package[imputerregistry()$imputer == "knn"], "internal")
   expect_error(imputer("mice"), "Unknown imputer")
 })
 
@@ -257,7 +257,7 @@ test_that("all registered imputers run on numeric, categorical, and mixed data f
     do.call(impute, args)
   }
 
-  available <- imputer_registry()
+  available <- imputerregistry()
   methods <- available$imputer[available$available]
   learner_methods <- c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet", "fastgbm", "xgboost", "famd")
   for (method in methods) {
@@ -322,7 +322,7 @@ test_that("pool estimates and metrics", {
   expect_equal(dim(psurv$estimate), c(2L, 2L))
   expect_true(all(psurv$pooled$rule == "robust"))
 
-  psurv2 <- pool_survmat(surv)
+  psurv2 <- poolsurvmat(surv)
   zsurv <- lapply(surv, function(S) log(-log(S)))
   zmat <- do.call(rbind, lapply(zsurv, as.numeric))
   zmed <- apply(zmat, 2, stats::median)
@@ -436,7 +436,7 @@ test_that("pool named scales pool on the transformed scale", {
   expect_equal(pm$estimate, res$estimate)
 })
 
-test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
+test_that("poolglm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
   set.seed(1)
   d <- mtcars
   d$mpg[sample(32, 5)] <- NA
@@ -446,7 +446,7 @@ test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin d
     stats::glm(vs ~ mpg + wt, data = dd, family = stats::binomial())
   })
 
-  res <- pool_glm(fits)
+  res <- poolglm(fits)
   expect_s3_class(res, "mimar_pool_glm")
 
   qbar <- mean(vapply(fits, function(f) stats::coef(f)[["mpg"]], numeric(1)))
@@ -456,13 +456,13 @@ test_that("pool_glm reproduces classic Rubin-rules estimates and Barnard-Rubin d
   expect_true(all(c("Estimate", "Std. Error", "df", "z value", "Pr(>|z|)") %in% names(res$coefficients)))
   expect_output(print(res), "Pooled generalized linear model")
 
-  expect_error(pool_glm(list(fits[[1]])), "at least two")
+  expect_error(poolglm(list(fits[[1]])), "at least two")
   bad <- fits
   bad[[1]] <- stats::glm(vs ~ mpg, data = d[!is.na(d$mpg), ], family = stats::binomial())
-  expect_error(pool_glm(bad), "same coefficient names")
+  expect_error(poolglm(bad), "same coefficient names")
 })
 
-test_that("pool_coxph reproduces classic Rubin-rules estimates with events-based df", {
+test_that("poolcoxph reproduces classic Rubin-rules estimates with events-based df", {
   skip_if_not_installed("survival")
   set.seed(2)
   d <- survival::lung[, c("time", "status", "age", "sex", "ph.ecog")]
@@ -477,7 +477,7 @@ test_that("pool_coxph reproduces classic Rubin-rules estimates with events-based
     survival::coxph(survival::Surv(time, status) ~ age + sex + ph.ecog, data = dd)
   })
 
-  res <- pool_coxph(fits)
+  res <- poolcoxph(fits)
   expect_s3_class(res, "mimar_pool_coxph")
 
   qbar <- mean(vapply(fits, function(f) stats::coef(f)[["sex"]], numeric(1)))
@@ -488,7 +488,7 @@ test_that("pool_coxph reproduces classic Rubin-rules estimates with events-based
   expect_output(print(res), "Pooled Cox proportional hazards model")
 })
 
-test_that("pool_panglm reproduces classic Rubin-rules estimates on panglm pooled-OLS fits", {
+test_that("poolpanglm reproduces classic Rubin-rules estimates on panglm pooled-OLS fits", {
   skip_if_not_installed("panglm")
   set.seed(3)
   d <- panglm::copd
@@ -503,7 +503,7 @@ test_that("pool_panglm reproduces classic Rubin-rules estimates on panglm pooled
                     index = c("id", "visit"), model = "pooling", family = "gaussian")
   })
 
-  res <- pool_panglm(fits)
+  res <- poolpanglm(fits)
   expect_s3_class(res, "mimar_pool_panglm")
 
   qbar <- mean(vapply(fits, function(f) stats::coef(f)[["age"]], numeric(1)))
@@ -513,14 +513,14 @@ test_that("pool_panglm reproduces classic Rubin-rules estimates on panglm pooled
   expect_true(all(c("Estimate", "Std. Error", "df", "t value", "Pr(>|t|)") %in% names(res$coefficients)))
   expect_output(print(res), "Pooled panel model \\(panglm")
 
-  expect_error(pool_panglm(list(fits[[1]])), "at least two")
+  expect_error(poolpanglm(list(fits[[1]])), "at least two")
   bad <- fits
   bad[[1]] <- panglm::panglm(fev1 ~ treatment + age, data = d[!is.na(d$crp), ],
                               index = c("id", "visit"), model = "pooling", family = "gaussian")
-  expect_error(pool_panglm(bad), "same coefficient names")
+  expect_error(poolpanglm(bad), "same coefficient names")
 })
 
-test_that("pool_lm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
+test_that("poollm reproduces classic Rubin-rules estimates and Barnard-Rubin df", {
   set.seed(3)
   d <- mtcars
   d$hp[sample(32, 4)] <- NA
@@ -530,7 +530,7 @@ test_that("pool_lm reproduces classic Rubin-rules estimates and Barnard-Rubin df
     stats::lm(mpg ~ wt + hp, data = dd)
   })
 
-  res <- pool_lm(fits)
+  res <- poollm(fits)
   expect_s3_class(res, "mimar_pool_lm")
   qbar <- mean(vapply(fits, function(f) stats::coef(f)[["wt"]], numeric(1)))
   expect_equal(res$coefficients$Estimate[res$coefficients$term == "wt"], qbar)
@@ -538,7 +538,7 @@ test_that("pool_lm reproduces classic Rubin-rules estimates and Barnard-Rubin df
   expect_output(print(res), "Pooled linear model")
 })
 
-test_that("pool_survreg reproduces classic Rubin-rules estimates and excludes the scale parameter", {
+test_that("poolsurvreg reproduces classic Rubin-rules estimates and excludes the scale parameter", {
   skip_if_not_installed("survival")
   set.seed(3)
   dl <- stats::na.omit(survival::lung[, c("time", "status", "age", "sex")])
@@ -551,7 +551,7 @@ test_that("pool_survreg reproduces classic Rubin-rules estimates and excludes th
     survival::survreg(survival::Surv(time, status) ~ age + sex, data = dd, dist = "weibull")
   })
 
-  res <- pool_survreg(fits)
+  res <- poolsurvreg(fits)
   expect_s3_class(res, "mimar_pool_survreg")
   expect_equal(sort(res$coefficients$term), c("(Intercept)", "age", "sex"))
   expect_false("Log(scale)" %in% res$coefficients$term)
@@ -560,7 +560,7 @@ test_that("pool_survreg reproduces classic Rubin-rules estimates and excludes th
   expect_output(print(res), "Pooled parametric survival regression model")
 })
 
-test_that("pool_clogit matches pool_coxph formatting on a clogit fit", {
+test_that("poolclogit matches poolcoxph formatting on a clogit fit", {
   skip_if_not_installed("survival")
   # clogit() builds and evaluates a coxph() call in the caller's environment
   # rather than its own namespace, so `coxph` must be on the search path.
@@ -575,14 +575,14 @@ test_that("pool_clogit matches pool_coxph formatting on a clogit fit", {
     clogit(status ~ age + strata(id), data = dd)
   })
 
-  res <- pool_clogit(fits)
+  res <- poolclogit(fits)
   expect_s3_class(res, "mimar_pool_clogit")
   expect_s3_class(res, "mimar_pool_coxlike")
   qbar <- mean(vapply(fits, function(f) stats::coef(f)[["age"]], numeric(1)))
   expect_equal(res$coefficients$coef[res$coefficients$term == "age"], qbar)
   expect_output(print(res), "Pooled conditional logistic regression model")
 
-  expect_error(pool_clogit(list(fits[[1]])), "at least two")
+  expect_error(poolclogit(list(fits[[1]])), "at least two")
 })
 
 test_that("plot methods run", {

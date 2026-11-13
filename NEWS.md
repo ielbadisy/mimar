@@ -1,3 +1,24 @@
+# mimar 1.4.4
+
+* Exported functions are renamed to glued lowercase names (no underscores).
+  The old names still work as deprecated wrappers for one release and will be
+  removed afterwards.
+
+| Old name | New name |
+|---|---|
+| `imputer_registry()` | `imputerregistry()` |
+| `pool_clogit()` | `poolclogit()` |
+| `pool_coxph()` | `poolcoxph()` |
+| `pool_glm()` | `poolglm()` |
+| `pool_lm()` | `poollm()` |
+| `pool_panglm()` | `poolpanglm()` |
+| `pool_survmat()` | `poolsurvmat()` |
+| `pool_survreg()` | `poolsurvreg()` |
+| `pool_test()` | `pooltest()` |
+
+* Requires basetable >= 1.4.5, which renamed `as_basetable()` to
+  `asbasetable()`.
+
 # mimar 1.4.3
 
 * Bug fix: `imputer = "norm"` was improper. It refit on a bootstrap sample and

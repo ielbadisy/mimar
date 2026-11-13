@@ -49,14 +49,14 @@
 
 #' List available mimar imputers
 #'
-#' `imputer_registry()` returns the imputer names accepted by `impute()` and
+#' `imputerregistry()` returns the imputer names accepted by `impute()` and
 #' metadata describing target-type support and backend packages. Native
 #' `mimar` methods display `package = "internal"`. The result is returned as a
 #' basetable.
 #'
 #' @return A basetable.
 #' @export
-imputer_registry <- function() {
+imputerregistry <- function() {
   out <- .imputer_catalog()
   out$available <- vapply(out$package, function(pkg) {
     is.na(pkg) || requireNamespace(pkg, quietly = TRUE)
