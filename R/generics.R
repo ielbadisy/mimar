@@ -139,14 +139,32 @@ imputer <- function(method, ...) UseMethod("imputer")
 #' `evaluate()` compares imputed values with known truth when an amputation
 #' object is available. Numeric targets are summarized with errors such as
 #' \deqn{e_{ij} = \tilde X_{ij} - X_{ij},}
-#' while categorical targets are summarized with agreement and balanced
-#' accuracy across classes. When no truth is available, `evaluate()` reports
-#' diagnostics that can be computed from the imputed data alone. Distribution,
-#' variability, and recovery summaries are computed across all completed data
-#' sets; per-imputation recovery metrics are kept in `recovery_by_imputation`.
+#' and the normalized root mean squared error over the scored cells
+#' \eqn{\mathcal M_j},
+#' \deqn{\mathrm{NRMSE}_j = \{|\mathcal M_j|^{-1}\sum_{i \in \mathcal M_j}
+#'   e_{ij}^2 / \widehat{\mathrm{Var}}(X_j)\}^{1/2},}
+#' while categorical targets are summarized with the proportion of falsely
+#' classified cells (`pfc`), agreement and balanced accuracy across classes.
+#' When no truth is available, `evaluate()` reports diagnostics that can be
+#' computed from the imputed data alone. Distribution, variability, and
+#' recovery summaries are computed across all completed data sets;
+#' per-imputation recovery metrics are kept in `recovery_by_imputation`.
 #'
-#' @param x A `mimar_imputation` or `mimar_amputation` object.
-#' @param ... Passed to methods.
+#' Truth is taken from the amputation stored in the imputation object, or from
+#' the `truth` argument of the methods: either a `mimar_amputation` object (its
+#' added mask defines the scored cells) or the complete data as a data frame
+#' (every cell missing in the imputed data and known in `truth` is scored).
+#' Completed data from other imputers, such as the list of data frames returned
+#' by `missknn::missknn(m >= 2)` or a single completed data frame, are accepted
+#' too; pass the incomplete data as `data` unless `truth` is an amputation
+#' object, whose amputed data is then used.
+#'
+#' @param x A `mimar_imputation` or `mimar_amputation` object, a list of
+#'   completed data frames (for example class `mimar_mi`), or one completed
+#'   data frame.
+#' @param ... Passed to methods: `truth` (a `mimar_amputation` object or the
+#'   complete data) and, for lists and data frames, `data` (the incomplete
+#'   data that was imputed).
 #' @return A `mimar_evaluation` object.
 #' @export
 evaluate <- function(x, ...) UseMethod("evaluate")

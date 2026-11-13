@@ -7,9 +7,13 @@
 evaluate(x, ...)
 }
 \arguments{
-\item{x}{A \code{mimar_imputation} or \code{mimar_amputation} object.}
+\item{x}{A \code{mimar_imputation} or \code{mimar_amputation} object, a list of
+completed data frames (for example class \code{mimar_mi}), or one completed
+data frame.}
 
-\item{...}{Passed to methods.}
+\item{...}{Passed to methods: \code{truth} (a \code{mimar_amputation} object or the
+complete data) and, for lists and data frames, \code{data} (the incomplete
+data that was imputed).}
 }
 \value{
 A \code{mimar_evaluation} object.
@@ -18,9 +22,24 @@ A \code{mimar_evaluation} object.
 \code{evaluate()} compares imputed values with known truth when an amputation
 object is available. Numeric targets are summarized with errors such as
 \deqn{e_{ij} = \tilde X_{ij} - X_{ij},}
-while categorical targets are summarized with agreement and balanced
-accuracy across classes. When no truth is available, \code{evaluate()} reports
-diagnostics that can be computed from the imputed data alone. Distribution,
-variability, and recovery summaries are computed across all completed data
-sets; per-imputation recovery metrics are kept in \code{recovery_by_imputation}.
+and the normalized root mean squared error over the scored cells
+\eqn{\mathcal M_j},
+\deqn{\mathrm{NRMSE}_j = \{|\mathcal M_j|^{-1}\sum_{i \in \mathcal M_j}
+  e_{ij}^2 / \widehat{\mathrm{Var}}(X_j)\}^{1/2},}
+while categorical targets are summarized with the proportion of falsely
+classified cells (\code{pfc}), agreement and balanced accuracy across classes.
+When no truth is available, \code{evaluate()} reports diagnostics that can be
+computed from the imputed data alone. Distribution, variability, and
+recovery summaries are computed across all completed data sets;
+per-imputation recovery metrics are kept in \code{recovery_by_imputation}.
+}
+\details{
+Truth is taken from the amputation stored in the imputation object, or from
+the \code{truth} argument of the methods: either a \code{mimar_amputation} object (its
+added mask defines the scored cells) or the complete data as a data frame
+(every cell missing in the imputed data and known in \code{truth} is scored).
+Completed data from other imputers, such as the list of data frames returned
+by \code{missknn::missknn(m >= 2)} or a single completed data frame, are accepted
+too; pass the incomplete data as \code{data} unless \code{truth} is an amputation
+object, whose amputed data is then used.
 }

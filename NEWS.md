@@ -1,3 +1,7 @@
+# mimar 1.4.5
+
+* `evaluate()` now scores imputations against known truth in all the documented ways: `truth` may be a `mimar_amputation` object (previously ignored, so `evaluate(imp, truth = amp)` returned an empty recovery table) or the complete data frame, and the recovery tables report the normalized RMSE (`nrmse`) for numeric and the proportion of falsely classified cells (`pfc`) for categorical variables. `evaluate()` also accepts completed data from other imputers: a list of completed data frames (such as `missknn::missknn()` multiple imputation output, class `mimar_mi`) or a single completed data frame, with the incomplete data given as `data` or taken from an amputation `truth`.
+
 # mimar 1.4.4
 
 * Exported functions are renamed to glued lowercase names (no underscores).
