@@ -1,6 +1,6 @@
 ---
 title: "Chained Multiple Imputation Workflows with mimar"
-author: "Imad EL BADISY"
+author: "Imad El Badisy"
 output: rmarkdown::html_vignette
 bibliography: references.bib
 vignette: >
@@ -19,8 +19,9 @@ Missing data are ubiquitous in applied statistics. A large proportion of
 real data sets contain at least some incomplete cases, and the way missingness
 is handled can substantially affect point estimates, standard errors, and
 downstream inference. Complete-case analysis discards potentially
-informative observations and, unless data are missing completely at random,
-introduces selection bias. Single imputation fills missing values once but
+informative observations and can introduce selection bias when missingness
+depends on the outcome; for a regression model it remains unbiased when
+missingness depends only on the covariates. Single imputation fills missing values once but
 ignores imputation uncertainty, leading to standard errors that are too
 narrow.
 
@@ -122,27 +123,32 @@ missingness. `describe()` returns a summary object that reports per-variable
 missingness proportions, complete-case counts, and the missingness pattern
 matrix.
 
-Formally, let $X$ be an $n \times p$ data matrix and define the missingness
+Formally, let $X$ be an $n \times p$ data matrix and define the response
 indicator
 
 $$
 R_{ij} =
 \begin{cases}
-1, & X_{ij}\ \text{is missing},\\
-0, & X_{ij}\ \text{is observed}.
+1, & X_{ij}\ \text{is observed},\\
+0, & X_{ij}\ \text{is missing}.
 \end{cases}
 $$
+
+This vignette follows the convention of Rubin [@rubin1987] and van Buuren
+[@vanbuuren2011mice]: $R_{ij}=1$ means observed. The logical masks returned by
+`ampute()` (`mask_original`, `mask_added`, `mask_total`) use the opposite
+coding, `TRUE` for a missing cell, so a mask equals $1-R$.
 
 The per-variable missingness proportion is
 
 $$
-\hat{\pi}_j = \frac{1}{n}\sum_{i=1}^{n} R_{ij},
+\hat{\pi}_j = \frac{1}{n}\sum_{i=1}^{n} (1-R_{ij}),
 $$
 
 and the complete-case count is
 
 $$
-n_{\mathrm{cc}} = \sum_{i=1}^{n} I(R_{i1}=0,\ldots,R_{ip}=0).
+n_{\mathrm{cc}} = \sum_{i=1}^{n} I(R_{i1}=1,\ldots,R_{ip}=1).
 $$
 
 These summaries answer the first practical question: how much information
@@ -200,8 +206,12 @@ A_{ij} \sim \operatorname{Bernoulli}(\pi),
 \qquad X_{ij} \leftarrow \mathrm{NA}\ \text{if}\ A_{ij}=1,
 $$
 
-where $\pi$ is `prop`. MCAR is the only mechanism under which complete-case
-analysis is unbiased, making it a useful baseline when comparing imputers.
+where $\pi$ is `prop`. Under MCAR, complete-case analysis is unbiased for any
+estimand, which makes it a useful baseline when comparing imputers. MCAR is
+not the only such case: for a regression of $Y$ on $X$, complete-case
+estimates of the regression coefficients are also unbiased when missingness
+depends on $X$ only (even if $X$ itself is incomplete), and not on $Y$. They
+become biased when missingness depends on the outcome.
 
 ### Missing at random
 
@@ -262,7 +272,7 @@ datasets.
 For incomplete variable $X_j$, let
 
 $$
-O_j = \{i : R_{ij}=0\}, \qquad M_j = \{i : R_{ij}=1\}.
+O_j = \{i : R_{ij}=1\}, \qquad M_j = \{i : R_{ij}=0\}.
 $$
 
 At iteration $t$, with the current completed data $\widetilde X^{(t)}$,
@@ -287,7 +297,9 @@ is reset to $X_{j,O_j}$ after each update.
 The full algorithm, written compactly, is as follows. Let $h$ be the
 imputer, $T$ the number of chained iterations, $m$ the number of
 imputations, and $\mathcal{B}(O_j)$ a bootstrap sample from the observed
-rows of variable $j$.
+rows of variable $j$. For `norm`, `pmm`, and `spmm`, $B_j = O_j$ (no
+bootstrap): these imputers draw the model parameters from their posterior
+inside $\operatorname{fit}_h$ instead (see below).
 
 $$
 \begin{array}{ll}
@@ -314,8 +326,11 @@ X,\ R,\ h,\ m,\ T.\\[2mm]
 \end{array}
 $$
 
-The bootstrap draw within each iteration is what introduces between-imputation
-variability and ensures that the $m$ completed datasets are not identical.
+The parameter draw within each iteration, either from the posterior
+(`norm`, `pmm`, `spmm`) or through the bootstrap refit (the other learners),
+is what introduces between-imputation variability and makes the imputations
+proper: each completed dataset reflects uncertainty about the imputation
+model, not only the residual noise.
 The `restore` step converts predictions back to the target storage type
 (numeric, integer, `Date`, logical, factor, or character), which allows the
 same loop to handle numeric-only, categorical-only, and mixed-type data frames
@@ -358,12 +373,27 @@ $$
 X_j = X_{-j}\beta_j + \epsilon_j, \qquad \epsilon_j \sim N(0,\sigma_j^2),
 $$
 
-and draws from the predictive distribution at missing rows:
+on the observed rows, giving $\hat\beta_j$ and the residual sum of squares
+$\mathrm{RSS}_j$ on $n_j - p$ degrees of freedom. It then draws the parameters
+from their posterior under a flat prior,
 
 $$
-\widetilde X_{j,M_j} = \hat X_{-j,M_j}\hat\beta_j + e,
-\qquad e \sim N(0,\hat\sigma_j^2).
+\dot\sigma_j^2 = \mathrm{RSS}_j / \chi^2_{n_j-p},
+\qquad
+\dot\beta_j \sim N\!\left(\hat\beta_j,\ \dot\sigma_j^2 (X_{-j,O_j}^\top X_{-j,O_j})^{-1}\right),
 $$
+
+and draws the imputations from the predictive distribution at those values:
+
+$$
+\widetilde X_{j,M_j} = X_{-j,M_j}\dot\beta_j + e,
+\qquad e \sim N(0,\dot\sigma_j^2).
+$$
+
+This is the Bayesian normal draw of `mice::mice.impute.norm()`
+[@vanbuuren2011mice]. Plugging in $\hat\beta_j$ and $\hat\sigma_j$ instead
+would be improper: between-imputation variance would be too small and
+confidence intervals too narrow.
 
 The stochastic draw is important: deterministic regression imputation
 underestimates the variance of the imputed variable and collapses the
@@ -379,9 +409,15 @@ from the observed rows whose predicted value is closest to the missing row's
 prediction:
 
 $$
-d(i,\ell) = |\hat\mu_i - \hat\mu_\ell|, \qquad
+d(i,\ell) = |x_{i,-j}^\top\dot\beta_j - x_{\ell,-j}^\top\hat\beta_j|, \qquad
 \widetilde x_{ij} = x_{\ell j},\quad \ell \sim \mathcal{D}_i.
 $$
+
+Here $\dot\beta_j$ is the same posterior draw as in `norm`, used for the
+missing row $i$, while the observed donors $\ell$ are scored with
+$\hat\beta_j$ (type-1 matching, the default in `mice`). $\mathcal{D}_i$ is the
+set of the `donors` observed rows closest to row $i$, and one of them is
+chosen at random.
 
 This makes PMM robust to departures from normality and ensures that imputed
 values respect the range and granularity of the observed data

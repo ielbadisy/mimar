@@ -21,7 +21,7 @@
       "Median imputation for numeric targets",
       "Mode imputation for categorical targets",
       "Median/mode chained baseline",
-      "Bayesian normal-style linear regression draw",
+      "Bayesian linear regression posterior draw",
       "Predictive mean matching",
       "Single-step predictive mean matching",
       "Binary logistic regression draw",
@@ -100,12 +100,17 @@ imputer.mimar_imputer <- function(method, ...) {
 #' imputers call their original learner packages directly:
 #'
 #' \itemize{
-#'   \item `"norm"` fits a linear model and draws
-#'     \eqn{\tilde y = \hat y + \epsilon}, with
-#'     \eqn{\epsilon \sim N(0, \hat\sigma^2)}.
-#'   \item `"pmm"` fits the same linear model but imputes by predictive mean
-#'     matching: among observed donors with fitted values closest to
-#'     \eqn{\hat y_{mis}}, one donor value is sampled.
+#'   \item `"norm"` fits a linear model, draws
+#'     \eqn{\dot\sigma^2 = RSS / \chi^2_{n-p}} and
+#'     \eqn{\dot\beta \sim N(\hat\beta, \dot\sigma^2 (X'X)^{-1})}
+#'     (the posterior under a flat prior), then imputes
+#'     \eqn{\tilde y = x\dot\beta + \epsilon}, with
+#'     \eqn{\epsilon \sim N(0, \dot\sigma^2)}.
+#'   \item `"pmm"` fits the same linear model and makes the same parameter
+#'     draw, then imputes by predictive mean matching with type-1 matching:
+#'     observed rows are scored with \eqn{\hat\beta}, missing rows with
+#'     \eqn{\dot\beta}, and one donor is sampled at random from the
+#'     `donors` closest observed rows.
 #'   \item `"logreg"` fits a binomial GLM and draws classes from fitted
 #'     Bernoulli probabilities.
 #'   \item `"polyreg"` fits one-vs-rest binomial GLMs and samples classes from
@@ -238,11 +243,32 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   dat <- data.frame(.mimar_y = .target_to_numeric(y), .fit_predictors(x), check.names = FALSE)
   fitted <- try(suppressWarnings(stats::lm(.mimar_y ~ ., data = dat)), silent = TRUE)
   if (inherits(fitted, "try-error")) .mimar_stop("Could not fit imputer '", object$method, "' for variable '", variable, "'.")
-  resid_sd <- stats::sd(stats::residuals(fitted), na.rm = TRUE)
-  if (!is.finite(resid_sd)) resid_sd <- 0
+  draw <- .draw_linear_posterior(fitted)
   structure(list(imputer = object, fit = fitted, y = y, fitted = stats::fitted(fitted),
-                 resid_sd = resid_sd, target = target, donors = donors),
+                 fit_draw = draw$fit, sigma_draw = draw$sigma,
+                 resid_sd = draw$sigma, target = target, donors = donors),
             class = c("mimar_imputer_fit", "list"))
+}
+
+# Draw (beta, sigma) from their posterior under a flat prior, as in
+# mice::.norm.draw(): sigma^2 = RSS / chi2_{n - p} and
+# beta ~ N(beta_hat, sigma^2 (X'X)^{-1}). Aliased coefficients stay NA.
+.draw_linear_posterior <- function(fitted) {
+  rss <- sum(stats::residuals(fitted)^2)
+  qr_fit <- fitted$qr
+  rank <- qr_fit$rank
+  df <- max(length(stats::residuals(fitted)) - rank, 1)
+  sigma <- sqrt(rss / stats::rchisq(1, df))
+  if (!is.finite(sigma)) sigma <- 0
+  beta <- stats::coef(fitted)
+  if (rank > 0) {
+    keep <- qr_fit$pivot[seq_len(rank)]
+    r_mat <- qr.R(qr_fit)[seq_len(rank), seq_len(rank), drop = FALSE]
+    beta[keep] <- beta[keep] + sigma * backsolve(r_mat, stats::rnorm(rank))
+  }
+  fit_draw <- fitted
+  fit_draw$coefficients <- beta
+  list(fit = fit_draw, sigma = sigma)
 }
 
 .fit_logreg_imputer <- function(object, x, y, target, variable) {
@@ -274,18 +300,24 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_linear_imputer <- function(object, newdata, stochastic) {
-  pred <- suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)))
-  if (stochastic) pred <- pred + stats::rnorm(length(pred), sd = object$resid_sd)
+  mod <- if (stochastic) object$fit_draw %||% object$fit else object$fit
+  pred <- suppressWarnings(stats::predict(mod, newdata = .align_xlevels(object$fit, newdata)))
+  if (stochastic) pred <- pred + stats::rnorm(length(pred), sd = object$sigma_draw %||% object$resid_sd)
   pred
 }
 
+# Type-1 matching (mice): observed rows use beta_hat, missing rows use the
+# posterior draw; one donor is sampled from the `donors` nearest, ties at random.
 .predict_pmm_imputer <- function(object, newdata) {
-  pred_mis <- suppressWarnings(stats::predict(object$fit, newdata = .align_xlevels(object$fit, newdata)))
-  sapply(pred_mis, function(pm) {
+  mod <- object$fit_draw %||% object$fit
+  pred_mis <- suppressWarnings(stats::predict(mod, newdata = .align_xlevels(object$fit, newdata)))
+  k <- min(object$donors, length(object$fitted))
+  idx <- vapply(pred_mis, function(pm) {
     d <- abs(object$fitted - pm)
-    take <- order(d)[seq_len(min(object$donors, length(d)))]
-    object$y[sample(take, 1)]
-  })
+    take <- order(d, stats::runif(length(d)))[seq_len(k)]
+    take[sample.int(k, 1)]
+  }, integer(1))
+  object$y[idx]
 }
 
 .predict_logreg_imputer <- function(object, newdata) {
