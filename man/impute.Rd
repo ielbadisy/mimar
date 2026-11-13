@@ -50,7 +50,7 @@ impute(
 \item{m}{Number of completed data sets to generate.}
 
 \item{imputer}{Imputer name or a \code{mimar_imputer} specification. Any name
-returned by \code{imputer_registry()} can be supplied to use that imputer for
+returned by \code{imputerregistry()} can be supplied to use that imputer for
 all incomplete variables it supports.}
 
 \item{maxit}{Number of chained-equation iterations.}
@@ -101,7 +101,7 @@ learner-agnostic: each imputer is constructed with \code{imputer()}, trained wit
 \code{fit()}, and used through \code{predict()}.
 
 Each requested imputer is applied to all incomplete variables it supports.
-Use \code{imputer_registry()} to inspect target-type compatibility.
+Use \code{imputerregistry()} to inspect target-type compatibility.
 Learner-backed methods are supervised stochastic update rules inside the
 chained workflow; inspect diagnostics and downstream sensitivity rather than
 treating any single learner as a guarantee of proper uncertainty

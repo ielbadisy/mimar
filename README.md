@@ -61,7 +61,7 @@ not. Set `verbose = TRUE` when you want a concise progress log for the
 chained imputation workflow.
 
 Tabular results (`describe()`, `complete()`, `evaluate()`, `pool()`,
-`imputer_registry()`) are returned as `basetable` objects, which behave
+`imputerregistry()`) are returned as `basetable` objects, which behave
 like data frames.
 
 ``` r
@@ -75,14 +75,14 @@ complete(i, "all")
 ``` r
 describe()
 ampute()
-imputer_registry()
+imputerregistry()
 imputer()
 impute()
 complete()
 evaluate()
 pool()
-pool_lm(), pool_glm(), pool_coxph(), pool_survreg(), pool_clogit(), pool_panglm()
-pool_test()
+poollm(), poolglm(), poolcoxph(), poolsurvreg(), poolclogit(), poolpanglm()
+pooltest()
 nelsonaalen(), ipcw()
 plot()
 ```
@@ -163,7 +163,7 @@ plot(i, type = "density")
 Inspect available imputers with:
 
 ``` r
-imputer_registry()
+imputerregistry()
 #> # basetable: 25 x 10
 #>    imputer implementation  package supports_numeric supports_binary
 #> 1     mean          mimar internal             TRUE            TRUE
@@ -192,7 +192,7 @@ imputer_registry()
 #> 2             Median imputation for numeric targets      TRUE available
 #> 3           Mode imputation for categorical targets      TRUE available
 #> 4                      Median/mode chained baseline      TRUE available
-#> 5      Bayesian normal-style linear regression draw      TRUE available
+#> 5         Bayesian linear regression posterior draw      TRUE available
 #> 6                          Predictive mean matching      TRUE available
 #> 7              Single-step predictive mean matching      TRUE available
 #> 8                   Binary logistic regression draw      TRUE available
@@ -229,7 +229,7 @@ describe("imputers")
 #> 2             Median imputation for numeric targets      TRUE available
 #> 3           Mode imputation for categorical targets      TRUE available
 #> 4                      Median/mode chained baseline      TRUE available
-#> 5      Bayesian normal-style linear regression draw      TRUE available
+#> 5         Bayesian linear regression posterior draw      TRUE available
 #> 6                          Predictive mean matching      TRUE available
 #> 7              Single-step predictive mean matching      TRUE available
 #> 8                   Binary logistic regression draw      TRUE available
@@ -267,7 +267,7 @@ Learner-backed imputers:
 - `missknn`: whole-table masked k-nearest-neighbor imputation through
   `missknn`, run in a single pass instead of the chained loop
 
-Imputer names are strict: use the names shown by `imputer_registry()`.
+Imputer names are strict: use the names shown by `imputerregistry()`.
 Learner-backed imputers are applied as requested to numeric, binary, and
 multiclass targets; `mimar` does not silently swap them for another
 imputer inside benchmark runs.
@@ -506,7 +506,7 @@ covariance-aware parameter vector, matrix of survival probabilities, or
 a scalar metric. Data frames are accepted only as a tidy adapter for
 scalar model output.
 
-For survival-probability matrices, `pool_survmat()` applies the
+For survival-probability matrices, `poolsurvmat()` applies the
 complementary log-log transform internally, pools on that scale, and
 back-transforms the result.
 
@@ -606,11 +606,10 @@ pool(auc, std.error = auc_se, transform = "logit", name = "AUC", dfcom = 115)
 
 ## Pooling fitted models
 
-`pool_lm()`, `pool_glm()`, `pool_coxph()`, `pool_survreg()`,
-`pool_clogit()`, and `pool_panglm()` pool a list of fitted models, one
-per completed dataset, with Rubin’s rules and Barnard-Rubin degrees of
-freedom. They print a coefficient table laid out like the matching
-`summary()` output.
+`poollm()`, `poolglm()`, `poolcoxph()`, `poolsurvreg()`, `poolclogit()`,
+and `poolpanglm()` pool a list of fitted models, one per completed
+dataset, with Rubin’s rules and Barnard-Rubin degrees of freedom. They
+print a coefficient table laid out like the matching `summary()` output.
 
 ``` r
 d <- mtcars
@@ -622,21 +621,21 @@ imp <- impute(d, m = 5, imputer = "pmm", seed = 1)
 comp <- complete(imp, "all")
 
 fits <- lapply(comp, function(x) lm(mpg ~ cyl + hp + wt, data = x))
-pool_lm(fits)
+poollm(fits)
 #> Pooled linear model
 #> Pooled across m = 5 imputations (Rubin's rules)
 #> 
 #>             Estimate Std. Error    df t value Pr(>|t|)    
-#> (Intercept) 35.93629    2.07206 24.60  17.343 2.64e-15 ***
-#> cyl6        -3.11550    1.47296 24.55  -2.115 0.044746 *  
-#> cyl8        -3.19972    2.21279 23.10  -1.446 0.161606    
-#> hp          -0.02217    0.01220 18.98  -1.818 0.084878 .  
-#> wt          -3.25512    0.71952 25.08  -4.524 0.000127 ***
+#> (Intercept) 35.96526    2.06070 24.95  17.453  1.7e-15 ***
+#> cyl6        -3.19319    1.45499 23.99  -2.195 0.038110 *  
+#> cyl8        -3.11061    2.17951 24.80  -1.427 0.165991    
+#> hp          -0.02342    0.01192 24.46  -1.965 0.060823 .  
+#> wt          -3.22262    0.71946 25.04  -4.479 0.000143 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
-`pool_test()` gives pooled multi-parameter tests, for example all levels
+`pooltest()` gives pooled multi-parameter tests, for example all levels
 of a factor or a model against a nested one: D1 (multivariate Wald), D2
 (combined Wald or likelihood-ratio statistics), and D3 (Meng and Rubin
 likelihood ratio for `lm` and `glm`), each with an F reference
@@ -644,18 +643,18 @@ distribution.
 
 ``` r
 fits0 <- lapply(comp, function(x) lm(mpg ~ hp + wt, data = x))
-pool_test(fits, fits0, method = "D1")
+pooltest(fits, fits0, method = "D1")
 #> Pooled multi-parameter test: D1 (multivariate Wald) 
 #> Terms: cyl6, cyl8 
 #> 
-#>  statistic df1   df2 p.value   riv m
-#>       2.06   2 244.6  0.1296 0.111 5
-pool_test(fits, terms = c("cyl6", "cyl8"), method = "D2")
+#>  statistic df1  df2 p.value     riv m
+#>       2.44   2 2980  0.0873 0.02854 5
+pooltest(fits, terms = c("cyl6", "cyl8"), method = "D2")
 #> Pooled multi-parameter test: D2 (combined Wald chi-square) 
 #> Terms: cyl6, cyl8 
 #> 
-#>  statistic df1 df2 p.value     riv m
-#>       2.12   2 435  0.1212 0.08447 5
+#>  statistic df1   df2 p.value     riv m
+#>      2.269   2 524.4  0.1044 0.07635 5
 ```
 
 ## Installation notes
@@ -672,7 +671,7 @@ citation("mimar")
 #> To cite mimar in publications, use:
 #> 
 #>   El Badisy I (2026). _mimar: Compact Multiple Imputation, Assessment,
-#>   and Reporting_. R package version 1.4.2,
+#>   and Reporting_. R package version 1.4.4,
 #>   <https://CRAN.R-project.org/package=mimar>.
 #> 
 #> A BibTeX entry for LaTeX users is
@@ -681,7 +680,7 @@ citation("mimar")
 #>     title = {mimar: Compact Multiple Imputation, Assessment, and Reporting},
 #>     author = {Imad {El Badisy}},
 #>     year = {2026},
-#>     note = {R package version 1.4.2},
+#>     note = {R package version 1.4.4},
 #>     url = {https://CRAN.R-project.org/package=mimar},
 #>   }
 ```

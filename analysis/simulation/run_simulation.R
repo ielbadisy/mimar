@@ -33,7 +33,7 @@ method_groups <- list(
   learner = c("rf", "ranger", "rpart", "nbayes", "svm", "bart", "glmnet", "gbm", "xgboost", "famd")
 )
 
-available <- mimar::imputer_registry()
+available <- mimar::imputerregistry()
 available_methods <- available$imputer[available$available]
 method_env <- Sys.getenv("MIMAR_SIM_METHODS", "")
 if (nzchar(method_env)) {

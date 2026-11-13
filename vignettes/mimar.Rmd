@@ -47,7 +47,7 @@ cells when truth is available, and pool post-fit quantities.
 ```r
 describe()        # characterise missingness structure
 ampute()          # introduce controlled artificial missingness
-imputer_registry()# inspect available imputation methods
+imputerregistry()# inspect available imputation methods
 impute()          # run the chained multiple imputation
 complete()        # extract a single completed dataset
 evaluate()        # score imputation quality against known truth
@@ -172,7 +172,7 @@ documents each method, whether it is implemented natively or through a backend
 package, and which target types it supports.
 
 ```{r}
-imputer_registry()
+imputerregistry()
 ```
 
 `describe("imputers")` returns the same registry through the unified
@@ -868,12 +868,12 @@ performance measures, Marshall et al. recommend robust summaries. Accordingly,
 quantities. Use `rule = "mean"` only when a mean and between-imputation standard
 error are substantively appropriate.
 
-## Pooling Regression Models: `pool_coxph()` and `pool_glm()`
+## Pooling Regression Models: `poolcoxph()` and `poolglm()`
 
 `pool()` treats the analyst's fitted models as an unstructured source of
 scalar quantities: term names, estimates, and standard errors must be
-extracted and reshaped into the tidy adapter shown above. `pool_coxph()` and
-`pool_glm()` skip that step for the two most common regression settings in
+extracted and reshaped into the tidy adapter shown above. `poolcoxph()` and
+`poolglm()` skip that step for the two most common regression settings in
 applied work. Each takes a list of models fitted directly on
 `complete(imp, "all")`, one model per completed data set, and returns a
 pooled coefficient table formatted the way `summary.coxph()` and
@@ -888,7 +888,7 @@ glm_fits <- lapply(complete(imp, "all"), function(d) {
   glm(vs ~ mpg + wt, data = d, family = binomial())
 })
 
-pool_glm(glm_fits)
+poolglm(glm_fits)
 ```
 
 The coefficient table's `Estimate` and `Std. Error` columns are the usual
@@ -900,7 +900,7 @@ correction, bounded by the complete-data residual degrees of freedom
 (`df.residual()` of a single fit). This matches `mice::pool()`'s default
 behavior for `glm` models.
 
-`pool_coxph()` follows the same pattern for `coxph` models, adding a second
+`poolcoxph()` follows the same pattern for `coxph` models, adding a second
 table of exponentiated coefficients (hazard ratios) with a pooled confidence
 interval, mirroring `summary.coxph()`'s two-table layout:
 
@@ -912,27 +912,27 @@ cox_fits <- lapply(complete(imp, "all"), function(d) {
   coxph(Surv(qsec, am) ~ mpg + hi_wt, data = d)
 })
 
-pool_coxph(cox_fits)
+poolcoxph(cox_fits)
 ```
 
 Because a Cox partial likelihood has no residual degrees of freedom in the
-`glm` sense, `pool_coxph()` uses `nevent - p` (events minus estimated
+`glm` sense, `poolcoxph()` uses `nevent - p` (events minus estimated
 parameters) as the complete-data df for the Barnard-Rubin correction, since
 the information in a partial likelihood scales with the number of events
-rather than the number of rows. Both `pool_coxph()` and `pool_glm()` require
+rather than the number of rows. Both `poolcoxph()` and `poolglm()` require
 every model in the list to share the same coefficient names in the same
 order, i.e., the same formula fitted on each completed data set.
 
 Three further helpers extend the same pattern to other common regression
-settings: `pool_lm()` for ordinary linear models (`summary.lm()`-formatted
-output), `pool_survreg()` for parametric accelerated-failure-time survival
+settings: `poollm()` for ordinary linear models (`summary.lm()`-formatted
+output), `poolsurvreg()` for parametric accelerated-failure-time survival
 models (`summary.survreg()`-formatted output, pooling the regression
 coefficients only, not the distribution's scale/shape parameter), and
-`pool_clogit()` for conditional logistic regression on matched sets
+`poolclogit()` for conditional logistic regression on matched sets
 (`survival::clogit()` fits a stratified Cox model internally, so
-`pool_clogit()` pools and formats identically to `pool_coxph()`, including
+`poolclogit()` pools and formats identically to `poolcoxph()`, including
 the `nevent - p` degrees-of-freedom convention). All three, together with
-`pool_coxph()` and `pool_glm()`, were cross-validated against
+`poolcoxph()` and `poolglm()`, were cross-validated against
 `mice::pool()` on matched examples and reproduce its pooled estimates,
 standard errors, degrees of freedom, and p-values to numerical precision.
 

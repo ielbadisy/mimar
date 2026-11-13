@@ -65,7 +65,7 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' `fit()`, and used through `predict()`.
 #'
 #' Each requested imputer is applied to all incomplete variables it supports.
-#' Use `imputer_registry()` to inspect target-type compatibility.
+#' Use `imputerregistry()` to inspect target-type compatibility.
 #' Learner-backed methods are supervised stochastic update rules inside the
 #' chained workflow; inspect diagnostics and downstream sensitivity rather than
 #' treating any single learner as a guarantee of proper uncertainty
@@ -178,7 +178,7 @@ evaluate <- function(x, ...) UseMethod("evaluate")
 #' quantities. Unless a joint covariance structure is supplied through a vector
 #' input, these are pooled element by element, which is appropriate for grids of
 #' scalar estimands such as survival probabilities at several times and
-#' covariate profiles. For survival-probability matrices, `pool_survmat()`
+#' covariate profiles. For survival-probability matrices, `poolsurvmat()`
 #' applies the complementary log-log transform and back-transform automatically.
 #'
 #' Some metrics do not have reliable complete-data variance estimates or do not

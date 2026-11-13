@@ -122,7 +122,7 @@
 
 #' Pooled multi-parameter tests across imputations
 #'
-#' `pool_test()` tests several coefficients at once after multiple
+#' `pooltest()` tests several coefficients at once after multiple
 #' imputation, for example all dummy variables of a categorical predictor or a
 #' full model against a nested one. Testing each pooled coefficient with its
 #' own \eqn{t} statistic does not answer that question, and the per-imputation
@@ -168,7 +168,7 @@
 #' @param use For D2, whether to combine Wald (`"wald"`) or
 #'   likelihood-ratio (`"likelihood"`) statistics.
 #' @param dfcom Optional complete-data degrees of freedom, used by D1 only.
-#'   For `panglm` fits, `NULL` uses the same default as [pool_panglm()]:
+#'   For `panglm` fits, `NULL` uses the same default as [poolpanglm()]:
 #'   \eqn{G - 1} for a cluster-robust covariance, `df.residual()` otherwise.
 #' @return A `mimar_pool_test` object: a one-row table with the method,
 #'   `statistic` (the F value), `df1`, `df2`, `p.value`, relative increase in
@@ -189,7 +189,7 @@
 #' Reiter, J. P. (2007). Small-sample degrees of freedom for multi-component
 #' significance tests with multiple imputation for missing data.
 #' *Biometrika*, 94, 502-508.
-#' @seealso [pool_lm()], [pool_glm()], [pool()]
+#' @seealso [poollm()], [poolglm()], [pool()]
 #' @examples
 #' d <- mtcars
 #' d$cyl <- factor(d$cyl)
@@ -200,11 +200,11 @@
 #' fits <- lapply(comp, function(x) lm(mpg ~ cyl + hp + wt, data = x))
 #' fits0 <- lapply(comp, function(x) lm(mpg ~ hp + wt, data = x))
 #' # Does cyl (two dummy coefficients) matter?
-#' pool_test(fits, fits0, method = "D1")
-#' pool_test(fits, fits0, method = "D3")
-#' pool_test(fits, terms = c("cyl6", "cyl8"), method = "D2")
+#' pooltest(fits, fits0, method = "D1")
+#' pooltest(fits, fits0, method = "D3")
+#' pooltest(fits, terms = c("cyl6", "cyl8"), method = "D2")
 #' @export
-pool_test <- function(fits, fits0 = NULL, terms = NULL,
+pooltest <- function(fits, fits0 = NULL, terms = NULL,
                       method = c("D1", "D2", "D3"),
                       use = c("wald", "likelihood"), dfcom = NULL) {
   method <- match.arg(method)

@@ -29,7 +29,7 @@ describe.character <- function(x, ...) {
   if (length(x) != 1 || !identical(tolower(x), "imputers")) {
     .mimar_stop('Only describe("imputers") is supported for character input.')
   }
-  out <- imputer_registry()
+  out <- imputerregistry()
   class(out) <- c("mimar_imputers", setdiff(class(out), "mimar_imputers"))
   out
 }

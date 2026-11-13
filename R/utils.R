@@ -26,13 +26,13 @@
 }
 
 .as_dt <- function(x) {
-  # basetable::as_basetable() is a no-op on anything already carrying class
+  # basetable::asbasetable() is a no-op on anything already carrying class
   # "basetable" (e.g. a describe.character("imputers") result additionally
   # tagged "mimar_imputers") -- strip to a plain data.frame first so callers
   # relying on `.as_dt()` to always produce a clean basetable (dropping any
   # prior custom class) get one, instead of `x` unchanged.
   if (is.data.frame(x)) class(x) <- "data.frame"
-  basetable::as_basetable(x)
+  basetable::asbasetable(x)
 }
 
 .rbind_or_empty <- function(x) {

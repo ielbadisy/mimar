@@ -87,7 +87,7 @@
 
 #' Pool Cox proportional hazards models across imputations
 #'
-#' `pool_coxph()` combines a list of `coxph` models, one fitted on each
+#' `poolcoxph()` combines a list of `coxph` models, one fitted on each
 #' completed data set (see `complete(x, "all")`), using Rubin's rules on the
 #' log-hazard scale. The printed output mirrors `summary.coxph()`: a
 #' coefficient table with `coef`, `exp(coef)`, `se(coef)`, and a hazard-ratio
@@ -111,7 +111,7 @@
 #' @param ... Currently unused.
 #' @return A `mimar_pool_coxph` object with `coefficients` (pooled log-hazard
 #'   table) and `conf_int` (pooled hazard-ratio table).
-#' @seealso [pool_glm()], [pool()]
+#' @seealso [poolglm()], [pool()]
 #' @examples
 #' \donttest{
 #' if (requireNamespace("survival", quietly = TRUE)) {
@@ -120,32 +120,32 @@
 #'   fits <- lapply(complete(imp, "all"), function(d) {
 #'     coxph(Surv(time, status) ~ age + sex + ph.ecog, data = d)
 #'   })
-#'   pool_coxph(fits)
+#'   poolcoxph(fits)
 #' }
 #' }
 #' @export
-pool_coxph <- function(fits, conf.level = 0.95, ...) {
+poolcoxph <- function(fits, conf.level = 0.95, ...) {
   .pool_coxlike(fits, conf.level, expected_class = "coxph",
                 out_class = "mimar_pool_coxph", label = "Pooled Cox proportional hazards model")
 }
 
 #' Pool conditional logistic regression models across imputations
 #'
-#' `pool_clogit()` combines a list of `clogit` models (`survival::clogit()`),
+#' `poolclogit()` combines a list of `clogit` models (`survival::clogit()`),
 #' one fitted on each completed data set, using Rubin's rules. `clogit()`
 #' fits a stratified Cox model internally and returns an object of class
-#' `c("clogit", "coxph")`, so `pool_clogit()` pools and formats output
-#' identically to [pool_coxph()] (a `coef`/`exp(coef)`/`se(coef)` table plus
+#' `c("clogit", "coxph")`, so `poolclogit()` pools and formats output
+#' identically to [poolcoxph()] (a `coef`/`exp(coef)`/`se(coef)` table plus
 #' an odds-ratio confidence-interval table), including using `nevent - p` as
 #' the complete-data df for the Barnard-Rubin correction.
 #'
-#' @inherit pool_coxph details
+#' @inherit poolcoxph details
 #' @param fits A list of `clogit` model fits, one per completed data set,
 #'   fitted with the same formula (identical coefficient names and order).
 #' @param conf.level Confidence level for the odds-ratio interval.
 #' @param ... Currently unused.
-#' @return A `mimar_pool_coxph`-family object (see [pool_coxph()]).
-#' @seealso [pool_coxph()], [pool_glm()], [pool()]
+#' @return A `mimar_pool_coxph`-family object (see [poolcoxph()]).
+#' @seealso [poolcoxph()], [poolglm()], [pool()]
 #' @examples
 #' \donttest{
 #' if (requireNamespace("survival", quietly = TRUE)) {
@@ -160,11 +160,11 @@ pool_coxph <- function(fits, conf.level = 0.95, ...) {
 #'   fits <- lapply(complete(imp, "all"), function(dd) {
 #'     clogit(status ~ age + strata(id), data = dd)
 #'   })
-#'   pool_clogit(fits)
+#'   poolclogit(fits)
 #' }
 #' }
 #' @export
-pool_clogit <- function(fits, conf.level = 0.95, ...) {
+poolclogit <- function(fits, conf.level = 0.95, ...) {
   .pool_coxlike(fits, conf.level, expected_class = "clogit",
                 out_class = "mimar_pool_clogit", label = "Pooled conditional logistic regression model")
 }
@@ -248,18 +248,18 @@ print.mimar_pool_coxlike <- function(x, digits = max(3, getOption("digits") - 3)
 
 #' Pool generalized linear models across imputations
 #'
-#' `pool_glm()` combines a list of `glm` models, one fitted on each completed
+#' `poolglm()` combines a list of `glm` models, one fitted on each completed
 #' data set (see `complete(x, "all")`), using Rubin's rules on the linear
 #' predictor scale. The printed output mirrors `summary.glm()`'s coefficient
 #' table (`Estimate`, `Std. Error`, test statistic, p-value), with an added
 #' `df` column for the pooled (Barnard-Rubin) degrees of freedom. As with
-#' [pool_coxph()], the reference distribution is Student's \eqn{t} throughout;
+#' [poolcoxph()], the reference distribution is Student's \eqn{t} throughout;
 #' the printed statistic is labelled `t value` for families with an estimated
 #' dispersion (gaussian, Gamma, inverse.gaussian) and `z value` otherwise, to
 #' match the labelling convention of `summary.glm()`, though both derive from
 #' the same pooled \eqn{t} reference distribution.
 #'
-#' @inherit pool_coxph details
+#' @inherit poolcoxph details
 #' @param fits A list of `glm` model fits, one per completed data set, fitted
 #'   with the same formula (identical coefficient names and order) and the
 #'   same family.
@@ -267,15 +267,15 @@ print.mimar_pool_coxlike <- function(x, digits = max(3, getOption("digits") - 3)
 #'   pooled-quantity computation, not printed by default.
 #' @param ... Currently unused.
 #' @return A `mimar_pool_glm` object with a pooled `coefficients` table.
-#' @seealso [pool_coxph()], [pool()]
+#' @seealso [poolcoxph()], [pool()]
 #' @examples
 #' imp <- impute(mtcars, m = 3, imputer = "pmm", seed = 1)
 #' fits <- lapply(complete(imp, "all"), function(d) {
 #'   glm(vs ~ mpg + wt, data = d, family = binomial())
 #' })
-#' pool_glm(fits)
+#' poolglm(fits)
 #' @export
-pool_glm <- function(fits, conf.level = 0.95, ...) {
+poolglm <- function(fits, conf.level = 0.95, ...) {
   .pool_model_check_fits(fits, "glm")
   ex <- .pool_model_extract(fits)
   pooled <- .pool_model_terms(ex$coefs, ex$vars, ex$term_names, conf.level)
@@ -336,12 +336,12 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 
 #' Pool panel (panglm) models across imputations
 #'
-#' `pool_panglm()` combines a list of `panglm` panel-data model fits (see the
+#' `poolpanglm()` combines a list of `panglm` panel-data model fits (see the
 #' `panglm` package), one fitted on each completed data set (see
 #' `complete(x, "all")`), using Rubin's rules. The printed output mirrors
-#' [pool_glm()]'s coefficient table (`Estimate`, `Std. Error`, test
+#' [poolglm()]'s coefficient table (`Estimate`, `Std. Error`, test
 #' statistic, p-value), with an added `df` column for the pooled
-#' (Barnard-Rubin) degrees of freedom. As with [pool_glm()], the reference
+#' (Barnard-Rubin) degrees of freedom. As with [poolglm()], the reference
 #' distribution is Student's \eqn{t} throughout; the printed statistic is
 #' labelled `t value` for the gaussian family and `z value` otherwise.
 #'
@@ -357,7 +357,7 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'
 #' All fits must share the same formula and the same `panglm` settings
 #' (`model`, `effect`, `family`, `vcov_type`), since these determine what the
-#' pooled coefficients represent; `pool_panglm()` warns if they differ.
+#' pooled coefficients represent; `poolpanglm()` warns if they differ.
 #'
 #' Rubin's rules are valid only if the imputation model is at least as rich
 #' as the analysis model. For `model = "within"` or `"random"` analyses,
@@ -368,7 +368,7 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #' panel structure (for example individual indicators or a random
 #' intercept).
 #'
-#' @inherit pool_coxph details
+#' @inherit poolcoxph details
 #' @param fits A list of `panglm` model fits, one per completed data set,
 #'   fitted with the same formula and the same `model`/`effect`/`family`/
 #'   `vcov` settings (identical coefficient names and order).
@@ -378,7 +378,7 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'   uses \eqn{G - 1} for cluster-robust fits and `df.residual()` otherwise.
 #' @param ... Currently unused.
 #' @return A `mimar_pool_panglm` object with a pooled `coefficients` table.
-#' @seealso [pool_glm()], [pool_lm()], [pool_coxph()], [pool()]
+#' @seealso [poolglm()], [poollm()], [poolcoxph()], [pool()]
 #' @examples
 #' \donttest{
 #' if (requireNamespace("panglm", quietly = TRUE)) {
@@ -390,11 +390,11 @@ print.mimar_pool_glm <- function(x, digits = max(3, getOption("digits") - 3), ..
 #'                     index = c("id", "visit"), model = "pooling",
 #'                     family = "gaussian")
 #'   })
-#'   pool_panglm(fits)
+#'   poolpanglm(fits)
 #' }
 #' }
 #' @export
-pool_panglm <- function(fits, conf.level = 0.95, dfcom = NULL, ...) {
+poolpanglm <- function(fits, conf.level = 0.95, dfcom = NULL, ...) {
   .pool_model_check_fits(fits, "panglm")
   dfcom <- .check_dfcom(dfcom)
   ex <- .pool_model_extract(fits)
@@ -453,27 +453,27 @@ print.mimar_pool_panglm <- function(x, digits = max(3, getOption("digits") - 3),
 
 #' Pool linear models across imputations
 #'
-#' `pool_lm()` combines a list of `lm` models, one fitted on each completed
+#' `poollm()` combines a list of `lm` models, one fitted on each completed
 #' data set (see `complete(x, "all")`), using Rubin's rules. The printed
 #' output mirrors `summary.lm()`'s coefficient table (`Estimate`,
 #' `Std. Error`, `t value`, `Pr(>|t|)`), with an added `df` column for the
 #' pooled (Barnard-Rubin) degrees of freedom, using `df.residual()` of a
 #' single fit as the complete-data df.
 #'
-#' @inherit pool_coxph details
+#' @inherit poolcoxph details
 #' @param fits A list of `lm` model fits, one per completed data set, fitted
 #'   with the same formula (identical coefficient names and order).
 #' @param conf.level Confidence level; currently only used for internal
 #'   pooled-quantity computation, not printed by default.
 #' @param ... Currently unused.
 #' @return A `mimar_pool_lm` object with a pooled `coefficients` table.
-#' @seealso [pool_glm()], [pool_coxph()], [pool()]
+#' @seealso [poolglm()], [poolcoxph()], [pool()]
 #' @examples
 #' imp <- impute(mtcars, m = 3, imputer = "pmm", seed = 1)
 #' fits <- lapply(complete(imp, "all"), function(d) lm(mpg ~ wt + hp, data = d))
-#' pool_lm(fits)
+#' poollm(fits)
 #' @export
-pool_lm <- function(fits, conf.level = 0.95, ...) {
+poollm <- function(fits, conf.level = 0.95, ...) {
   .pool_model_check_fits(fits, "lm")
   ex <- .pool_model_extract(fits)
   pooled <- .pool_model_terms(ex$coefs, ex$vars, ex$term_names, conf.level)
@@ -513,7 +513,7 @@ print.mimar_pool_lm <- function(x, digits = max(3, getOption("digits") - 3), ...
 
 #' Pool parametric survival regression models across imputations
 #'
-#' `pool_survreg()` combines a list of `survreg` accelerated failure time
+#' `poolsurvreg()` combines a list of `survreg` accelerated failure time
 #' models (`survival::survreg()`), one fitted on each completed data set,
 #' using Rubin's rules. The printed output mirrors the coefficient table of
 #' `summary.survreg()` (`Value`, `Std. Error`, `z`, `p`), with an added `df`
@@ -523,7 +523,7 @@ print.mimar_pool_lm <- function(x, digits = max(3, getOption("digits") - 3), ...
 #' parameter is treated as a nuisance parameter and is not pooled, matching
 #' how these models are typically reported after multiple imputation.
 #'
-#' @inherit pool_coxph details
+#' @inherit poolcoxph details
 #' @param fits A list of `survreg` model fits, one per completed data set,
 #'   fitted with the same formula and distribution (identical coefficient
 #'   names and order).
@@ -531,7 +531,7 @@ print.mimar_pool_lm <- function(x, digits = max(3, getOption("digits") - 3), ...
 #'   pooled-quantity computation, not printed by default.
 #' @param ... Currently unused.
 #' @return A `mimar_pool_survreg` object with a pooled `coefficients` table.
-#' @seealso [pool_coxph()], [pool_glm()], [pool()]
+#' @seealso [poolcoxph()], [poolglm()], [pool()]
 #' @examples
 #' \donttest{
 #' if (requireNamespace("survival", quietly = TRUE)) {
@@ -540,11 +540,11 @@ print.mimar_pool_lm <- function(x, digits = max(3, getOption("digits") - 3), ...
 #'   fits <- lapply(complete(imp, "all"), function(d) {
 #'     survreg(Surv(time, status) ~ age + sex, data = d, dist = "weibull")
 #'   })
-#'   pool_survreg(fits)
+#'   poolsurvreg(fits)
 #' }
 #' }
 #' @export
-pool_survreg <- function(fits, conf.level = 0.95, ...) {
+poolsurvreg <- function(fits, conf.level = 0.95, ...) {
   .pool_model_check_fits(fits, "survreg")
   ex <- .pool_model_extract(fits)
   pooled <- .pool_model_terms(ex$coefs, ex$vars, ex$term_names, conf.level)
