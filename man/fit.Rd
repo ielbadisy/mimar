@@ -3,6 +3,7 @@
 \name{fit}
 \alias{fit}
 \alias{fit.mimar_imputer}
+\alias{fit.mimar_imputation}
 \title{Fit an imputer learner}
 \usage{
 fit(object, ...)
@@ -17,6 +18,8 @@ fit(object, ...)
   seed = NULL,
   ...
 )
+
+\method{fit}{mimar_imputation}(object, model, fun = stats::lm, ...)
 }
 \arguments{
 \item{object}{Object to fit.}
@@ -36,9 +39,19 @@ restore imputed values to the correct storage type.}
 \item{donors}{Number of predictive mean matching donors for \code{"pmm"}.}
 
 \item{seed}{Optional random seed.}
+
+\item{model}{For a \code{mimar_imputation}: a model formula, fitted with \code{fun} on
+each completed data set, or a function that takes one completed data
+frame and returns a fitted model.}
+
+\item{fun}{Model-fitting function called as \code{fun(model, data = d, ...)} when
+\code{model} is a formula. Default \code{\link[stats:lm]{stats::lm()}}.}
 }
 \value{
 A fitted object.
+
+For a \code{mimar_imputation}, a list of \code{m} fitted models, one per
+completed data set, ready for the pooling functions.
 }
 \description{
 \code{fit()} trains a \code{mimar_imputer} on complete observed rows for one target
@@ -72,4 +85,15 @@ normalized class probabilities.
 \itemize{
 \item \code{fit(mimar_imputer)}: Fit a \code{mimar_imputer}.
 
+\item \code{fit(mimar_imputation)}: Fit an analysis model on every completed data set of a
+\code{mimar_imputation}, the step between \code{\link[=impute]{impute()}} and pooling with
+\code{\link[=poollm]{poollm()}}, \code{\link[=poolglm]{poolglm()}}, \code{\link[=poolcoxph]{poolcoxph()}} and the other pooling functions.
+
 }}
+\examples{
+imp <- impute(airquality, m = 3, imputer = "pmm", seed = 1)
+fits <- fit(imp, Ozone ~ Wind + Temp)
+poollm(fits)
+fits <- fit(imp, I(Ozone > 50) ~ Wind, fun = glm, family = binomial)
+poolglm(fits)
+}

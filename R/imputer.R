@@ -849,3 +849,32 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   }
   invisible(TRUE)
 }
+
+#' @describeIn fit Fit an analysis model on every completed data set of a
+#'   `mimar_imputation`, the step between [impute()] and pooling with
+#'   [poollm()], [poolglm()], [poolcoxph()] and the other pooling functions.
+#' @param model For a `mimar_imputation`: a model formula, fitted with `fun` on
+#'   each completed data set, or a function that takes one completed data
+#'   frame and returns a fitted model.
+#' @param fun Model-fitting function called as `fun(model, data = d, ...)` when
+#'   `model` is a formula. Default [stats::lm()].
+#' @return For a `mimar_imputation`, a list of `m` fitted models, one per
+#'   completed data set, ready for the pooling functions.
+#' @examples
+#' imp <- impute(airquality, m = 3, imputer = "pmm", seed = 1)
+#' fits <- fit(imp, Ozone ~ Wind + Temp)
+#' poollm(fits)
+#' fits <- fit(imp, I(Ozone > 50) ~ Wind, fun = glm, family = binomial)
+#' poolglm(fits)
+#' @export
+fit.mimar_imputation <- function(object, model, fun = stats::lm, ...) {
+  datasets <- complete(object, "all")
+  if (inherits(model, "formula")) {
+    if (!is.function(fun)) .mimar_stop("`fun` must be a model-fitting function such as `lm` or `glm`.")
+    lapply(datasets, function(d) fun(model, data = d, ...))
+  } else if (is.function(model)) {
+    lapply(datasets, function(d) model(d, ...))
+  } else {
+    .mimar_stop("`model` must be a formula or a function of one completed data set.")
+  }
+}
