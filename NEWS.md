@@ -1,3 +1,11 @@
+# mimar 1.4.7
+
+* New `deltaadjust()` shifts the imputed values of chosen numeric variables by a fixed delta in every completed data set (observed values untouched, optional subgroup `rows`), for MNAR sensitivity analysis. New `tippingpoint()` repeats the shift over a grid of deltas, fits and pools the analysis model at each, and returns the pooled estimates.
+
+# mimar 1.4.7
+
+* New `deltaadjust()` shifts the imputed values of chosen numeric variables by a fixed delta in every completed data set (observed values untouched, optional subgroup `rows`), for MNAR sensitivity analysis. New `tippingpoint()` repeats the shift over a grid of deltas, fits and pools the analysis model at each, and returns the pooled estimates.
+
 # mimar 1.4.6
 
 * `fit()` now accepts an imputation: `fit(imp, Ozone ~ Wind)` fits the model (with `lm()` by default, or any `fun` such as `glm`) on every completed data set and returns the list of fits that `poollm()`, `poolglm()`, `poolcoxph()` and the other pooling functions take. `model` may also be a function of one completed data frame.
