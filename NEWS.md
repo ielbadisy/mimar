@@ -2,6 +2,7 @@
 
 * New `deltaadjust()` shifts the imputed values of chosen numeric variables by a fixed delta in every completed data set (observed values untouched, optional subgroup `rows`), for MNAR sensitivity analysis. New `tippingpoint()` repeats the shift over a grid of deltas, fits and pools the analysis model at each, and returns the pooled estimates.
 * New `predict()` method for a `mimar_imputation` imputes the missing cells of new data (such as a test set) from the training imputation only: for each completed training data set, every imputation model is fitted on the training rows and applied to the new rows by chained updates, without refitting on or leaking from the new data (as `mice(ignore = )`). It returns a `mimar_imputation` of the new data, ready for `complete()`, `fit()` and pooling.
+* `fit()` and `evaluate()` gain default methods that forward a call mimar has no method for (such as `fit(Surv(time, status) ~ ., data, model = "coxph")`) to the next attached function of the same name, for example from survalis or funcml. Loading mimar after those packages no longer breaks their `fit()` and `evaluate()`. No export is removed or renamed.
 
 # mimar 1.4.7
 
