@@ -1,6 +1,7 @@
 # mimar 1.4.7
 
 * New `deltaadjust()` shifts the imputed values of chosen numeric variables by a fixed delta in every completed data set (observed values untouched, optional subgroup `rows`), for MNAR sensitivity analysis. New `tippingpoint()` repeats the shift over a grid of deltas, fits and pools the analysis model at each, and returns the pooled estimates.
+* New `predict()` method for a `mimar_imputation` imputes the missing cells of new data (such as a test set) from the training imputation only: for each completed training data set, every imputation model is fitted on the training rows and applied to the new rows by chained updates, without refitting on or leaking from the new data (as `mice(ignore = )`). It returns a `mimar_imputation` of the new data, ready for `complete()`, `fit()` and pooling.
 
 # mimar 1.4.7
 
