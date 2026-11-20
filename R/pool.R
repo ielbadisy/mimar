@@ -13,6 +13,9 @@
   dfcom
 }
 
+# Fraction of missing information (Rubin 1987, eq. 3.1.10), as in mice::pool().
+.fmi <- function(r, df) ifelse(is.finite(r), (r + 2 / (df + 3)) / (1 + r), 1)
+
 .pool_links <- c("identity", "log", "logit", "cloglog", "fisherz")
 
 # Named pooling scales: forward map, inverse, and derivative dz/dq used to
@@ -102,6 +105,8 @@
       between_variance = b,
       total_variance = total,
       relative_increase_variance = r,
+      lambda = (1 + 1 / m) * b / total,
+      fmi = .fmi(r, df),
       rule = "rubin",
       row.names = NULL
     ))

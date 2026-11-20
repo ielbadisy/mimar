@@ -1,3 +1,8 @@
+# mimar 1.4.8
+
+* Rubin pooling (`pool()` and the model helpers `poollm()`, `poolglm()`, `poolcoxph()`, `poolclogit()`, `poolsurvreg()`, `poolpanglm()`) now reports, in `$pooled`, the proportion of variance due to missingness `lambda` and the fraction of missing information `fmi` = (r + 2/(df + 3))/(1 + r), computed with the reported (Rubin or Barnard-Rubin) df. Both match `mice::pool()`.
+* `?nelsonaalen` now states that it computes the exact Nelson-Aalen estimator (as `basehaz()` of a null `coxph(ties = "breslow")` fit) and that `mice::nelsonaalen()` uses Efron tie handling, so the two differ slightly when event times are tied. No numeric change.
+
 # mimar 1.4.7
 
 * New `deltaadjust()` shifts the imputed values of chosen numeric variables by a fixed delta in every completed data set (observed values untouched, optional subgroup `rows`), for MNAR sensitivity analysis. New `tippingpoint()` repeats the shift over a grid of deltas, fits and pools the analysis model at each, and returns the pooled estimates.

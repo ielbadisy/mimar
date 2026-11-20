@@ -152,6 +152,17 @@ reports robust summaries by default when no variance is supplied: median,
 interquartile range, and range across imputations. Use \code{rule = "mean"} to
 request a mean and between-imputation standard error for such metrics.
 
+Under Rubin pooling the \verb{$pooled} table also reports, per quantity, the
+relative increase in variance \eqn{r = (1 + m^{-1})B/\bar U}, the
+proportion of total variance due to missingness
+\eqn{\lambda = (1 + m^{-1})B/T}, and the fraction of missing information
+\eqn{\gamma = \{r + 2/(\nu + 3)\}/(1 + r)} (\code{fmi}), where \eqn{\nu} is the
+reported \code{df} (Rubin 1987 or Barnard-Rubin 1999). These match the \code{riv},
+\code{lambda} and \code{fmi} columns of \code{mice::pool()} for the same \code{df}. The
+model-pooling helpers (\code{\link[=poollm]{poollm()}}, \code{\link[=poolglm]{poolglm()}}, \code{\link[=poolcoxph]{poolcoxph()}},
+\code{\link[=poolclogit]{poolclogit()}}, \code{\link[=poolsurvreg]{poolsurvreg()}}, \code{\link[=poolpanglm]{poolpanglm()}}) carry the same columns in
+their \verb{$pooled} element.
+
 Rubin's rules assume that each complete-data estimate is
 approximately normal with the supplied variance, and inference refers
 the pooled estimate to a \eqn{t} distribution. For bounded or skewed

@@ -78,6 +78,7 @@
   df_adj <- .barnard_rubin_df(dfcom, pooled$between_variance, pooled$total_variance, m)
   crit <- stats::qt(1 - alpha / 2, df = df_adj)
   pooled$df <- df_adj
+  pooled$fmi <- .fmi(pooled$relative_increase_variance, df_adj)
   pooled$statistic <- pooled$estimate / pooled$std.error
   pooled$p.value <- 2 * stats::pt(abs(pooled$statistic), df = df_adj, lower.tail = FALSE)
   pooled$conf.low <- pooled$estimate - crit * pooled$std.error
