@@ -205,6 +205,17 @@ evaluate <- function(x, ...) UseMethod("evaluate")
 #' interquartile range, and range across imputations. Use `rule = "mean"` to
 #' request a mean and between-imputation standard error for such metrics.
 #'
+#' Under Rubin pooling the `$pooled` table also reports, per quantity, the
+#' relative increase in variance \eqn{r = (1 + m^{-1})B/\bar U}, the
+#' proportion of total variance due to missingness
+#' \eqn{\lambda = (1 + m^{-1})B/T}, and the fraction of missing information
+#' \eqn{\gamma = \{r + 2/(\nu + 3)\}/(1 + r)} (`fmi`), where \eqn{\nu} is the
+#' reported `df` (Rubin 1987 or Barnard-Rubin 1999). These match the `riv`,
+#' `lambda` and `fmi` columns of `mice::pool()` for the same `df`. The
+#' model-pooling helpers ([poollm()], [poolglm()], [poolcoxph()],
+#' [poolclogit()], [poolsurvreg()], [poolpanglm()]) carry the same columns in
+#' their `$pooled` element.
+#'
 #' @examples
 #' pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
 #'

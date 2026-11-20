@@ -44,8 +44,14 @@ survival time must never be used as a predictor, as it biases the imputed
 values.
 }
 \details{
-With no \code{aux}, the marginal Nelson-Aalen estimator is used, matching
-\code{mice::nelsonaalen()}. When \code{aux} names one or more auxiliary variables the
+With no \code{aux}, the marginal Nelson-Aalen estimator
+\eqn{\hat H(t) = \sum_{t_j \le t} d_j / n_j} is used (\eqn{d_j} events
+among \eqn{n_j} at risk at event time \eqn{t_j}), the same value as
+\code{survival::basehaz()} of a null \code{coxph(ties = "breslow")} fit.
+\code{mice::nelsonaalen()} takes \code{basehaz()} of a null \code{coxph()} fit with the
+default \code{ties = "efron"}, which splits tied events over the risk set
+(Fleming-Harrington). The two agree without tied event times and differ
+slightly with ties (by up to about \code{5e-5} on the \code{pbc} data). When \code{aux} names one or more auxiliary variables the
 estimate is made conditional on them: \code{method = "strata"} estimates a
 separate cumulative hazard within each combination of the (categorical)
 \code{aux} variables, while \code{method = "breslow"} fits a Cox model on \code{aux} and
