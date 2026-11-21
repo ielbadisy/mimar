@@ -1,3 +1,15 @@
+# mimar 1.4.11
+
+* New `poolcompare(fits, term, scale = 1)` collects one term from several analyses (a named list of mimar pooled
+  results and/or single `coxph`, `glm`, `lm`, `survreg` fits), with the coefficient, standard error and limits
+  multiplied by `scale` (for example `log(2)` for a per-doubling effect of a log-transformed covariate). Pooled rows
+  keep their Rubin's-rules interval; single fits get the Wald interval of `confint()` (`confint.default()` for
+  `glm`, the t interval for `lm`). Its `plot()` method draws one row per analysis, exponentiated on a log axis for
+  Cox, logistic and log-link models, with `labels`, `ref` (dotted line at one analysis), `xlab` and per-analysis
+  `palette`. A `plot()` method for bare lists is not provided, since it would capture `plot()` on any list.
+* `plot(describe(x))` (bar type): the right plot margin is wider so the last percent label of the x axis
+  (for example "12.5%") is no longer clipped (bug fix).
+
 # mimar 1.4.10
 
 Plot fixes. Only plots change; no numeric result changes.
