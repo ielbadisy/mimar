@@ -13,6 +13,7 @@
   statistic = c("mean", "sd"),
   palette = NULL,
   average = FALSE,
+  labels = NULL,
   ...
 )
 }
@@ -40,7 +41,10 @@ dark grey then blue shades); for \code{"missing"} \code{observed}, \code{imputed
 \code{"methods"} one per method; for \code{"imputed"} and \code{"variability"} the bar fill.}
 
 \item{average}{If \code{TRUE}, \code{"trace"} adds the across-chain average as a thick line (colour
-\code{palette["average"]}, default black).}
+\code{palette["average"]}, default black) and drops the per-chain legend.}
+
+\item{labels}{Optional named character vector of display labels for variables (facet strips,
+axes), such as \code{c(lcopper = "log copper")}. Unnamed variables keep their names.}
 
 \item{...}{Unused.}
 }

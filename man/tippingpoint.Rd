@@ -41,8 +41,9 @@ object, such as \code{\link[=poollm]{poollm()}} or \code{\link[=poolglm]{poolglm
 \item{...}{Passed to \code{fun}.}
 }
 \value{
-A basetable with one row per shift and term: \code{delta}, \code{term},
-\code{estimate}, \code{std.error}, \code{conf.low}, \code{conf.high}, \code{p.value}.
+A basetable of class \code{mimar_tippingpoint} with one row per shift and term: \code{delta},
+\code{term}, \code{estimate}, \code{std.error}, \code{conf.low}, \code{conf.high}, \code{p.value}. \code{plot()} draws it (see
+\code{\link[=plot.mimar_tippingpoint]{plot.mimar_tippingpoint()}}).
 }
 \description{
 \code{tippingpoint()} applies \code{\link[=deltaadjust]{deltaadjust()}} for each value in \code{deltas}, fits
