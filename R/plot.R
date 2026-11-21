@@ -31,7 +31,9 @@ plot.mimar_missing <- function(x, type = c("bar", "pattern"), by = NULL, complet
   if (!complete) vars <- vars[nmis[vars] > 0]
   if (!length(vars)) return(.empty_ggplot("No missing values"))
   if (type == "pattern") return(.plot_pattern(dat[vars], labels, npattern, palette))
-  th <- ggplot2::theme_minimal(base_size = 12)
+  # room on the right for the last percent label, which is centred on the panel edge
+  th <- ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(plot.margin = ggplot2::margin(5.5, 18, 5.5, 5.5))
   if (is.null(by)) {
     d <- data.frame(variable = .lab(vars, labels), prop = colMeans(is.na(dat[vars])))
     d$variable <- stats::reorder(d$variable, d$prop)
