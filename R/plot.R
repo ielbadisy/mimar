@@ -1,16 +1,16 @@
 #' @export
-plot.mimar_missing <- function(x, ...) {
+plot.mimar_missing <- function(x, palette = NULL, ...) {
   d <- x$variable_summary
   d$variable <- stats::reorder(d$variable, d$prop_missing)
   ggplot2::ggplot(d, .gg_aes(x = "prop_missing", y = "variable")) +
-    ggplot2::geom_col(fill = "#2F6F73", width = 0.72) +
+    ggplot2::geom_col(fill = .pal(palette, c(fill = "#2166AC")), width = 0.72) +
     ggplot2::scale_x_continuous(labels = function(z) paste0(round(100 * z), "%")) +
     ggplot2::labs(x = "Missing proportion", y = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
 
 #' @export
-plot.mimar_amputation <- function(x, ...) {
+plot.mimar_amputation <- function(x, palette = NULL, ...) {
   d <- summary(x)
   long <- .rbind_or_empty(lapply(c("original", "added", "total"), function(status) {
     data.frame(variable = d$variable, status = status, n_missing = d[[status]], row.names = NULL)
@@ -18,7 +18,8 @@ plot.mimar_amputation <- function(x, ...) {
   long$status <- factor(long$status, levels = c("original", "added", "total"))
   ggplot2::ggplot(long, .gg_aes(x = "variable", y = "n_missing", fill = "status")) +
     ggplot2::geom_col(position = "dodge", width = 0.72) +
-    ggplot2::scale_fill_manual(values = c(original = "#4F5D75", added = "#B84A62", total = "#2F6F73")) +
+    ggplot2::scale_fill_manual(values = .pal(palette, c(original = "grey60", added = "#B2182B",
+                                                         total = "#2166AC"))) +
     ggplot2::labs(x = NULL, y = "Missing cells", fill = NULL) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
@@ -41,21 +42,30 @@ plot.mimar_amputation <- function(x, ...) {
 #'   Use forms such as `height ~ weight`, `height ~ weight | gender`, or
 #'   `group ~ sex`.
 #' @param statistic Trace statistic, either `"mean"` or `"sd"`.
+#' @param palette Optional colours, so the defaults can be changed without adding a second ggplot2
+#'   scale. A named vector replaces the named entries only; an unnamed vector is recycled in order.
+#'   For `"density"`, `"strip"`, `"boxplot"` and `"xy"` the names are `observed` and `imputed`
+#'   (default dark grey and blue); for `"trace"` one colour per chain (default grey shades, a single
+#'   colour draws all chains alike); for `"proportion"` `observed` then one per imputation (default
+#'   dark grey then blue shades); for `"missing"` `observed`, `imputed` and `still missing`; for
+#'   `"methods"` one per method; for `"imputed"` and `"variability"` the bar fill.
+#' @param average If `TRUE`, `"trace"` adds the across-chain average as a thick line (colour
+#'   `palette["average"]`, default black).
 #' @param ... Unused.
 #' @return A `ggplot` object.
 #' @export
 plot.mimar_imputation <- function(x, type = c("imputed", "missing", "density", "strip", "boxplot",
                                               "xy", "proportion", "trace", "methods", "variability"),
                                   variable = NULL, formula = NULL,
-                                  statistic = c("mean", "sd"), ...) {
+                                  statistic = c("mean", "sd"), palette = NULL, average = FALSE, ...) {
   type <- match.arg(type)
   statistic <- match.arg(statistic)
-  .plot_imputation_ggplot(x, type = type, variable = variable,
-                          formula = formula, statistic = statistic)
+  .plot_imputation_ggplot(x, type = type, variable = variable, formula = formula,
+                          statistic = statistic, palette = palette, average = average)
 }
 
 #' @export
-plot.mimar_evaluation <- function(x, ...) {
+plot.mimar_evaluation <- function(x, palette = NULL, ...) {
   d <- x$recovery
   if (is.null(d) || !nrow(d)) return(.empty_ggplot("No recovery metrics available"))
   d$value <- ifelse(!is.na(d$rmse), d$rmse, 1 - d$accuracy)
@@ -63,28 +73,30 @@ plot.mimar_evaluation <- function(x, ...) {
   d$variable <- stats::reorder(d$variable, d$value)
   ggplot2::ggplot(d, .gg_aes(x = "value", y = "variable", fill = "metric")) +
     ggplot2::geom_col(width = 0.72) +
-    ggplot2::scale_fill_manual(values = c(RMSE = "#2F6F73", `1 - accuracy` = "#B84A62")) +
+    ggplot2::scale_fill_manual(values = .pal(palette, c(RMSE = "#2166AC", `1 - accuracy` = "#B2182B"))) +
     ggplot2::labs(x = "Recovery error", y = NULL, fill = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
 
 .plot_imputation_ggplot <- function(x, type, variable = NULL, formula = NULL,
-                                    statistic = "mean") {
+                                    statistic = "mean", palette = NULL, average = FALSE) {
   if (identical(type, "imputed")) {
     d <- .imputation_variable_summary(x)
     d$variable <- stats::reorder(d$variable, d$n_imputed)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "n_imputed", y = "variable")) +
-        ggplot2::geom_col(fill = "#2F6F73", width = 0.72) +
+        ggplot2::geom_col(fill = .pal(palette, c(fill = "#2166AC")), width = 0.72) +
         ggplot2::labs(x = "Imputed cells", y = NULL) +
         ggplot2::theme_minimal(base_size = 12)
     )
   }
-  if (identical(type, "missing")) return(.plot_missing_map_ggplot(x))
-  if (identical(type, "boxplot")) return(.plot_boxplot_ggplot(x, variable = variable))
-  if (identical(type, "xy")) return(.plot_xy_ggplot(x, formula = formula))
-  if (identical(type, "proportion")) return(.plot_proportion_ggplot(x, variable = variable, formula = formula))
-  if (identical(type, "trace")) return(.plot_trace_ggplot(x, variable = variable, statistic = statistic))
+  if (identical(type, "missing")) return(.plot_missing_map_ggplot(x, palette))
+  if (identical(type, "boxplot")) return(.plot_boxplot_ggplot(x, variable = variable, palette = palette))
+  if (identical(type, "xy")) return(.plot_xy_ggplot(x, formula = formula, palette = palette))
+  if (identical(type, "proportion")) return(.plot_proportion_ggplot(x, variable = variable, formula = formula,
+                                                                       palette = palette))
+  if (identical(type, "trace")) return(.plot_trace_ggplot(x, variable = variable, statistic = statistic,
+                                                             palette = palette, average = average))
   if (identical(type, "methods")) {
     d <- .imputation_variable_summary(x)
     d <- d[d$n_missing_before > 0, , drop = FALSE]
@@ -93,7 +105,8 @@ plot.mimar_evaluation <- function(x, ...) {
     return(
       ggplot2::ggplot(d, .gg_aes(x = "n_missing_before", y = "variable", fill = "method")) +
         ggplot2::geom_col(width = 0.72) +
-        ggplot2::scale_fill_manual(values = .mimar_palette(unique(d$method)), na.value = "#8A8F98") +
+        ggplot2::scale_fill_manual(values = .pal(palette, .mimar_palette(unique(d$method))),
+                                   na.value = "grey60") +
         ggplot2::labs(x = "Missing cells before imputation", y = NULL, fill = "Method") +
         ggplot2::theme_minimal(base_size = 12)
     )
@@ -107,15 +120,15 @@ plot.mimar_evaluation <- function(x, ...) {
     d$variable <- stats::reorder(d$variable, d$between_imputation_sd)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "between_imputation_sd", y = "variable")) +
-        ggplot2::geom_col(fill = "#7768AE", width = 0.72) +
+        ggplot2::geom_col(fill = .pal(palette, c(fill = "#2166AC")), width = 0.72) +
         ggplot2::labs(x = "Between-imputation SD", y = NULL) +
         ggplot2::theme_minimal(base_size = 12)
     )
   }
-  .plot_distribution_ggplot(x, type = type, variable = variable)
+  .plot_distribution_ggplot(x, type = type, variable = variable, palette = palette)
 }
 
-.plot_missing_map_ggplot <- function(x) {
+.plot_missing_map_ggplot <- function(x, palette = NULL) {
   original <- x$data_original
   first <- x$imputations[[1]]
   d <- .rbind_or_empty(lapply(names(original), function(nm) {
@@ -128,13 +141,14 @@ plot.mimar_evaluation <- function(x, ...) {
   ggplot2::ggplot(d, .gg_aes(x = "variable", y = "row", fill = "status")) +
     ggplot2::geom_tile() +
     ggplot2::scale_y_reverse() +
-    ggplot2::scale_fill_manual(values = c(observed = "#E8ECEF", imputed = "#2F6F73", `still missing` = "#B84A62")) +
+    ggplot2::scale_fill_manual(values = .pal(palette, c(observed = "grey92", imputed = "#2166AC",
+                                                         `still missing` = "#B2182B"))) +
     ggplot2::labs(x = NULL, y = "Row", fill = NULL) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
 
-.plot_distribution_ggplot <- function(x, type, variable = NULL) {
+.plot_distribution_ggplot <- function(x, type, variable = NULL, palette = NULL) {
   d <- .observed_imputed_plot_data(x, variable = variable)
   if (!nrow(d)) return(.empty_ggplot("No plottable imputed variables available"))
   if (identical(type, "density")) {
@@ -145,9 +159,11 @@ plot.mimar_evaluation <- function(x, ...) {
     d$group_id <- interaction(d$variable, d$series, drop = TRUE)
     return(
       ggplot2::ggplot(d, .gg_aes(x = "value", colour = "status", group = "group_id")) +
-        ggplot2::geom_density(linewidth = 0.65, na.rm = TRUE) +
+        # observed drawn last and thicker so the imputed curves do not hide it
+        ggplot2::geom_density(data = d[d$status == "imputed", ], linewidth = 0.5, alpha = 0.8, na.rm = TRUE) +
+        ggplot2::geom_density(data = d[d$status == "observed", ], linewidth = 1.1, na.rm = TRUE) +
         ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free") +
-        ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
+        ggplot2::scale_colour_manual(values = .pal(palette, .mimar_status_palette())) +
         ggplot2::labs(x = NULL, y = "Density", colour = NULL) +
         ggplot2::theme_minimal(base_size = 12)
     )
@@ -156,7 +172,7 @@ plot.mimar_evaluation <- function(x, ...) {
   ggplot2::ggplot(d, .gg_aes(x = "imputation", y = "value", colour = "status")) +
     ggplot2::geom_jitter(width = 0.18, height = 0, alpha = 0.55, na.rm = TRUE) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
-    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
+    ggplot2::scale_colour_manual(values = .pal(palette, .mimar_status_palette())) +
     ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
@@ -195,7 +211,7 @@ plot.mimar_evaluation <- function(x, ...) {
   }))
 }
 
-.plot_boxplot_ggplot <- function(x, variable = NULL) {
+.plot_boxplot_ggplot <- function(x, variable = NULL, palette = NULL) {
   d <- .observed_imputed_plot_data(x, variable = variable)
   d <- d[d$value_type == "numeric", , drop = FALSE]
   if (!nrow(d)) return(.empty_ggplot("Boxplot diagnostics require numeric imputed variables"))
@@ -204,36 +220,47 @@ plot.mimar_evaluation <- function(x, ...) {
     ggplot2::geom_boxplot(outlier.alpha = 0.45, width = 0.62, na.rm = TRUE) +
     ggplot2::stat_summary(fun = mean, geom = "point", size = 2, na.rm = TRUE) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
-    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
+    ggplot2::scale_colour_manual(values = .pal(palette, .mimar_status_palette())) +
     ggplot2::labs(x = "Imputation number", y = NULL, colour = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
 
-.plot_trace_ggplot <- function(x, variable = NULL, statistic = "mean") {
+.plot_trace_ggplot <- function(x, variable = NULL, statistic = "mean", palette = NULL, average = FALSE) {
   d <- x$diagnostics$trace
   if (is.null(d) || !nrow(d)) return(.empty_ggplot("No convergence trace available"))
   d <- d[!is.na(d[[statistic]]), , drop = FALSE]
   if (!is.null(variable)) d <- d[d$variable %in% variable, , drop = FALSE]
   if (!nrow(d)) return(.empty_ggplot("No numeric trace available for selected variables"))
   d$imputation <- factor(d$imputation)
-  ggplot2::ggplot(d, .gg_aes(x = "iteration", y = statistic, colour = "imputation", group = "imputation")) +
+  lev <- levels(d$imputation)
+  chains <- if (is.null(names(palette))) palette else palette[names(palette) != "average"]
+  pal <- .pal(chains, .grey_shades(lev))
+  p <- ggplot2::ggplot(d, .gg_aes(x = "iteration", y = statistic, colour = "imputation",
+                                  group = "imputation")) +
     ggplot2::geom_line(linewidth = 0.55, alpha = 0.85) +
     ggplot2::geom_point(size = 1.2, alpha = 0.75) +
     ggplot2::facet_wrap(stats::as.formula("~ variable"), scales = "free_y") +
-    ggplot2::scale_colour_manual(values = .mimar_palette(levels(d$imputation))) +
+    ggplot2::scale_colour_manual(values = pal[lev]) +
+    ggplot2::scale_x_continuous(breaks = function(l) unique(round(pretty(l)))) +
     ggplot2::labs(x = "Iteration", y = statistic, colour = "Imputation") +
     ggplot2::theme_minimal(base_size = 12)
+  if (!average) return(p)
+  a <- stats::aggregate(d[statistic], d[c("variable", "iteration")], mean)
+  p + ggplot2::geom_line(data = a, .gg_aes(x = "iteration", y = statistic), inherit.aes = FALSE,
+                         colour = if ("average" %in% names(palette)) palette[["average"]] else "black",
+                         linewidth = 1.2)
 }
 
-.plot_xy_ggplot <- function(x, formula = NULL) {
+.plot_xy_ggplot <- function(x, formula = NULL, palette = NULL) {
   if (is.null(formula)) .mimar_stop("`formula` is required for type = 'xy'.")
   spec <- .parse_xy_formula(formula)
   d <- .xy_plot_data(x, spec)
   if (!nrow(d)) return(.empty_ggplot("No bivariate diagnostic data available"))
   p <- ggplot2::ggplot(d, .gg_aes(x = "x", y = "y", colour = "status", fill = "status")) +
     ggplot2::geom_point(.gg_aes(shape = "status"), alpha = 0.7, size = 1.8, na.rm = TRUE) +
-    ggplot2::scale_colour_manual(values = .mimar_status_palette()) +
-    ggplot2::scale_fill_manual(values = c(observed = "#FFFFFF", imputed = .mimar_status_palette()[["imputed"]])) +
+    ggplot2::scale_colour_manual(values = .pal(palette, .mimar_status_palette())) +
+    ggplot2::scale_fill_manual(values = c(observed = "#FFFFFF",
+                                          imputed = .pal(palette, .mimar_status_palette())[["imputed"]])) +
     ggplot2::scale_shape_manual(values = c(observed = 21, imputed = 19)) +
     ggplot2::labs(x = spec$x, y = spec$y, colour = NULL, fill = NULL, shape = NULL) +
     ggplot2::theme_minimal(base_size = 12)
@@ -292,7 +319,7 @@ plot.mimar_evaluation <- function(x, ...) {
   list(y = y, x = x, by = if (length(by)) by else NULL)
 }
 
-.plot_proportion_ggplot <- function(x, variable = NULL, formula = NULL) {
+.plot_proportion_ggplot <- function(x, variable = NULL, formula = NULL, palette = NULL) {
   spec <- .parse_proportion_formula(formula)
   if (!is.null(spec$variable)) variable <- spec$variable
   d <- .proportion_plot_data(x, variable = variable, strata = spec$strata)
@@ -302,7 +329,7 @@ plot.mimar_evaluation <- function(x, ...) {
   p <- ggplot2::ggplot(d, .gg_aes(x = "value", y = "proportion", fill = "series")) +
     ggplot2::geom_col(position = "dodge", width = 0.72) +
     ggplot2::facet_wrap(stats::as.formula("~ panel"), scales = "free_x") +
-    ggplot2::scale_fill_manual(values = .mimar_palette(unique(d$series))) +
+    ggplot2::scale_fill_manual(values = .pal(palette, .series_palette(d$series))) +
     ggplot2::labs(x = NULL, y = "Proportion", fill = NULL) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
@@ -365,13 +392,31 @@ plot.mimar_evaluation <- function(x, ...) {
   do.call(paste, c(parts, sep = " | "))
 }
 
+# Okabe-Ito: colour-blind safe
 .mimar_palette <- function(x) {
-  pal <- c("#2F6F73", "#D99A3D", "#6E5F9F", "#C76E4C", "#3F7D8C", "#7A8B4F")
+  pal <- c("#0072B2", "#E69F00", "#009E73", "#CC79A7", "#56B4E9", "#D55E00", "#F0E442", "#000000")
   stats::setNames(rep(pal, length.out = length(x)), x)
 }
 
-.mimar_status_palette <- function() {
-  c(observed = "#264653", imputed = "#D99A3D")
+.mimar_status_palette <- function() c(observed = "grey20", imputed = "#2166AC")
+
+.grey_shades <- function(x) {
+  v <- round(seq(60, 180, length.out = length(x)))
+  stats::setNames(sprintf("#%02X%02X%02X", v, v, v), x)
+}
+
+.series_palette <- function(s) {
+  s <- unique(s); k <- sum(s != "observed")
+  stats::setNames(c("grey20", grDevices::colorRampPalette(c("#92C5DE", "#08306B"))(k)),
+                  c("observed", s[s != "observed"]))
+}
+
+# named palette entries replace defaults by name; an unnamed one is recycled in order
+.pal <- function(p, def) {
+  if (is.null(p)) return(def)
+  if (is.null(names(p))) return(stats::setNames(rep_len(p, length(def)), names(def)))
+  def[names(p)] <- p
+  def
 }
 
 .gg_aes <- function(...) {
@@ -388,28 +433,29 @@ plot.mimar_evaluation <- function(x, ...) {
 }
 
 #' @export
-plot.mimar_pool <- function(x, ...) {
+plot.mimar_pool <- function(x, palette = NULL, ...) {
+  pal <- .pal(palette, c(point = "#2166AC", interval = "grey30"))
   d <- x$pooled
   d$label <- if ("term" %in% names(d)) d$term else d$metric
   d$label <- stats::reorder(d$label, d$estimate)
   ggplot2::ggplot(d, .gg_aes(x = "estimate", y = "label")) +
     ggplot2::geom_vline(xintercept = 0, colour = "#B8C0C7", linewidth = 0.35) +
     ggplot2::geom_errorbar(.gg_aes(xmin = "conf.low", xmax = "conf.high"),
-                           orientation = "y", width = 0.18, colour = "#4F5D75") +
-    ggplot2::geom_point(size = 2.2, colour = "#2F6F73") +
+                           orientation = "y", width = 0.18, colour = pal[["interval"]]) +
+    ggplot2::geom_point(size = 2.2, colour = pal[["point"]]) +
     ggplot2::labs(x = "Pooled estimate", y = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
 
 #' @export
-plot.mimar_imputers <- function(x, ...) {
+plot.mimar_imputers <- function(x, palette = NULL, ...) {
   d <- as.data.frame(x)
   d$supported_tasks <- rowSums(d[, c("supports_numeric", "supports_binary", "supports_multiclass")])
   d$imputer <- stats::reorder(d$imputer, d$supported_tasks)
   ggplot2::ggplot(d, .gg_aes(x = "supported_tasks", y = "imputer", fill = "implementation")) +
     ggplot2::geom_col(width = 0.72) +
     ggplot2::scale_x_continuous(breaks = 0:3, limits = c(0, 3)) +
-    ggplot2::scale_fill_manual(values = c(mimar = "#2F6F73", wrapped = "#7768AE")) +
+    ggplot2::scale_fill_manual(values = .pal(palette, c(mimar = "#2166AC", wrapped = "grey60"))) +
     ggplot2::labs(x = "Supported task types", y = NULL, fill = NULL) +
     ggplot2::theme_minimal(base_size = 12)
 }
