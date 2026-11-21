@@ -1,3 +1,8 @@
+# mimar 1.4.9
+
+* `plot()` on a `mimar_imputation` gains `palette` (colours for observed and imputed values, one per chain for `type = "trace"`, or per category for the other types) and `average` (adds the across-chain average to trace plots as a thick line). Colours can now be changed without adding a second ggplot2 scale, which triggered "Scale for colour is already present" messages. `plot()` on `describe()`, `ampute()`, `evaluate()`, `pool()` and `describe("imputers")` output also gains `palette`.
+* Default plot colours are now sober and colour-blind safe: observed values dark grey, imputed values blue, trace chains in grey shades, methods in the Okabe-Ito palette. In density plots the observed curve is drawn last and thicker so the imputed curves no longer hide it, and trace plots use integer iteration breaks. Only colours change, no numeric result.
+
 # mimar 1.4.8
 
 * Rubin pooling (`pool()` and the model helpers `poollm()`, `poolglm()`, `poolcoxph()`, `poolclogit()`, `poolsurvreg()`, `poolpanglm()`) now reports, in `$pooled`, the proportion of variance due to missingness `lambda` and the fraction of missing information `fmi` = (r + 2/(df + 3))/(1 + r), computed with the reported (Rubin or Barnard-Rubin) df. Both match `mice::pool()`.

@@ -11,6 +11,8 @@
   variable = NULL,
   formula = NULL,
   statistic = c("mean", "sd"),
+  palette = NULL,
+  average = FALSE,
   ...
 )
 }
@@ -28,6 +30,17 @@ Use forms such as \code{height ~ weight}, \code{height ~ weight | gender}, or
 \code{group ~ sex}.}
 
 \item{statistic}{Trace statistic, either \code{"mean"} or \code{"sd"}.}
+
+\item{palette}{Optional colours, so the defaults can be changed without adding a second ggplot2
+scale. A named vector replaces the named entries only; an unnamed vector is recycled in order.
+For \code{"density"}, \code{"strip"}, \code{"boxplot"} and \code{"xy"} the names are \code{observed} and \code{imputed}
+(default dark grey and blue); for \code{"trace"} one colour per chain (default grey shades, a single
+colour draws all chains alike); for \code{"proportion"} \code{observed} then one per imputation (default
+dark grey then blue shades); for \code{"missing"} \code{observed}, \code{imputed} and \verb{still missing}; for
+\code{"methods"} one per method; for \code{"imputed"} and \code{"variability"} the bar fill.}
+
+\item{average}{If \code{TRUE}, \code{"trace"} adds the across-chain average as a thick line (colour
+\code{palette["average"]}, default black).}
 
 \item{...}{Unused.}
 }
