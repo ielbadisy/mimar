@@ -223,7 +223,7 @@ poolclogit <- function(fits, conf.level = 0.95, ...) {
     n = tryCatch(fits[[1]]$n, error = function(e) NA_integer_),
     nevent = tryCatch(fits[[1]]$nevent, error = function(e) NA_integer_)
   )
-  class(out) <- c(out_class, "mimar_pool_coxlike", "list")
+  class(out) <- c(out_class, "mimar_pool_coxlike", "mimar_pool", "list")
   out
 }
 
@@ -310,7 +310,7 @@ poolglm <- function(fits, conf.level = 0.95, ...) {
     family = fam,
     conf.level = conf.level
   )
-  class(out) <- c("mimar_pool_glm", "list")
+  class(out) <- c("mimar_pool_glm", "mimar_pool", "list")
   out
 }
 
@@ -439,7 +439,7 @@ poolpanglm <- function(fits, conf.level = 0.95, dfcom = NULL, ...) {
     family = fam,
     conf.level = conf.level, dfcom = dfcom
   )
-  class(out) <- c("mimar_pool_panglm", "list")
+  class(out) <- c("mimar_pool_panglm", "mimar_pool", "list")
   out
 }
 
@@ -500,7 +500,7 @@ poollm <- function(fits, conf.level = 0.95, ...) {
     m = ex$m,
     conf.level = conf.level
   )
-  class(out) <- c("mimar_pool_lm", "list")
+  class(out) <- c("mimar_pool_lm", "mimar_pool", "list")
   out
 }
 
@@ -572,7 +572,7 @@ poolsurvreg <- function(fits, conf.level = 0.95, ...) {
     dist = tryCatch(fits[[1]]$dist, error = function(e) NA_character_),
     conf.level = conf.level
   )
-  class(out) <- c("mimar_pool_survreg", "list")
+  class(out) <- c("mimar_pool_survreg", "mimar_pool", "list")
   out
 }
 

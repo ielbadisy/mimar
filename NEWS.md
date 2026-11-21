@@ -1,3 +1,15 @@
+# mimar 1.4.10
+
+Plot fixes. Only plots change; no numeric result changes.
+
+* `plot()` now dispatches on the model pooling results: `poollm()`, `poolglm()`, `poolcoxph()`, `poolclogit()`, `poolsurvreg()` and `poolpanglm()` objects also inherit `mimar_pool` (previously `plot()` fell back to `plot.default()` and errored). The forest plot gains `exponentiate` (default `TRUE` for Cox and conditional logistic fits, drawn on a log axis with a reference line at 1 and the axis titled "Hazard ratio" or "Odds ratio"), `labels` for term names, `intercept` (the intercept is now left out by default) and `xlab`; terms are shown in model order.
+* New `plot()` method for `tippingpoint()` results (now of class `mimar_tippingpoint`, still a basetable): the pooled estimate and its confidence band against the shift, a reference line at `null`, and a dotted line at the tipping point (the linearly interpolated shift at which the confidence limit nearest the null reaches it), returned in the `tipping` attribute.
+* `plot()` on `describe()` output gains `type = "pattern"` (missing-data pattern matrix, rows labelled by their counts, as `mice::md.pattern()`), `by` (missing share per group), `complete` (variables without missing values are now left out by default) and `labels`. Percent axis labels are no longer rounded to whole numbers (2.5% printed as "2%").
+* `plot()` on an imputation gains `labels` (display names for facet strips and axes). Trace plots drop the per-chain legend when `average = TRUE` or with more than 8 chains, and the y axis reads "Mean (or SD) of imputed values". Density plots have an x axis title, line legend keys and the legend at the bottom.
+* `plot()` on `ampute()` output shows only the amputed columns, as stacked originally missing and added cells, horizontally.
+* `plot()` on `evaluate()` output shows the normalized RMSE by default (`metric = "nrmse"`, comparable across variables; `metric = "rmse"` gives the raw RMSE) and the proportion of falsely classified cells for categorical variables, and gains `compare` (a named list of further evaluations drawn side by side) and `labels`.
+* Default accent colours follow the shared palette: blue `#0072B2` and vermillion `#D55E00`; groups use blue, vermillion, then Okabe-Ito.
+
 # mimar 1.4.9
 
 * `plot()` on a `mimar_imputation` gains `palette` (colours for observed and imputed values, one per chain for `type = "trace"`, or per category for the other types) and `average` (adds the across-chain average to trace plots as a thick line). Colours can now be changed without adding a second ggplot2 scale, which triggered "Scale for colour is already present" messages. `plot()` on `describe()`, `ampute()`, `evaluate()`, `pool()` and `describe("imputers")` output also gains `palette`.

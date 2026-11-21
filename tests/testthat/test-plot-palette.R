@@ -5,7 +5,7 @@ cols <- function(p, k = 1) unique(ggplot2::ggplot_build(p)$data[[k]]$colour)
 
 test_that("density and trace use the sober defaults", {
   p <- plot(i, type = "density")
-  expect_setequal(c(cols(p, 1), cols(p, 2)), c("#2166AC", "grey20"))
+  expect_setequal(c(cols(p, 1), cols(p, 2)), c("#0072B2", "grey20"))
   expect_true(all(cols(plot(i, type = "trace")) %in% .grey_shades(1:3)))
 })
 

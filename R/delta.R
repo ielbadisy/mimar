@@ -104,8 +104,9 @@ deltaadjust <- function(object, delta, variables = names(delta), rows = NULL) {
 #'   `coef()` and `vcov()` of each fit.
 #' @param rows Passed to [deltaadjust()].
 #' @param ... Passed to `fun`.
-#' @return A basetable with one row per shift and term: `delta`, `term`,
-#'   `estimate`, `std.error`, `conf.low`, `conf.high`, `p.value`.
+#' @return A basetable of class `mimar_tippingpoint` with one row per shift and term: `delta`,
+#'   `term`, `estimate`, `std.error`, `conf.low`, `conf.high`, `p.value`. `plot()` draws it (see
+#'   [plot.mimar_tippingpoint()]).
 #' @examples
 #' imp <- impute(airquality, m = 5, seed = 1, progress = FALSE)
 #' tippingpoint(imp, deltas = c(0, -10, -20), variables = "Ozone",
@@ -132,5 +133,7 @@ tippingpoint <- function(object, deltas, variables, model, term = NULL,
                                   "conf.low", "conf.high", "p.value")],
                row.names = NULL)
   })
-  .as_dt(do.call(rbind, out))
+  out <- .as_dt(do.call(rbind, out))
+  class(out) <- c("mimar_tippingpoint", class(out))
+  out
 }
