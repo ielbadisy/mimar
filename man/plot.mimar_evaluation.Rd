@@ -14,12 +14,12 @@
 )
 }
 \arguments{
-\item{x}{A \code{mimar_evaluation} object from \code{\link[=evaluate]{evaluate()}} with known truth.}
+\item{x}{A \code{mimar_evaluation} object from \code{\link[=assess]{assess()}} with known truth.}
 
 \item{metric}{\code{"nrmse"} (default) or \code{"rmse"} for numeric variables.}
 
 \item{compare}{Optional named list of further \code{mimar_evaluation} objects (other imputers) drawn as
-dodged bars next to \code{x}, for example \code{list(rf = evaluate(imp2))}. \code{x} is named by its imputer.}
+dodged bars next to \code{x}, for example \code{list(rf = assess(imp2))}. \code{x} is named by its imputer.}
 
 \item{labels}{Optional named character vector of display labels for variables.}
 

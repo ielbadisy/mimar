@@ -1,5 +1,5 @@
 #' @export
-evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
+assess.mimar_imputation <- function(x, truth = NULL, ...) {
   mask <- x$mask_added %||% if (!is.null(x$amputation)) x$amputation$mask_added else NULL
   if (inherits(truth, "mimar_amputation")) {
     mask <- mask %||% truth$mask_added
@@ -99,7 +99,7 @@ evaluate.mimar_imputation <- function(x, truth = NULL, ...) {
 }
 
 #' @export
-evaluate.list <- function(x, truth = NULL, data = NULL, ...) {
+assess.list <- function(x, truth = NULL, data = NULL, ...) {
   if (!length(x) || !all(vapply(x, is.data.frame, logical(1)))) {
     stop("`x` must be a list of completed data frames.", call. = FALSE)
   }
@@ -113,23 +113,61 @@ evaluate.list <- function(x, truth = NULL, data = NULL, ...) {
   imp <- list(data_original = .as_dt(data), imputations = unname(unclass(x)), m = length(x),
               imputer = "external", diagnostics = NULL)
   class(imp) <- c("mimar_imputation", "list")
-  out <- evaluate.mimar_imputation(imp, truth = truth, ...)
+  out <- assess.mimar_imputation(imp, truth = truth, ...)
   out$call <- match.call()
   out
 }
 
 #' @export
-evaluate.mimar_mi <- evaluate.list
+assess.mimar_mi <- assess.list
 
 #' @export
-evaluate.data.frame <- function(x, truth = NULL, data = NULL, ...) {
-  out <- evaluate.list(list(x), truth = truth, data = data, ...)
+assess.data.frame <- function(x, truth = NULL, data = NULL, ...) {
+  out <- assess.list(list(x), truth = truth, data = data, ...)
   out$call <- match.call()
   out
 }
 
 #' @export
-evaluate.mimar_amputation <- function(x, ...) {
+assess.mimar_amputation <- function(x, ...) {
   imp <- impute(x, m = 1, imputer = "naive")
-  evaluate(imp, ...)
+  assess(imp, ...)
 }
+
+#' Deprecated `evaluate()` methods
+#'
+#' `evaluate()` in mimar is deprecated: use [assess()], which takes the same
+#' arguments. The methods still work and warn, and will be removed in a later
+#' release together with the forwarding to funcml and survalis.
+#'
+#' @param x A `mimar_imputation` or `mimar_amputation` object, a list of
+#'   completed data frames, or one completed data frame.
+#' @param ... Passed to [assess()].
+#' @return A `mimar_evaluation` object.
+#' @export
+evaluate <- function(x, ...) UseMethod("evaluate")
+
+.evaluate_deprecated <- function(x, ...) {
+  .Deprecated(msg = "evaluate() is deprecated in mimar; use assess() instead.")
+  assess(x, ...)
+}
+
+#' @rdname evaluate
+#' @export
+evaluate.mimar_imputation <- .evaluate_deprecated
+
+#' @rdname evaluate
+#' @export
+evaluate.mimar_amputation <- .evaluate_deprecated
+
+#' @rdname evaluate
+#' @export
+evaluate.mimar_mi <- .evaluate_deprecated
+
+#' @rdname evaluate
+#' @export
+evaluate.list <- .evaluate_deprecated
+
+#' @rdname evaluate
+#' @export
+evaluate.data.frame <- .evaluate_deprecated

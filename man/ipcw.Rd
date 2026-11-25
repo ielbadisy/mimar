@@ -51,7 +51,7 @@ indicator and \eqn{\hat G} is the Kaplan-Meier estimate of the censoring
 survivor function (Kaplan-Meier applied to the reversed indicator
 \eqn{1 - \texttt{status}}). Weights of this form remove the bias that
 right-censoring introduces in a complete-case analysis and can be carried
-into weighted post-imputation analyses or into \code{\link[=evaluate]{evaluate()}}.
+into weighted post-imputation analyses or into \code{\link[=assess]{assess()}}.
 }
 \details{
 \code{type = "all"} instead returns \eqn{1 / \hat G(T_i-)} for every subject

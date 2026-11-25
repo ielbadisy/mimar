@@ -71,7 +71,7 @@ contain `NA`, and the completed outputs returned by `complete()` do not.
 Set `verbose = TRUE` when you want a concise progress log for the chained
 imputation workflow.
 
-Tabular results (`describe()`, `complete()`, `evaluate()`, `pool()`,
+Tabular results (`describe()`, `complete()`, `assess()`, `pool()`,
 `imputerregistry()`) are returned as `basetable` objects, which behave like
 data frames.
 
@@ -90,7 +90,7 @@ imputerregistry()
 imputer()
 impute()
 complete()
-evaluate()
+assess()
 pool()
 poollm(), poolglm(), poolcoxph(), poolsurvreg(), poolclogit(), poolpanglm()
 pooltest()
@@ -125,7 +125,7 @@ a <- ampute(
 i <- impute(a, imputer = "knn", m = 5, maxit = 5, seed = 1, ncore = 2)
 complete(i, 1)
 summary(i)
-evaluate(i)
+assess(i)
 plot(i, type = "density")
 ```
 
@@ -295,7 +295,7 @@ Return: {X~_1(T), ..., X~_m(T)}
 
 ## Evaluation
 
-When imputation is run on an `ampute()` object, `evaluate()` uses the retained
+When imputation is run on an `ampute()` object, `assess()` uses the retained
 truth and scores only artificially removed cells. Numeric recovery reports
 RMSE, MAE, bias, and correlation. Categorical recovery reports accuracy and
 balanced accuracy.

@@ -60,7 +60,7 @@ can contain `NA`, and the completed outputs returned by `complete()` do
 not. Set `verbose = TRUE` when you want a concise progress log for the
 chained imputation workflow.
 
-Tabular results (`describe()`, `complete()`, `evaluate()`, `pool()`,
+Tabular results (`describe()`, `complete()`, `assess()`, `pool()`,
 `imputerregistry()`) are returned as `basetable` objects, which behave
 like data frames.
 
@@ -79,7 +79,7 @@ imputerregistry()
 imputer()
 impute()
 complete()
-evaluate()
+assess()
 pool()
 poollm(), poolglm(), poolcoxph(), poolsurvreg(), poolclogit(), poolpanglm()
 pooltest()
@@ -148,7 +148,7 @@ summary(i)
 #> 3            0                 0              0.000000
 #> 4            1                 0              0.000000
 #> 5            0                 0              0.000000
-evaluate(i)
+assess(i)
 #> mimar imputation evaluation
 #> # basetable: 1 x 4
 #>   n_imputations imputer total_missing evaluated_cells
@@ -432,7 +432,7 @@ Return: {X~_1(T), ..., X~_m(T)}
 
 ## Evaluation
 
-When imputation is run on an `ampute()` object, `evaluate()` uses the
+When imputation is run on an `ampute()` object, `assess()` uses the
 retained truth and scores only artificially removed cells. Numeric
 recovery reports RMSE, MAE, bias, and correlation. Categorical recovery
 reports accuracy and balanced accuracy.
@@ -530,16 +530,16 @@ results <- data.frame(
 
 pool(results)
 #> mimar pooled results
-#> # basetable: 2 x 14
+#> # basetable: 2 x 16
 #>   term  estimate  std.error statistic       df     p.value   conf.low conf.high
 #> 1  age 0.1000000 0.04509250  2.217664  465.125 0.027060256 0.01138975 0.1886102
 #> 2  bmi 0.3033333 0.08530989  3.555664 1094.452 0.000393134 0.13594390 0.4707228
 #>   m within_variance between_variance total_variance relative_increase_variance
 #> 1 3     0.001900000     0.0001000000    0.002033333                 0.07017544
 #> 2 3     0.006966667     0.0002333333    0.007277778                 0.04465710
-#>    rule
-#> 1 rubin
-#> 2 rubin
+#>       lambda        fmi  rule
+#> 1 0.06557377 0.06956598 rubin
+#> 2 0.04274809 0.04449259 rubin
 ```
 
 Direct quantity inputs are preferred when available:
@@ -547,13 +547,13 @@ Direct quantity inputs are preferred when available:
 ``` r
 pool(c(0.10, 0.11, 0.09), std.error = c(0.04, 0.05, 0.04), name = "age")
 #> mimar pooled results
-#> # basetable: 1 x 14
+#> # basetable: 1 x 16
 #>   term estimate std.error statistic      df    p.value   conf.low conf.high m
 #> 1  age      0.1 0.0450925  2.217664 465.125 0.02706026 0.01138975 0.1886102 3
 #>   within_variance between_variance total_variance relative_increase_variance
 #> 1          0.0019            1e-04    0.002033333                 0.07017544
-#>    rule
-#> 1 rubin
+#>       lambda        fmi  rule
+#> 1 0.06557377 0.06956598 rubin
 
 betas <- list(
   c(age = 0.10, bmi = 0.30),
@@ -567,16 +567,16 @@ covariances <- list(
 )
 pool(betas, covariance = covariances)
 #> mimar pooled results
-#> # basetable: 2 x 14
+#> # basetable: 2 x 16
 #>   term  estimate  std.error statistic       df     p.value   conf.low conf.high
 #> 1  age 0.1000000 0.04509250  2.217664  465.125 0.027060256 0.01138975 0.1886102
 #> 2  bmi 0.3033333 0.08530989  3.555664 1094.452 0.000393134 0.13594390 0.4707228
 #>   m within_variance between_variance total_variance relative_increase_variance
 #> 1 3     0.001900000     0.0001000000    0.002033333                 0.07017544
 #> 2 3     0.006966667     0.0002333333    0.007277778                 0.04465710
-#>    rule
-#> 1 rubin
-#> 2 rubin
+#>       lambda        fmi  rule
+#> 1 0.06557377 0.06956598 rubin
+#> 2 0.04274809 0.04449259 rubin
 ```
 
 When no reliable complete-data variance is supplied, as is common for
@@ -595,13 +595,13 @@ auc <- c(0.78, 0.81, 0.79, 0.80, 0.77)
 auc_se <- c(0.030, 0.028, 0.031, 0.029, 0.032)
 pool(auc, std.error = auc_se, transform = "logit", name = "AUC", dfcom = 115)
 #> mimar pooled results
-#> # basetable: 1 x 14
+#> # basetable: 1 x 16
 #>   term  estimate  std.error statistic      df     p.value  conf.low conf.high m
 #> 1  AUC 0.7903508 0.03466437  6.343285 36.4344 2.30192e-07 0.7115515  0.852098 5
 #>   within_variance between_variance total_variance relative_increase_variance
 #> 1      0.03281624      0.009125116     0.04376638                  0.3336805
-#>    rule
-#> 1 rubin
+#>      lambda       fmi  rule
+#> 1 0.2501952 0.2882232 rubin
 ```
 
 ## Pooling fitted models
@@ -671,7 +671,7 @@ citation("mimar")
 #> To cite mimar in publications, use:
 #> 
 #>   El Badisy I (2026). _mimar: Compact Multiple Imputation, Assessment,
-#>   and Reporting_. R package version 1.4.4,
+#>   and Reporting_. R package version 1.4.14,
 #>   <https://CRAN.R-project.org/package=mimar>.
 #> 
 #> A BibTeX entry for LaTeX users is
@@ -680,7 +680,7 @@ citation("mimar")
 #>     title = {mimar: Compact Multiple Imputation, Assessment, and Reporting},
 #>     author = {Imad {El Badisy}},
 #>     year = {2026},
-#>     note = {R package version 1.4.4},
+#>     note = {R package version 1.4.14},
 #>     url = {https://CRAN.R-project.org/package=mimar},
 #>   }
 ```
