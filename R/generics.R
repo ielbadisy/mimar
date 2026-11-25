@@ -134,9 +134,9 @@ complete <- function(x, ...) UseMethod("complete")
 #' @export
 imputer <- function(method, ...) UseMethod("imputer")
 
-#' Evaluate imputation quality
+#' Assess imputation quality
 #'
-#' `evaluate()` compares imputed values with known truth when an amputation
+#' `assess()` compares imputed values with known truth when an amputation
 #' object is available. Numeric targets are summarized with errors such as
 #' \deqn{e_{ij} = \tilde X_{ij} - X_{ij},}
 #' and the normalized root mean squared error over the scored cells
@@ -145,7 +145,7 @@ imputer <- function(method, ...) UseMethod("imputer")
 #'   e_{ij}^2 / \widehat{\mathrm{Var}}(X_j)\}^{1/2},}
 #' while categorical targets are summarized with the proportion of falsely
 #' classified cells (`pfc`), agreement and balanced accuracy across classes.
-#' When no truth is available, `evaluate()` reports diagnostics that can be
+#' When no truth is available, `assess()` reports diagnostics that can be
 #' computed from the imputed data alone. Distribution, variability, and
 #' recovery summaries are computed across all completed data sets;
 #' per-imputation recovery metrics are kept in `recovery_by_imputation`.
@@ -166,8 +166,11 @@ imputer <- function(method, ...) UseMethod("imputer")
 #'   complete data) and, for lists and data frames, `data` (the incomplete
 #'   data that was imputed).
 #' @return A `mimar_evaluation` object.
+#' @examples
+#' amp <- ampute(airquality[c("Ozone", "Wind", "Temp")], prop = 0.2, seed = 1)
+#' assess(impute(amp, m = 2, seed = 1))
 #' @export
-evaluate <- function(x, ...) UseMethod("evaluate")
+assess <- function(x, ...) UseMethod("assess")
 
 #' Pool post-fit quantities across imputations
 #'

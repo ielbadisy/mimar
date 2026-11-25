@@ -50,7 +50,7 @@ ampute()          # introduce controlled artificial missingness
 imputerregistry()# inspect available imputation methods
 impute()          # run the chained multiple imputation
 complete()        # extract a single completed dataset
-evaluate()        # score imputation quality against known truth
+assess()        # score imputation quality against known truth
 pool()            # apply Rubin's pooling rules
 plot()            # visualise any of the above objects
 ```
@@ -97,7 +97,7 @@ The workflow can be summarized as:
 | Artificial missingness | `ampute()` | `mimar_amputation` |
 | Imputation | `impute()` | `mimar_imputation` |
 | Completed data extraction | `complete()` | data frame or list |
-| Quality assessment | `evaluate()` | `mimar_evaluation` |
+| Quality assessment | `assess()` | `mimar_evaluation` |
 | Post-fit pooling | `pool()` | `mimar_pool` |
 | Diagnostics | `plot()` | `ggplot` |
 
@@ -194,7 +194,7 @@ this workflow by generating artificial missingness and tracking three masks:
 - `mask_added`: cells made missing by `ampute()`;
 - `mask_total`: all missing cells after amputation.
 
-Only `mask_added` cells have known truth and are used by `evaluate()`.
+Only `mask_added` cells have known truth and are used by `assess()`.
 
 ### Missing completely at random
 
@@ -622,7 +622,7 @@ impute(a, imputer = "sl", m = 5, maxit = 5, seed = 1)
 ## Evaluating Imputation Quality
 
 When the imputation object was produced from an amputed dataset, the true
-values of the artificially introduced missing cells are known. `evaluate()`
+values of the artificially introduced missing cells are known. `assess()`
 exploits this by scoring only cells where `mask_added == TRUE`, isolating
 imputation error from any pre-existing missingness.
 
@@ -657,7 +657,7 @@ Balanced accuracy averages per-class recall and is more informative when
 class frequencies are unequal among the missing cells.
 
 ```{r}
-e <- evaluate(i_knn)
+e <- assess(i_knn)
 e
 describe(e)
 head(e$recovery_by_imputation)

@@ -148,10 +148,10 @@ plot.mimar_imputation <- function(x, type = c("imputed", "missing", "density", "
 #' values, comparable across variables) or the raw RMSE for numeric variables, and the proportion of
 #' falsely classified cells (PFC) for categorical ones.
 #'
-#' @param x A `mimar_evaluation` object from [evaluate()] with known truth.
+#' @param x A `mimar_evaluation` object from [assess()] with known truth.
 #' @param metric `"nrmse"` (default) or `"rmse"` for numeric variables.
 #' @param compare Optional named list of further `mimar_evaluation` objects (other imputers) drawn as
-#'   dodged bars next to `x`, for example `list(rf = evaluate(imp2))`. `x` is named by its imputer.
+#'   dodged bars next to `x`, for example `list(rf = assess(imp2))`. `x` is named by its imputer.
 #' @param labels Optional named character vector of display labels for variables.
 #' @param palette Optional colours, one per metric (`NRMSE`/`RMSE`, `PFC`) or per imputer with `compare`.
 #' @param ... Unused.

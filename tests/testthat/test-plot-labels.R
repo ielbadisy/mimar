@@ -53,11 +53,11 @@ test_that("amputation plot keeps only amputed columns; evaluation uses NRMSE", {
   a <- ampute(airquality[complete.cases(airquality), ], prop = 0.3, mechanism = "MAR", target = "Ozone",
               by = "Temp", seed = 1)
   expect_equal(unique(as.character(plot(a)$data$variable)), "Ozone")
-  e <- evaluate(impute(a, m = 3, seed = 1, progress = FALSE))
+  e <- assess(impute(a, m = 3, seed = 1, progress = FALSE))
   p <- plot(e)
   expect_equal(p$data$value, e$recovery$nrmse)
   expect_equal(plot(e, metric = "rmse")$data$value, e$recovery$rmse)
-  e2 <- evaluate(impute(a, m = 3, imputer = "mean", seed = 1, progress = FALSE))
+  e2 <- assess(impute(a, m = 3, imputer = "mean", seed = 1, progress = FALSE))
   pc <- plot(e, compare = list(mean = e2))
   expect_equal(nrow(pc$data), 2)
   expect_s3_class(ggplot2::ggplot_build(pc), "ggplot_built")

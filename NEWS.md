@@ -1,3 +1,10 @@
+# mimar 1.4.14
+
+* New `assess()` scores imputation quality, with the arguments and output of the former `evaluate()`
+  (imputations, amputations, lists of completed data frames and single data frames).
+* `evaluate()` is deprecated in favour of `assess()`; it still works and warns. It will be removed in a later
+  release with `fit()` and the forwarding to funcml and survalis, so mimar no longer masks their verbs.
+
 # mimar 1.4.13
 
 * New `fitimputer(object, x, y, ...)` trains one imputer on the observed rows of one variable (the step `impute()`

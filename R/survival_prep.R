@@ -229,7 +229,7 @@ nelsonaalen <- function(data, timevar, statusvar, aux = NULL,
 #' survivor function (Kaplan-Meier applied to the reversed indicator
 #' \eqn{1 - \texttt{status}}). Weights of this form remove the bias that
 #' right-censoring introduces in a complete-case analysis and can be carried
-#' into weighted post-imputation analyses or into [evaluate()].
+#' into weighted post-imputation analyses or into [assess()].
 #'
 #' `type = "all"` instead returns \eqn{1 / \hat G(T_i-)} for every subject
 #' (censored subjects keep a positive weight), which is the more useful form
