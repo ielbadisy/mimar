@@ -68,7 +68,7 @@ imputerregistry <- function() {
 
 #' @describeIn imputer Construct a `mimar_imputer`.
 #' @param spec Optional learner specification retained for future extensions.
-#' @param ... Hyperparameters retained for later use by `impute()` or `fit()`.
+#' @param ... Hyperparameters retained for later use by `impute()` or `fitimputer()`.
 #' @export
 imputer.default <- function(method, spec = NULL, ...) {
   method <- as.character(method)[1]
@@ -91,8 +91,9 @@ imputer.mimar_imputer <- function(method, ...) {
 
 #' Fit an imputer learner
 #'
-#' `fit()` trains a `mimar_imputer` on complete observed rows for one target
-#' variable. In the imputation loop, `x` is the predictor block
+#' `fitimputer()` trains a `mimar_imputer` on complete observed rows for one
+#' target variable. [impute()] calls it for each variable and iteration; call it
+#' directly to run one imputation step by hand. In the imputation loop, `x` is the predictor block
 #' \eqn{X_{-j}^{obs}} and `y` is the observed target vector \eqn{X_j^{obs}}.
 #'
 #' The fitted object stores the original imputer descriptor and the model needed
@@ -117,13 +118,8 @@ imputer.mimar_imputer <- function(method, ...) {
 #'     normalized class probabilities.
 #' }
 #'
-#' @param object Object to fit.
-#' @param ... Passed to methods.
-#' @return A fitted object.
-#' @export
-fit <- function(object, ...) UseMethod("fit")
-
-#' @describeIn fit Fit a `mimar_imputer`.
+#' @param object A `mimar_imputer` from [imputer()], or an imputer name such as
+#'   `"rf"`.
 #' @param x Predictor data frame containing observed rows for the current target
 #'   variable.
 #' @param y Observed target vector for the current variable.
@@ -132,9 +128,16 @@ fit <- function(object, ...) UseMethod("fit")
 #' @param variable Variable name used in diagnostics and error messages.
 #' @param donors Number of predictive mean matching donors for `"pmm"`.
 #' @param seed Optional random seed.
+#' @param ... Unused.
+#' @return A fitted imputer, used with `predict()` to impute new rows.
+#' @examples
+#' d <- airquality[!is.na(airquality$Ozone), ]
+#' f <- fitimputer("pmm", x = d[c("Wind", "Temp")], y = d$Ozone)
+#' predict(f, airquality[is.na(airquality$Ozone), c("Wind", "Temp")])
 #' @export
-fit.mimar_imputer <- function(object, x, y, target = y, variable = "target",
-                              donors = 5, seed = NULL, ...) {
+fitimputer <- function(object, x, y, target = y, variable = "target",
+                       donors = 5, seed = NULL, ...) {
+  object <- imputer(object)
   .validate_imputer_support(object, target, variable)
   observed <- !is.na(y)
   y <- y[observed]
@@ -561,8 +564,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
       valid <- fold_id == fold
       if (!any(train) || !any(valid)) return(NA_real_)
       learner <- imputer(method)
-      fitted <- try(fit(learner, x = x[train, , drop = FALSE], y = y[train],
-                        target = target, variable = variable, donors = donors),
+      fitted <- try(fitimputer(learner, x = x[train, , drop = FALSE], y = y[train],
+                               target = target, variable = variable, donors = donors),
                     silent = TRUE)
       if (inherits(fitted, "try-error")) return(NA_real_)
       pred <- try(stats::predict(fitted, x[valid, , drop = FALSE]), silent = TRUE)
@@ -573,8 +576,8 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   }, numeric(1))
 
   fits <- lapply(methods, function(method) {
-    try(fit(imputer(method), x = x, y = y, target = target, variable = variable,
-            donors = donors), silent = TRUE)
+    try(fitimputer(imputer(method), x = x, y = y, target = target, variable = variable,
+                   donors = donors), silent = TRUE)
   })
   ok <- !vapply(fits, inherits, logical(1), what = "try-error")
   methods <- methods[ok]
@@ -875,6 +878,25 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 with.mimar_imputation <- function(data, expr, ...) {
   e <- substitute(expr); pf <- parent.frame()
   lapply(complete(data, "all"), function(d) eval(e, d, pf))
+}
+
+#' Deprecated `fit()` methods
+#'
+#' `fit()` in mimar is deprecated: use [fitimputer()] to train an imputer and
+#' `with(imp, lm(y ~ x))` ([with.mimar_imputation()]) to fit an analysis model on
+#' each completed data set. The methods still work and warn.
+#'
+#' @param object A `mimar_imputer` or a `mimar_imputation`.
+#' @param ... Passed to [fitimputer()] for a `mimar_imputer`, or to `fun`.
+#' @return As [fitimputer()], or a list of fitted models.
+#' @export
+fit <- function(object, ...) UseMethod("fit")
+
+#' @describeIn fit Deprecated for a `mimar_imputer`: use [fitimputer()].
+#' @export
+fit.mimar_imputer <- function(object, ...) {
+  .Deprecated(msg = "fit() on an imputer is deprecated; use fitimputer() instead.")
+  fitimputer(object, ...)
 }
 
 #' @describeIn fit Deprecated for a `mimar_imputation`: use

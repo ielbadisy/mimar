@@ -4,41 +4,18 @@
 \alias{fit}
 \alias{fit.mimar_imputer}
 \alias{fit.mimar_imputation}
-\title{Fit an imputer learner}
+\title{Deprecated \code{fit()} methods}
 \usage{
 fit(object, ...)
 
-\method{fit}{mimar_imputer}(
-  object,
-  x,
-  y,
-  target = y,
-  variable = "target",
-  donors = 5,
-  seed = NULL,
-  ...
-)
+\method{fit}{mimar_imputer}(object, ...)
 
 \method{fit}{mimar_imputation}(object, model, fun = stats::lm, ...)
 }
 \arguments{
-\item{object}{Object to fit.}
+\item{object}{A \code{mimar_imputer} or a \code{mimar_imputation}.}
 
-\item{...}{Passed to methods.}
-
-\item{x}{Predictor data frame containing observed rows for the current target
-variable.}
-
-\item{y}{Observed target vector for the current variable.}
-
-\item{target}{Original target vector, used to validate type support and
-restore imputed values to the correct storage type.}
-
-\item{variable}{Variable name used in diagnostics and error messages.}
-
-\item{donors}{Number of predictive mean matching donors for \code{"pmm"}.}
-
-\item{seed}{Optional random seed.}
+\item{...}{Passed to \code{\link[=fitimputer]{fitimputer()}} for a \code{mimar_imputer}, or to \code{fun}.}
 
 \item{model}{For a \code{mimar_imputation}: a model formula, fitted with \code{fun} on
 each completed data set, or a function that takes one completed data
@@ -48,39 +25,16 @@ frame and returns a fitted model.}
 \code{model} is a formula. Default \code{\link[stats:lm]{stats::lm()}}.}
 }
 \value{
-A fitted object.
+As \code{\link[=fitimputer]{fitimputer()}}, or a list of fitted models.
 }
 \description{
-\code{fit()} trains a \code{mimar_imputer} on complete observed rows for one target
-variable. In the imputation loop, \code{x} is the predictor block
-\eqn{X_{-j}^{obs}} and \code{y} is the observed target vector \eqn{X_j^{obs}}.
-}
-\details{
-The fitted object stores the original imputer descriptor and the model needed
-by \code{predict()}. Native imputers are implemented directly in \code{mimar}; wrapped
-imputers call their original learner packages directly:
-
-\itemize{
-\item \code{"norm"} fits a linear model, draws
-\eqn{\dot\sigma^2 = RSS / \chi^2_{n-p}} and
-\eqn{\dot\beta \sim N(\hat\beta, \dot\sigma^2 (X'X)^{-1})}
-(the posterior under a flat prior), then imputes
-\eqn{\tilde y = x\dot\beta + \epsilon}, with
-\eqn{\epsilon \sim N(0, \dot\sigma^2)}.
-\item \code{"pmm"} fits the same linear model and makes the same parameter
-draw, then imputes by predictive mean matching with type-1 matching:
-observed rows are scored with \eqn{\hat\beta}, missing rows with
-\eqn{\dot\beta}, and one donor is sampled at random from the
-\code{donors} closest observed rows.
-\item \code{"logreg"} fits a binomial GLM and draws classes from fitted
-Bernoulli probabilities.
-\item \code{"polyreg"} fits one-vs-rest binomial GLMs and samples classes from
-normalized class probabilities.
-}
+\code{fit()} in mimar is deprecated: use \code{\link[=fitimputer]{fitimputer()}} to train an imputer and
+\code{with(imp, lm(y ~ x))} (\code{\link[=with.mimar_imputation]{with.mimar_imputation()}}) to fit an analysis model on
+each completed data set. The methods still work and warn.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{fit(mimar_imputer)}: Fit a \code{mimar_imputer}.
+\item \code{fit(mimar_imputer)}: Deprecated for a \code{mimar_imputer}: use \code{\link[=fitimputer]{fitimputer()}}.
 
 \item \code{fit(mimar_imputation)}: Deprecated for a \code{mimar_imputation}: use
 \code{with(imp, lm(y ~ x))} instead. Fits \code{model} with \code{fun} on every

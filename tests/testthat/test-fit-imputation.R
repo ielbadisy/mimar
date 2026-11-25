@@ -21,3 +21,13 @@ test_that("fit() on an imputation is deprecated and matches with()", {
   expect_equal(coef(fits_fun[[2]]), coef(lm(Ozone ~ Wind, data = complete(imp, 2))))
   expect_error(suppressWarnings(fit(imp, "Ozone ~ Wind")), "formula or a function")
 })
+
+test_that("fitimputer() trains an imputer; fit() on an imputer is deprecated", {
+  d <- airquality[!is.na(airquality$Ozone), ]; x <- d[c("Wind", "Temp")]
+  set.seed(1); a <- fitimputer("norm", x = x, y = d$Ozone)
+  set.seed(1); b <- fitimputer(imputer("norm"), x = x, y = d$Ozone)
+  set.seed(2); pa <- predict(a, x[1:5, ]); set.seed(2); pb <- predict(b, x[1:5, ])
+  expect_equal(pa, pb)
+  set.seed(1); expect_warning(c0 <- fit(imputer("norm"), x = x, y = d$Ozone), "fitimputer")
+  set.seed(2); expect_equal(predict(c0, x[1:5, ]), pa)
+})

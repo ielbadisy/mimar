@@ -1,3 +1,11 @@
+# mimar 1.4.13
+
+* New `fitimputer(object, x, y, ...)` trains one imputer on the observed rows of one variable (the step `impute()`
+  repeats for each variable and iteration). `object` can be a `mimar_imputer` or an imputer name such as `"rf"`.
+* `fit()` on a `mimar_imputer` is deprecated in favour of `fitimputer()`; it still works and warns. With
+  `with()` (1.4.12), `fit()` no longer has a non-deprecated use in mimar and will be removed in a later release,
+  ending the name clash with funcml and survalis.
+
 # mimar 1.4.12
 
 * New `with()` method for imputations: `with(imp, lm(y ~ x))` evaluates the model call on each completed data set

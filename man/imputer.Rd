@@ -12,7 +12,7 @@ imputer(method, ...)
 \arguments{
 \item{method}{Imputer method name.}
 
-\item{...}{Hyperparameters retained for later use by \code{impute()} or \code{fit()}.}
+\item{...}{Hyperparameters retained for later use by \code{impute()} or \code{fitimputer()}.}
 
 \item{spec}{Optional learner specification retained for future extensions.}
 }
