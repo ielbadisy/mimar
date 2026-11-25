@@ -62,7 +62,7 @@ ampute <- function(x, ...) UseMethod("ampute")
 #' repeated across incomplete variables for `maxit` iterations and across
 #' \eqn{m} independent completed data sets. The algorithm is intentionally
 #' learner-agnostic: each imputer is constructed with `imputer()`, trained with
-#' `fit()`, and used through `predict()`.
+#' `fitimputer()`, and used through `predict()`.
 #'
 #' Each requested imputer is applied to all incomplete variables it supports.
 #' Use `imputerregistry()` to inspect target-type compatibility.
@@ -108,7 +108,7 @@ complete <- function(x, ...) UseMethod("complete")
 #'
 #' \enumerate{
 #'   \item construct with `imputer(method)`;
-#'   \item fit on observed rows with `fit(object, x, y)`;
+#'   \item fit on observed rows with `fitimputer(object, x, y)`;
 #'   \item impute new rows with `predict(fitted, newdata)`.
 #' }
 #'
@@ -119,7 +119,7 @@ complete <- function(x, ...) UseMethod("complete")
 #' `"glmnet"`, `"fastgbm"`, `"densemlp"`, `"famd"`, and `"missknn"` are called
 #' directly through their original packages installed with `mimar`.
 #' Additional arguments supplied to `imputer()` are
-#' retained as hyperparameters and used by `impute()` and `fit()`.
+#' retained as hyperparameters and used by `impute()` and `fitimputer()`.
 #' The `"superlearner"` imputer, also available as `"sl"`, cross-validates a
 #' candidate imputer library on observed cells and combines candidates using
 #' non-negative loss-based weights.
