@@ -18,7 +18,7 @@ test_that("predict() imputes new rows from the training imputation only", {
   # training imputations untouched
   expect_equal(complete(imp, "all"), before)
   # downstream fit/pool works
-  expect_s3_class(poollm(fit(pt, Ozone ~ Wind)), "mimar_pool_lm")
+  expect_s3_class(poollm(with(pt, lm(Ozone ~ Wind))), "mimar_pool_lm")
   expect_error(predict(imp, test[, -1]), "lacks training column")
 })
 

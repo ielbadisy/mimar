@@ -49,9 +49,6 @@ frame and returns a fitted model.}
 }
 \value{
 A fitted object.
-
-For a \code{mimar_imputation}, a list of \code{m} fitted models, one per
-completed data set, ready for the pooling functions.
 }
 \description{
 \code{fit()} trains a \code{mimar_imputer} on complete observed rows for one target
@@ -85,15 +82,8 @@ normalized class probabilities.
 \itemize{
 \item \code{fit(mimar_imputer)}: Fit a \code{mimar_imputer}.
 
-\item \code{fit(mimar_imputation)}: Fit an analysis model on every completed data set of a
-\code{mimar_imputation}, the step between \code{\link[=impute]{impute()}} and pooling with
-\code{\link[=poollm]{poollm()}}, \code{\link[=poolglm]{poolglm()}}, \code{\link[=poolcoxph]{poolcoxph()}} and the other pooling functions.
+\item \code{fit(mimar_imputation)}: Deprecated for a \code{mimar_imputation}: use
+\code{with(imp, lm(y ~ x))} instead. Fits \code{model} with \code{fun} on every
+completed data set.
 
 }}
-\examples{
-imp <- impute(airquality, m = 3, imputer = "pmm", seed = 1)
-fits <- fit(imp, Ozone ~ Wind + Temp)
-poollm(fits)
-fits <- fit(imp, I(Ozone > 50) ~ Wind, fun = glm, family = binomial)
-poolglm(fits)
-}

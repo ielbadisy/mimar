@@ -850,24 +850,49 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   invisible(TRUE)
 }
 
-#' @describeIn fit Fit an analysis model on every completed data set of a
-#'   `mimar_imputation`, the step between [impute()] and pooling with
-#'   [poollm()], [poolglm()], [poolcoxph()] and the other pooling functions.
+#' Fit an analysis model on every completed data set
+#'
+#' `with()` evaluates a model call on each completed data set of a
+#' `mimar_imputation`, the step between [impute()] and pooling with [pool()],
+#' [poollm()], [poolglm()], [poolcoxph()] and the other pooling functions.
+#' Variables in `expr` are looked up in the completed data first, then in the
+#' calling environment, as in [base::with()]. Write the model formula inside
+#' the call: a formula stored in a variable keeps its own environment, so its
+#' variables are not found in the completed data (as with `mice`).
+#'
+#' @param data A `mimar_imputation` from [impute()] or [deltaadjust()].
+#' @param expr A model call, for example `lm(y ~ x)` or
+#'   `glm(y ~ x, family = binomial)`, written without a `data` argument.
+#' @param ... Unused.
+#' @return A list of `m` fitted models, one per completed data set.
+#' @examples
+#' imp <- impute(airquality, m = 3, imputer = "pmm", seed = 1)
+#' fits <- with(imp, lm(Ozone ~ Wind + Temp))
+#' poollm(fits)
+#' fits <- with(imp, glm(I(Ozone > 50) ~ Wind, family = binomial))
+#' poolglm(fits)
+#' @export
+with.mimar_imputation <- function(data, expr, ...) {
+  e <- substitute(expr); pf <- parent.frame()
+  lapply(complete(data, "all"), function(d) eval(e, d, pf))
+}
+
+#' @describeIn fit Deprecated for a `mimar_imputation`: use
+#'   `with(imp, lm(y ~ x))` instead. Fits `model` with `fun` on every
+#'   completed data set.
 #' @param model For a `mimar_imputation`: a model formula, fitted with `fun` on
 #'   each completed data set, or a function that takes one completed data
 #'   frame and returns a fitted model.
 #' @param fun Model-fitting function called as `fun(model, data = d, ...)` when
 #'   `model` is a formula. Default [stats::lm()].
-#' @return For a `mimar_imputation`, a list of `m` fitted models, one per
-#'   completed data set, ready for the pooling functions.
-#' @examples
-#' imp <- impute(airquality, m = 3, imputer = "pmm", seed = 1)
-#' fits <- fit(imp, Ozone ~ Wind + Temp)
-#' poollm(fits)
-#' fits <- fit(imp, I(Ozone > 50) ~ Wind, fun = glm, family = binomial)
-#' poolglm(fits)
 #' @export
 fit.mimar_imputation <- function(object, model, fun = stats::lm, ...) {
+  .Deprecated(msg = "fit() on an imputation is deprecated; use with(imp, lm(y ~ x)) instead.")
+  .fitall(object, model, fun, ...)
+}
+
+# one fitted model per completed data set; formula + fun, or a function of one data set
+.fitall <- function(object, model, fun = stats::lm, ...) {
   datasets <- complete(object, "all")
   if (inherits(model, "formula")) {
     if (!is.function(fun)) .mimar_stop("`fun` must be a model-fitting function such as `lm` or `glm`.")

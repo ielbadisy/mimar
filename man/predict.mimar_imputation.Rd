@@ -20,7 +20,7 @@
 }
 \value{
 A \code{mimar_imputation} holding \code{m} completed copies of \code{newdata},
-usable with \code{\link[=complete]{complete()}}, \code{\link[=fit]{fit()}} and the pooling functions. The
+usable with \code{\link[=complete]{complete()}}, \link[=with.mimar_imputation]{with()} and the pooling functions. The
 \eqn{k}-th copy is imputed from the \eqn{k}-th training imputation.
 }
 \description{

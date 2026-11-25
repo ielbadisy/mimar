@@ -95,7 +95,7 @@ deltaadjust <- function(object, delta, variables = names(delta), rows = NULL) {
 #' @param variables Names of the numeric variables to shift (the same shift is
 #'   applied to each).
 #' @param model A model formula, or a function of one completed data frame
-#'   that returns a fitted model (see [fit()]).
+#'   that returns a fitted model, fitted on each completed data set.
 #' @param term Name of the coefficient to report. Default: all coefficients.
 #' @param fun Model-fitting function for a formula `model`. Default
 #'   [stats::lm()].
@@ -123,7 +123,7 @@ tippingpoint <- function(object, deltas, variables, model, term = NULL,
   }
   out <- lapply(deltas, function(d) {
     adj <- deltaadjust(object, delta = d, variables = variables, rows = rows)
-    fits <- fit(adj, model, fun = fun, ...)
+    fits <- .fitall(adj, model, fun, ...)
     res <- as.data.frame(pool_fits(fits)$pooled)
     if (!is.null(term)) {
       res <- res[res$term %in% term, , drop = FALSE]
