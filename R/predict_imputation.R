@@ -72,10 +72,10 @@ predict.mimar_imputation <- function(object, newdata, maxit = NULL, seed = NULL,
       method_nm <- methods[[nm]]
       rows <- if (method_nm %in% c("norm", "pmm", "spmm")) obs else sample(obs, replace = TRUE)
       predictors <- setdiff(names(train), nm)
-      fit(.clone_imputer_spec(spec, method_nm),
-          x = tk[rows, predictors, drop = FALSE],
-          y = train[[nm]][rows], target = train[[nm]],
-          variable = nm, donors = donors)
+      fitimputer(.clone_imputer_spec(spec, method_nm),
+                 x = tk[rows, predictors, drop = FALSE],
+                 y = train[[nm]][rows], target = train[[nm]],
+                 variable = nm, donors = donors)
     })
     names(fits) <- vars
     completed <- newdata

@@ -9,7 +9,7 @@ test_that("norm and pmm draw (beta, sigma) from the flat-prior posterior", {
   xtx_inv <- summary(ref)$cov.unscaled
   for (method in c("norm", "pmm")) {
     draws <- t(replicate(3000, {
-      f <- fit(imputer(method), x = x, y = y)
+      f <- fitimputer(imputer(method), x = x, y = y)
       c(coef(f$fit_draw), sigma2 = f$sigma_draw^2)
     }))
     # E[sigma^2] = RSS / (df - 2) under sigma^2 = RSS / chi2_df
@@ -26,7 +26,7 @@ test_that("pmm matches observed rows on beta_hat and missing rows on the draw", 
   set.seed(3)
   x <- data.frame(a = rnorm(40))
   y <- 2 * x$a + rnorm(40)
-  f <- fit(imputer("pmm"), x = x, y = y, donors = 1)
+  f <- fitimputer(imputer("pmm"), x = x, y = y, donors = 1)
   expect_equal(unname(f$fitted), unname(fitted(f$fit)))
   newx <- data.frame(a = c(-1, 0, 1))
   pm <- predict(f$fit_draw, newdata = newx)

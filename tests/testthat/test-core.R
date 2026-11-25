@@ -106,7 +106,7 @@ test_that("parallel imputations expose ncore and remain reproducible", {
 test_that("imputer learners expose a standard fit/predict contract", {
   dat <- data.frame(x = c(1, 2, 3, 4), z = factor(c("a", "b", "a", "b")))
   learner <- imputer("pmm")
-  fitted <- fit(learner, x = dat["z"], y = dat$x, variable = "x")
+  fitted <- fitimputer(learner, x = dat["z"], y = dat$x, variable = "x")
   pred <- predict(fitted, dat["z"])
   expect_s3_class(learner, "mimar_imputer")
   expect_s3_class(fitted, "mimar_imputer_fit")
@@ -132,8 +132,8 @@ test_that("superlearner imputer learns ensemble weights and imputes data", {
     c = factor(c("x", "x", "y", "y", "x", "y", "x", "y"))
   )
   learner <- imputer("superlearner", library = c("pmm", "knn"), folds = 2)
-  fitted <- fit(learner, x = dat[c("b", "c")], y = dat$a, target = dat$a,
-                variable = "a")
+  fitted <- fitimputer(learner, x = dat[c("b", "c")], y = dat$a, target = dat$a,
+                     variable = "a")
   pred <- predict(fitted, dat[c("b", "c")])
   expect_s3_class(fitted, "mimar_imputer_fit")
   expect_equal(sum(fitted$weights), 1, tolerance = 1e-8)
