@@ -15,7 +15,7 @@ test_that("fit()/evaluate() forward unknown objects to a masked function", {
   expect_equal(mimar::evaluate(r)$from, "other-fit")
   # mimar's own methods still dispatch
   imp <- impute(airquality, m = 2, seed = 1, progress = FALSE)
-  expect_length(mimar::fit(imp, Ozone ~ Wind), 2L)
+  expect_length(suppressWarnings(mimar::fit(imp, Ozone ~ Wind)), 2L)
 })
 
 test_that("fit() without another attached fit() gives an informative error", {

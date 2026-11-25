@@ -25,7 +25,7 @@ tippingpoint(
 applied to each).}
 
 \item{model}{A model formula, or a function of one completed data frame
-that returns a fitted model (see \code{\link[=fit]{fit()}}).}
+that returns a fitted model, fitted on each completed data set.}
 
 \item{term}{Name of the coefficient to report. Default: all coefficients.}
 

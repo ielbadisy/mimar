@@ -1,3 +1,10 @@
+# mimar 1.4.12
+
+* New `with()` method for imputations: `with(imp, lm(y ~ x))` evaluates the model call on each completed data set
+  and returns the list of fits for pooling, as in `mice`. Any model call works, so no `fun` argument is needed.
+* `fit()` on a `mimar_imputation` is deprecated in favour of `with()`; it still works and warns. `fit()` stays for
+  training a `mimar_imputer`. This prepares removing the `fit()` name clash with funcml and survalis.
+
 # mimar 1.4.11
 
 * New `poolcompare(fits, term, scale = 1)` collects one term from several analyses (a named list of mimar pooled

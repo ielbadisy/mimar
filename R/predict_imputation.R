@@ -20,7 +20,7 @@
 #' @param seed Optional random seed.
 #' @param ... Unused.
 #' @return A `mimar_imputation` holding `m` completed copies of `newdata`,
-#'   usable with [complete()], [fit()] and the pooling functions. The
+#'   usable with [complete()], [with()][with.mimar_imputation()] and the pooling functions. The
 #'   \eqn{k}-th copy is imputed from the \eqn{k}-th training imputation.
 #' @examples
 #' train <- airquality[1:120, ]

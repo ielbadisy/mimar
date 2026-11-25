@@ -38,6 +38,6 @@ test_that("tippingpoint() pooled mean moves by delta * fraction missing", {
                       pooler = poollm)
   expect_equal(nrow(tp2), 2L)
   expect_true(all(tp2$term == "Wind"))
-  ref <- poollm(fit(deltaadjust(imp, -10, "Ozone"), Ozone ~ Wind))$pooled
+  ref <- poollm(with(deltaadjust(imp, -10, "Ozone"), lm(Ozone ~ Wind)))$pooled
   expect_equal(tp2$estimate[2], ref$estimate[ref$term == "Wind"])
 })
