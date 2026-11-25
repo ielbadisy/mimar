@@ -1,3 +1,10 @@
+# mimar 1.5.0
+
+* Breaking: `fit()` and `evaluate()` are removed, with the forwarding of unknown objects to funcml and survalis.
+  Use `with(imp, lm(y ~ x))` to fit an analysis model on each completed data set, `fitimputer()` to train one
+  imputer and `assess()` to score imputations. mimar no longer masks the `fit()` and `evaluate()` of funcml and
+  survalis.
+
 # mimar 1.4.14
 
 * New `assess()` scores imputation quality, with the arguments and output of the former `evaluate()`

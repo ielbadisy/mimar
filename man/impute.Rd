@@ -98,7 +98,7 @@ and predicts missing cells \eqn{X_j^{mis}} from \eqn{X_{-j}^{mis}}. This is
 repeated across incomplete variables for \code{maxit} iterations and across
 \eqn{m} independent completed data sets. The algorithm is intentionally
 learner-agnostic: each imputer is constructed with \code{imputer()}, trained with
-\code{fit()}, and used through \code{predict()}.
+\code{fitimputer()}, and used through \code{predict()}.
 
 Each requested imputer is applied to all incomplete variables it supports.
 Use \code{imputerregistry()} to inspect target-type compatibility.

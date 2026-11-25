@@ -880,39 +880,6 @@ with.mimar_imputation <- function(data, expr, ...) {
   lapply(complete(data, "all"), function(d) eval(e, d, pf))
 }
 
-#' Deprecated `fit()` methods
-#'
-#' `fit()` in mimar is deprecated: use [fitimputer()] to train an imputer and
-#' `with(imp, lm(y ~ x))` ([with.mimar_imputation()]) to fit an analysis model on
-#' each completed data set. The methods still work and warn.
-#'
-#' @param object A `mimar_imputer` or a `mimar_imputation`.
-#' @param ... Passed to [fitimputer()] for a `mimar_imputer`, or to `fun`.
-#' @return As [fitimputer()], or a list of fitted models.
-#' @export
-fit <- function(object, ...) UseMethod("fit")
-
-#' @describeIn fit Deprecated for a `mimar_imputer`: use [fitimputer()].
-#' @export
-fit.mimar_imputer <- function(object, ...) {
-  .Deprecated(msg = "fit() on an imputer is deprecated; use fitimputer() instead.")
-  fitimputer(object, ...)
-}
-
-#' @describeIn fit Deprecated for a `mimar_imputation`: use
-#'   `with(imp, lm(y ~ x))` instead. Fits `model` with `fun` on every
-#'   completed data set.
-#' @param model For a `mimar_imputation`: a model formula, fitted with `fun` on
-#'   each completed data set, or a function that takes one completed data
-#'   frame and returns a fitted model.
-#' @param fun Model-fitting function called as `fun(model, data = d, ...)` when
-#'   `model` is a formula. Default [stats::lm()].
-#' @export
-fit.mimar_imputation <- function(object, model, fun = stats::lm, ...) {
-  .Deprecated(msg = "fit() on an imputation is deprecated; use with(imp, lm(y ~ x)) instead.")
-  .fitall(object, model, fun, ...)
-}
-
 # one fitted model per completed data set; formula + fun, or a function of one data set
 .fitall <- function(object, model, fun = stats::lm, ...) {
   datasets <- complete(object, "all")

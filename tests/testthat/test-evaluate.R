@@ -46,9 +46,3 @@ test_that("evaluate accepts a list of completed data frames (missknn MI output)"
   expect_setequal(e4$variable, c("a", "b", "g"))
 })
 
-test_that("evaluate() is deprecated in favour of assess()", {
-  amp <- ampute(airquality[c("Ozone", "Wind", "Temp")], prop = 0.2, seed = 1)
-  imp <- impute(amp, m = 2, seed = 1)
-  expect_warning(e <- evaluate(imp), "assess")
-  expect_equal(e$recovery, assess(imp)$recovery)
-})
