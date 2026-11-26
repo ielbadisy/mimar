@@ -65,6 +65,21 @@ observed rows are scored with \eqn{\hat\beta}, missing rows with
 Bernoulli probabilities.
 \item \code{"polyreg"} fits one-vs-rest binomial GLMs and samples classes from
 normalized class probabilities.
+\item \code{"rf"} grows a small forest (\code{num.trees = 10}) and draws one observed
+value among the rows sharing a terminal node with the incomplete row,
+pooled over trees (Doove, van Buuren and Dusseldorp, 2014).
+\item \code{"knn"} draws one of the \code{donors} nearest observed rows; \code{"famd"}
+does the same in the space of the first \code{ncp} FAMD components;
+\code{"hotdeck"} draws a random observed value within the cell formed by the
+categorical predictors.
+\item \code{"bart"} imputes a posterior predictive draw for numeric targets.
+\item For numeric targets, \code{"ranger"}, \code{"rpart"}, \code{"svm"}, \code{"glmnet"},
+\code{"fastgbm"}, \code{"xgboost"}, \code{"densemlp"} and \code{"superlearner"} predict a
+conditional mean. \code{predict()} on a \code{fitimputer()} fit returns that mean;
+inside \code{\link[=impute]{impute()}} the learner is fitted on a bootstrap sample and the
+prediction is matched to the out-of-bag rows, whose observed value is
+imputed (predictive mean matching, as in mixgb), so imputations keep the
+residual spread.
 }
 }
 \examples{

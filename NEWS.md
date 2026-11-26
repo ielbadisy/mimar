@@ -1,3 +1,18 @@
+# mimar 1.5.1
+
+* Numeric targets: `"ranger"`, `"rpart"`, `"svm"`, `"glmnet"`, `"fastgbm"`, `"xgboost"`, `"densemlp"` and
+  `"superlearner"` no longer impute the conditional mean inside `impute()`. The bootstrap fit scores the
+  out-of-bag rows and the imputed value is the observed value of a matched donor (predictive mean matching, as in
+  mixgb), so multiple imputations keep the residual spread and Rubin's variance is no longer understated.
+  `predict()` on a `fitimputer()` fit still returns the conditional mean.
+* `"bart"` imputes a posterior predictive draw (one posterior iteration plus its residual noise) instead of the
+  posterior mean.
+* `"rf"` is now the random forest imputation of Doove, van Buuren and Dusseldorp (2014), as `mice.impute.rf()`:
+  a 10-tree forest, one observed value drawn among the rows sharing a terminal node. It was a duplicate of
+  `"ranger"`.
+* `"hotdeck"` is a random hot deck within the cells of the categorical predictors and `"famd"` matches donors in
+  the space of the first `ncp` FAMD components. Both returned the same values as `"knn"`.
+
 # mimar 1.5.0
 
 * Breaking: `fit()` and `evaluate()` are removed, with the forwarding of unknown objects to funcml and survalis.
