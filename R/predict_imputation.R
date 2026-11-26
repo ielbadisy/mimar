@@ -70,12 +70,8 @@ predict.mimar_imputation <- function(object, newdata, maxit = NULL, seed = NULL,
       obs <- which(!is.na(train[[nm]]))
       if (!length(obs)) .mimar_stop("Variable `", nm, "` is never observed in the training data.")
       method_nm <- methods[[nm]]
-      rows <- if (method_nm %in% c("norm", "pmm", "spmm")) obs else sample(obs, replace = TRUE)
-      predictors <- setdiff(names(train), nm)
-      fitimputer(.clone_imputer_spec(spec, method_nm),
-                 x = tk[rows, predictors, drop = FALSE],
-                 y = train[[nm]][rows], target = train[[nm]],
-                 variable = nm, donors = donors)
+      .fit_step(.clone_imputer_spec(spec, method_nm), method_nm, tk, train[[nm]], obs,
+                setdiff(names(train), nm), train[[nm]], nm, donors)
     })
     names(fits) <- vars
     completed <- newdata

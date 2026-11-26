@@ -155,23 +155,8 @@
       method_nm <- variable_methods[[nm]]
       if (any(obs) && any(mis) && !(identical(method_nm, "spmm") && iter > 1)) {
         predictors <- setdiff(names(x), nm)
-        # norm/pmm/spmm draw their parameters from the posterior inside fitimputer();
-        # other learners get parameter uncertainty from a bootstrap of the
-        # observed rows.
-        boot <- if (method_nm %in% c("norm", "pmm", "spmm")) {
-          which(obs)
-        } else {
-          sample(which(obs), replace = TRUE)
-        }
-        learner <- .clone_imputer_spec(imputer_spec, method_nm)
-        fitted <- fitimputer(
-          learner,
-          x = completed[boot, predictors, drop = FALSE],
-          y = x[[nm]][boot],
-          target = x[[nm]],
-          variable = nm,
-          donors = donors
-        )
+        fitted <- .fit_step(.clone_imputer_spec(imputer_spec, method_nm), method_nm, completed,
+                            x[[nm]], which(obs), predictors, x[[nm]], nm, donors)
         pred <- stats::predict(fitted, completed[mis, predictors, drop = FALSE])
         completed[[nm]][mis] <- .restore_imputed_values(x[[nm]], pred, n = sum(mis))
       }

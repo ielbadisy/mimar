@@ -26,8 +26,8 @@
       "Single-step predictive mean matching",
       "Binary logistic regression draw",
       "One-vs-rest multinomial logistic regression draw",
-      "MissForest-style random forest imputer",
-      "Random forest imputer through ranger",
+      "Random forest leaf-donor draw (Doove et al. 2014, as mice rf)",
+      "Random forest through ranger, out-of-bag predictive mean matching",
       "Tree imputer through rpart",
       "Naive Bayes imputer",
       "Support vector machine imputer",
@@ -36,8 +36,8 @@
       "Gradient boosting imputer through fastgbm",
       "Gradient boosted tree imputer through xgboost",
       "Nearest-neighbor donor imputer",
-      "Hot-deck donor imputer",
-      "FAMD-assisted donor imputer",
+      "Random hot deck within categorical-predictor cells",
+      "Nearest-neighbor donor in FAMD component space",
       "Cross-validated Super Learner-style ensemble imputer",
       "Short alias for superlearner",
       "Dense multilayer perceptron imputer through densemlp",
@@ -116,6 +116,21 @@ imputer.mimar_imputer <- function(method, ...) {
 #'     Bernoulli probabilities.
 #'   \item `"polyreg"` fits one-vs-rest binomial GLMs and samples classes from
 #'     normalized class probabilities.
+#'   \item `"rf"` grows a small forest (`num.trees = 10`) and draws one observed
+#'     value among the rows sharing a terminal node with the incomplete row,
+#'     pooled over trees (Doove, van Buuren and Dusseldorp, 2014).
+#'   \item `"knn"` draws one of the `donors` nearest observed rows; `"famd"`
+#'     does the same in the space of the first `ncp` FAMD components;
+#'     `"hotdeck"` draws a random observed value within the cell formed by the
+#'     categorical predictors.
+#'   \item `"bart"` imputes a posterior predictive draw for numeric targets.
+#'   \item For numeric targets, `"ranger"`, `"rpart"`, `"svm"`, `"glmnet"`,
+#'     `"fastgbm"`, `"xgboost"`, `"densemlp"` and `"superlearner"` predict a
+#'     conditional mean. `predict()` on a `fitimputer()` fit returns that mean;
+#'     inside [impute()] the learner is fitted on a bootstrap sample and the
+#'     prediction is matched to the out-of-bag rows, whose observed value is
+#'     imputed (predictive mean matching, as in mixgb), so imputations keep the
+#'     residual spread.
 #' }
 #'
 #' @param object A `mimar_imputer` from [imputer()], or an imputer name such as
@@ -166,7 +181,7 @@ fitimputer <- function(object, x, y, target = y, variable = "target",
     spmm = .fit_linear_imputer(object, x, y, target, variable, donors),
     logreg = .fit_logreg_imputer(object, x, y, target, variable),
     polyreg = .fit_polyreg_imputer(object, x, y, target, variable),
-    rf = do.call(.fit_ranger_imputer, c(list(object, x, y, target, variable), fit_args)),
+    rf = do.call(.fit_rf_imputer, c(list(object, x, y, target, variable), fit_args)),
     ranger = do.call(.fit_ranger_imputer, c(list(object, x, y, target, variable), fit_args)),
     rpart = do.call(.fit_rpart_imputer, c(list(object, x, y, target, variable), fit_args)),
     nbayes = do.call(.fit_naive_bayes_imputer, c(list(object, x, y, target, variable), fit_args)),
@@ -187,6 +202,12 @@ fitimputer <- function(object, x, y, target = y, variable = "target",
 
 #' @export
 predict.mimar_imputer_fit <- function(object, newdata, ...) {
+  pred <- .predict_raw(object, newdata)
+  if (is.null(object$match)) return(pred)
+  .match_donors(as.numeric(pred), object$match$yhat, object$match$y, object$donors %||% 5L)
+}
+
+.predict_raw <- function(object, newdata) {
   method <- object$imputer$method
   if (!is.null(object$value)) return(rep(object$value, nrow(newdata)))
   switch(method,
@@ -199,7 +220,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     spmm = .predict_pmm_imputer(object, newdata),
     logreg = .predict_logreg_imputer(object, newdata),
     polyreg = .predict_polyreg_imputer(object, newdata),
-    rf = .predict_ranger_imputer(object, newdata),
+    rf = .predict_rf_imputer(object, newdata),
     ranger = .predict_ranger_imputer(object, newdata),
     rpart = .predict_generic_model_imputer(object, newdata),
     nbayes = .predict_generic_model_imputer(object, newdata),
@@ -210,7 +231,7 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
     xgboost = .predict_xgboost_imputer(object, newdata),
     knn = .predict_donor_imputer(object, newdata),
     hotdeck = .predict_donor_imputer(object, newdata),
-    famd = .predict_donor_imputer(object, newdata),
+    famd = .predict_famd_imputer(object, newdata),
     superlearner = .predict_superlearner_imputer(object, newdata),
     sl = .predict_superlearner_imputer(object, newdata),
     densemlp = .predict_densemlp_imputer(object, newdata)
@@ -532,12 +553,48 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
             class = c("mimar_imputer_fit", "list"))
 }
 
+# Donors are the nearest observed rows in the space of the first `ncp` FAMD
+# components: standardized numeric columns and indicator columns divided by
+# sqrt(level proportion), centred, then rotated by their principal axes.
 .fit_famd_imputer <- function(object, x, y, target, variable, donors, ncp = 5, ...) {
-  .require_backend("missMDA", object$method)
-  coords <- try(missMDA::imputeFAMD(.model_predictors(x), ncp = min(ncp, max(1, ncol(x))))$completeObs, silent = TRUE)
-  if (inherits(coords, "try-error")) coords <- x
-  fit <- .fit_donor_imputer(object, coords, y, target, variable, donors, method = "famd")
-  fit
+  x <- .model_predictors(x)
+  if (anyNA(x)) {
+    .require_backend("missMDA", object$method)
+    x <- .model_predictors(missMDA::imputeFAMD(x, ncp = min(ncp, max(1, ncol(x))))$completeObs)
+  }
+  basis <- .famd_basis(x)
+  z <- .famd_matrix(x, basis)
+  pc <- stats::prcomp(z, center = FALSE, rank. = min(ncp, dim(z)))
+  structure(list(imputer = object, basis = basis, rotation = pc$rotation, scores = pc$x, y = y, target = target,
+                 task = .target_task(target), donors = donors, method = "famd"),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.famd_basis <- function(x) {
+  lapply(x, function(v) {
+    if (is.factor(v)) {
+      p <- prop.table(table(factor(v, levels = levels(v))))
+      list(levels = names(p), p = as.numeric(p))
+    } else {
+      v <- as.numeric(v); s <- stats::sd(v)
+      list(mean = mean(v), sd = if (is.finite(s) && s > 0) s else 1)
+    }
+  })
+}
+
+.famd_matrix <- function(x, basis) {
+  x <- .model_predictors(x)
+  cols <- lapply(names(basis), function(nm) {
+    b <- basis[[nm]]
+    if (is.null(b$levels)) return(matrix((as.numeric(x[[nm]]) - b$mean) / b$sd))
+    ind <- vapply(b$levels, function(l) as.numeric(as.character(x[[nm]]) == l), numeric(nrow(x)))
+    ind <- matrix(ind, nrow = nrow(x))
+    keep <- b$p > 0
+    sweep(sweep(ind[, keep, drop = FALSE], 2, b$p[keep]), 2, sqrt(b$p[keep]), "/")
+  })
+  z <- do.call(cbind, cols)
+  z[is.na(z)] <- 0
+  z
 }
 
 .fit_superlearner_imputer <- function(object, x, y, target, variable, donors,
@@ -687,8 +744,11 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
   x_mat <- .model_matrix_align(newdata, object$x_cols)
   if (object$task == "numeric") {
     # predict.wbart returns posterior draws (ndpost x n); impute the posterior mean.
+    # one posterior predictive draw: a random posterior iteration plus its residual noise
     utils::capture.output(pred <- stats::predict(object$fit, newdata = x_mat))
-    return(as.numeric(colMeans(pred)))
+    d <- sample.int(nrow(pred), 1)
+    sigma <- utils::tail(object$fit$sigma, nrow(pred))[d]
+    return(as.numeric(pred[d, ]) + stats::rnorm(ncol(pred), sd = sigma))
   }
   probs_pos <- sapply(object$fit, function(fit) {
     pred <- try(utils::capture.output(out <- stats::predict(fit, x_mat)), silent = TRUE)
@@ -748,16 +808,17 @@ predict.mimar_imputer_fit <- function(object, newdata, ...) {
 }
 
 .predict_donor_imputer <- function(object, newdata) {
+  if (identical(object$method, "hotdeck")) return(.predict_hotdeck_imputer(object, newdata))
   mats <- .paired_model_matrices(object$x_df, .model_predictors(newdata))
   xobs <- mats$observed
   xnew <- mats$new
   if (!nrow(xnew)) return(object$y[0])
   d <- as.matrix(stats::dist(rbind(xobs, xnew)))
   d <- d[seq_len(nrow(xobs)), nrow(xobs) + seq_len(nrow(xnew)), drop = FALSE]
-  vapply(seq_len(ncol(d)), function(i) {
+  .donor_values(object$y, vapply(seq_len(ncol(d)), function(i) {
     take <- order(d[, i])[seq_len(min(object$donors, nrow(xobs)))]
-    as.character(object$y[sample(take, 1)])
-  }, character(1))
+    take[sample.int(length(take), 1)]
+  }, integer(1)))
 }
 
 .model_predictors <- function(x) {
@@ -892,3 +953,94 @@ with.mimar_imputation <- function(data, expr, ...) {
     .mimar_stop("`model` must be a formula or a function of one completed data set.")
   }
 }
+
+.predict_famd_imputer <- function(object, newdata) {
+  znew <- .famd_matrix(newdata, object$basis) %*% object$rotation
+  .nearest_donors(object$scores, znew, object$y, object$donors)
+}
+
+# Random hot deck within adjustment cells formed by the categorical
+# predictors; a cell without donors falls back to all observed rows.
+.predict_hotdeck_imputer <- function(object, newdata) {
+  fac <- names(object$x_df)[vapply(object$x_df, is.factor, logical(1))]
+  cell <- function(d) if (length(fac)) interaction(lapply(.model_predictors(d)[fac], as.character), drop = TRUE)
+  cobs <- as.character(cell(object$x_df)); cnew <- as.character(cell(newdata))
+  .donor_values(object$y, vapply(seq_len(nrow(newdata)), function(i) {
+    pool <- if (length(fac)) which(cobs == cnew[i]) else integer(0)
+    if (!length(pool)) pool <- seq_along(object$y)
+    pool[sample.int(length(pool), 1)]
+  }, integer(1)))
+}
+
+.nearest_donors <- function(zobs, znew, y, donors) {
+  k <- min(donors, nrow(zobs))
+  .donor_values(y, vapply(seq_len(nrow(znew)), function(i) {
+    d <- colSums((t(zobs) - znew[i, ])^2)
+    take <- order(d, stats::runif(length(d)))[seq_len(k)]
+    take[sample.int(k, 1)]
+  }, integer(1)))
+}
+
+# Random forest imputation of Doove, van Buuren and Dusseldorp (2014), as in
+# mice.impute.rf(): donors are the observed rows sharing a terminal node with
+# the incomplete row, pooled over trees, and one is drawn at random.
+.fit_rf_imputer <- function(object, x, y, target, variable, num.trees = 10, min.node.size = 5, ...) {
+  .require_backend("ranger", object$method)
+  dat <- data.frame(.mimar_y = .model_target(y), .model_predictors(x), check.names = FALSE)
+  fitted <- try(suppressWarnings(ranger::ranger(.mimar_y ~ ., data = dat, num.trees = num.trees,
+                                                min.node.size = min.node.size, ...)), silent = TRUE)
+  if (inherits(fitted, "try-error")) return(.fit_constant_imputer(object, .simple_fill_value(target), target))
+  nodes <- stats::predict(fitted, data = dat, type = "terminalNodes")$predictions
+  structure(list(imputer = object, fit = fitted, nodes = nodes, y = y, target = target,
+                 task = .target_task(target)),
+            class = c("mimar_imputer_fit", "list"))
+}
+
+.predict_rf_imputer <- function(object, newdata) {
+  nnew <- stats::predict(object$fit, data = .model_predictors(newdata), type = "terminalNodes")$predictions
+  nnew <- matrix(nnew, ncol = ncol(object$nodes))
+  .donor_values(object$y, vapply(seq_len(nrow(nnew)), function(i) {
+    pool <- which(object$nodes == rep(nnew[i, ], each = nrow(object$nodes)), arr.ind = TRUE)[, 1]
+    pool[sample.int(length(pool), 1)]
+  }, integer(1)))
+}
+
+# Learners that predict a conditional mean for a numeric target; inside
+# impute() their predictions are turned into draws by predictive mean matching.
+.MATCH_METHODS <- c("ranger", "rpart", "svm", "glmnet", "fastgbm", "xgboost", "densemlp",
+                    "superlearner", "sl")
+
+.match_donors <- function(pred, yhat, y, donors) {
+  k <- min(donors, length(yhat))
+  y[vapply(pred, function(p) {
+    take <- order(abs(yhat - p), stats::runif(length(yhat)))[seq_len(k)]
+    take[sample.int(k, 1)]
+  }, integer(1))]
+}
+
+# One imputation step as run by impute(): norm/pmm/spmm draw their parameters
+# from the posterior, other learners are fitted on a bootstrap of the observed
+# rows. For the learners in .MATCH_METHODS and a numeric target, the out-of-bag
+# rows (scored by the bootstrap fit) are the donor pool, so imputations carry
+# residual noise instead of being conditional means (as in mixgb).
+.fit_step <- function(learner, method, xc, y, obs, predictors, target, variable, donors) {
+  if (method %in% c("norm", "pmm", "spmm")) {
+    return(fitimputer(learner, x = xc[obs, predictors, drop = FALSE], y = y[obs], target = target,
+                      variable = variable, donors = donors))
+  }
+  boot <- obs[sample.int(length(obs), replace = TRUE)]
+  fitted <- fitimputer(learner, x = xc[boot, predictors, drop = FALSE], y = y[boot], target = target,
+                       variable = variable, donors = donors)
+  if (!method %in% .MATCH_METHODS || .target_task(target) != "numeric" || !is.null(fitted$value)) {
+    return(fitted)
+  }
+  pool <- setdiff(obs, boot)
+  if (length(pool) < donors) pool <- unique(boot)
+  fitted$match <- list(yhat = as.numeric(stats::predict(fitted, xc[pool, predictors, drop = FALSE])),
+                       y = .target_to_numeric(y[pool]))
+  fitted$donors <- donors
+  fitted
+}
+
+# Donor values keep full numeric precision; categorical ones are returned as labels.
+.donor_values <- function(y, idx) if (is.numeric(y)) y[idx] else as.character(y[idx])
