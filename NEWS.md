@@ -1,3 +1,12 @@
+# mimar 1.5.2
+
+* `ipcw()`: the Kaplan-Meier estimate of the censoring distribution now puts events before censorings at tied
+  times (a subject who fails at `t` is not at risk of censoring at `t`), the standard convention, as in
+  `prodlim(reverse = TRUE)`. `G` now matches `survfit()` of the censoring distribution with events placed ahead
+  of tied censorings, and the weighted event proportion reproduces the Kaplan-Meier estimate exactly. With tied
+  event and censoring times, results change at about the 5th decimal (4.5e-5 for the IPCW cumulative incidence
+  on GBSG2; individual weights by up to about 1e-3). Without ties nothing changes.
+
 # mimar 1.5.1
 
 * Numeric targets: `"ranger"`, `"rpart"`, `"svm"`, `"glmnet"`, `"fastgbm"`, `"xgboost"`, `"densemlp"` and

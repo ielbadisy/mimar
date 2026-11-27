@@ -99,3 +99,16 @@ test_that("input validation errors are informative", {
   expect_error(nelsonaalen(bad, "time", "status"), "0/1")
   expect_error(ipcw(d, "time", "status", truncate = 1.5), "truncate")
 })
+
+test_that("ipcw puts events before censorings at tied times", {
+  skip_if_not_installed("survival")
+  d <- make_surv(200, seed = 3)
+  d$time <- ceiling(d$time)
+  G <- 1 / ipcw(d, time, status, type = "all")
+  s <- d$time - 0.01 * d$status
+  g <- survival::survfit(survival::Surv(s, 1 - d$status) ~ 1, timefix = FALSE)
+  expect_equal(G, stats::stepfun(g$time, c(1, g$surv), right = TRUE)(s))
+  w <- ipcw(d, time, status)
+  km <- survival::survfit(survival::Surv(time, status) ~ 1, d)
+  expect_equal(vapply(km$time, function(t) mean(w * (d$time <= t)), 1), 1 - km$surv)
+})

@@ -49,7 +49,12 @@ time or status (or missing \code{aux}, when \code{aux} is supplied) yield \code{
 \eqn{w_i = \Delta_i / \hat G(T_i-)}, where \eqn{\Delta_i} is the event
 indicator and \eqn{\hat G} is the Kaplan-Meier estimate of the censoring
 survivor function (Kaplan-Meier applied to the reversed indicator
-\eqn{1 - \texttt{status}}). Weights of this form remove the bias that
+\eqn{1 - \texttt{status}}). At a time where an event and a censoring tie,
+the event comes first, so the subject who fails is not in the risk set for
+censoring (the standard Kaplan-Meier convention, as in
+\code{prodlim::prodlim(reverse = TRUE)}). With this \eqn{\hat G}, the weighted
+event proportion \eqn{n^{-1}\sum_i w_i 1\{T_i \le t\}} equals
+\eqn{1 - \hat S(t)} of the Kaplan-Meier fit exactly. Weights of this form remove the bias that
 right-censoring introduces in a complete-case analysis and can be carried
 into weighted post-imputation analyses or into \code{\link[=assess]{assess()}}.
 }

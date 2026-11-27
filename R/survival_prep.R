@@ -96,12 +96,14 @@
 }
 
 # Kaplan-Meier survivor function of the `event` process, evaluated
-# left-continuously (just before) each element of `at`.
-.km_surv_left <- function(time, event, at) {
+# left-continuously (just before) each element of `at`. Subjects with
+# `first == 1` leave the risk set before `event` at a tied time: for the
+# censoring G (event = 1 - status, first = status), events precede censorings.
+.km_surv_left <- function(time, event, at, first = 0) {
   et <- sort(unique(time[event == 1]))
   if (!length(et)) return(rep(1, length(at)))
   d <- vapply(et, function(tt) sum(time == tt & event == 1), numeric(1))
-  r <- vapply(et, function(tt) sum(time >= tt), numeric(1))
+  r <- vapply(et, function(tt) sum(time > tt | (time == tt & first != 1)), numeric(1))
   surv <- cumprod(1 - d / r)
   idx <- findInterval(at - sqrt(.Machine$double.eps), et)
   out <- rep(1, length(at))
@@ -227,7 +229,12 @@ nelsonaalen <- function(data, timevar, statusvar, aux = NULL,
 #' \eqn{w_i = \Delta_i / \hat G(T_i-)}, where \eqn{\Delta_i} is the event
 #' indicator and \eqn{\hat G} is the Kaplan-Meier estimate of the censoring
 #' survivor function (Kaplan-Meier applied to the reversed indicator
-#' \eqn{1 - \texttt{status}}). Weights of this form remove the bias that
+#' \eqn{1 - \texttt{status}}). At a time where an event and a censoring tie,
+#' the event comes first, so the subject who fails is not in the risk set for
+#' censoring (the standard Kaplan-Meier convention, as in
+#' `prodlim::prodlim(reverse = TRUE)`). With this \eqn{\hat G}, the weighted
+#' event proportion \eqn{n^{-1}\sum_i w_i 1\{T_i \le t\}} equals
+#' \eqn{1 - \hat S(t)} of the Kaplan-Meier fit exactly. Weights of this form remove the bias that
 #' right-censoring introduces in a complete-case analysis and can be carried
 #' into weighted post-imputation analyses or into [assess()].
 #'
@@ -299,12 +306,12 @@ ipcw <- function(data, timevar, statusvar, aux = NULL,
   if (!any(ok)) return(G)
 
   if (is.null(aux)) {
-    G[ok] <- .km_surv_left(time[ok], 1 - status[ok], time[ok])
+    G[ok] <- .km_surv_left(time[ok], 1 - status[ok], time[ok], status[ok])
   } else if (identical(method, "km")) {
     strata <- .surv_strata(data[aux])
     for (lv in levels(strata)) {
       idx <- ok & !is.na(strata) & strata == lv
-      if (any(idx)) G[idx] <- .km_surv_left(time[idx], 1 - status[idx], time[idx])
+      if (any(idx)) G[idx] <- .km_surv_left(time[idx], 1 - status[idx], time[idx], status[idx])
     }
   } else {
     G[ok] <- .cox_cens_surv(time[ok], status[ok], data[ok, aux, drop = FALSE])
@@ -316,7 +323,7 @@ ipcw <- function(data, timevar, statusvar, aux = NULL,
 
   if (isTRUE(stabilized)) {
     G0 <- rep(NA_real_, n)
-    G0[ok] <- .km_surv_left(time[ok], 1 - status[ok], time[ok])
+    G0[ok] <- .km_surv_left(time[ok], 1 - status[ok], time[ok], status[ok])
     w <- w * G0
   }
 
